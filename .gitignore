@@ -1,0 +1,19 @@
+# Rust
+/target
+/src-tauri/target
+**/*.rs.bk
+
+# Node
+node_modules
+dist
+dist-ssr
+.vite
+
+# Generated IPC bindings (checked by CI, not committed)
+/src/bindings.ts
+
+# Local
+.env
+.env.local
+*.log
+.DS_Store
