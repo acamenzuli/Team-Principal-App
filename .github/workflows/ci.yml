@@ -90,8 +90,35 @@ jobs:
       - name: Test
         run: cargo test --workspace --all-targets
 
-      - name: Build the app
-        run: cargo build --release -p team-principal
-
       - name: Build the fake-game harness
         run: cargo build --release -p tp-fakegame
+
+      # Produces both an NSIS installer and a portable exe. This is how the app
+      # gets onto the rig without installing a Rust toolchain there: download
+      # the artifact from this run's summary page.
+      #
+      # Unsigned until Azure Trusted Signing is set up, so SmartScreen will warn
+      # on first launch. Expected — see the README.
+      - name: Build installer and portable exe
+        run: npm run tauri build
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: team-principal-installer
+          path: target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+      - name: Upload portable exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: team-principal-portable
+          path: target/release/TeamPrincipal.exe
+          if-no-files-found: error
+
+      - name: Upload fake-game harness
+        uses: actions/upload-artifact@v4
+        with:
+          name: tp-fakegame
+          path: target/release/tp-fakegame.exe
+          if-no-files-found: error
