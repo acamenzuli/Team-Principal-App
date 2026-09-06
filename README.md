@@ -4,7 +4,27 @@ A Windows 11 sim racing launcher and display manager. One button turns "I want t
 race" into a verified rig: peripherals checked, utilities started, display
 configured, game config written, window placed — then torn back down on exit.
 
-Status: **pre-implementation.** Design documents only. See `docs/design/`.
+Status: **milestone 1 — skeleton.** The app builds, installs and runs. Real
+monitor detection arrives in milestone 2.
+
+## Getting the app
+
+Every push builds a signed-later Windows installer. To get it without
+installing a toolchain:
+
+1. Open the [Actions tab](https://github.com/acamenzuli/Team-Principal-App/actions)
+2. Click the newest run
+3. Scroll to **Artifacts** and download **team-principal-installer**
+4. Unzip and run the setup `.exe`
+
+Windows SmartScreen will warn on first launch — the installer is not code-signed
+yet. Click **More info → Run anyway**. Code signing (Azure Trusted Signing) is a
+required pre-launch cost, noted in `docs/design/0001-stack.md`.
+
+`team-principal-portable` is the same app as a single `.exe` with no installer.
+`tp-fakegame` is the test harness for the window watchdog, not part of the product.
+
+To build it yourself, see `docs/DEV-SETUP.md`.
 
 ## What makes it different
 

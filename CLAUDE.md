@@ -15,6 +15,10 @@ Setup: `docs/DEV-SETUP.md`.
 
 Branch: `claude/sim-racing-launcher-display-i60v81`.
 
+CI also builds a Windows installer on every push and uploads it as a run
+artifact, so the app can be put on the rig without a toolchain there. Actions
+tab -> newest run -> Artifacts -> `team-principal-installer`.
+
 ## Commands
 
 ```powershell
