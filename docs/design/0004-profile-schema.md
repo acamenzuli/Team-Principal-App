@@ -159,7 +159,7 @@ pub struct DeviceRef {
 ## Storage
 
 ```
-%APPDATA%\<AppName>\
+%APPDATA%\Team Principal\
     rigs\<uuid>.json
     profiles\<uuid>.json
     snapshots\<uuid>.json          display topology snapshots

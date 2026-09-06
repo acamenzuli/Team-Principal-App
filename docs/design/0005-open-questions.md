@@ -156,15 +156,14 @@ spend verification effort on it.
 2. Should SimHub stay visible on the side screens during a session? If yes, that
    effectively makes centre-only the default and means the display module must
    *not* touch the side panels at launch.
-3. Product name for the installer, window title and `%APPDATA%` folder. Repo is
-   "Team-Principal-App" — is "Team Principal" the shipping name?
+3. ~~Product name~~ — **answered: Team Principal.** Installer, window title and
+   `%APPDATA%\Team Principal\`.
 4. Panic-restore hotkey — is `Ctrl+Alt+Shift+R` free on your system, or does
    SimHub / a vendor tool already claim it?
 
 ---
 
-## Milestone 1 is unblocked by
+## Milestone 1 is unblocked
 
-Only **H3** (folder name). Everything else gates milestones 3–5. If you answer
-H3 and sign off on the schemas in 0003 and 0004, I can build the skeleton while
-you are measuring.
+H3 is answered. Everything else gates milestones 3–5. Sign off on the schemas in
+0003 and 0004 and I can build the skeleton while you are measuring.
