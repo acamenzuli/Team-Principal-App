@@ -104,14 +104,31 @@ pub fn verify_and_log() -> Awareness {
     a
 }
 
-#[cfg(all(test, windows))]
+#[cfg(test)]
 mod tests {
-    use super::*;
-
+    /// Guards the manifest's *content*. Cheap, runs on every platform, and
+    /// catches the most likely regression: someone editing app.manifest and
+    /// dropping or misspelling the awareness declaration.
+    ///
+    /// It deliberately does NOT assert the running process is V2. The manifest
+    /// is embedded into the app executable by build.rs; `cargo test` builds a
+    /// separate harness binary that has no manifest, so such an assertion would
+    /// always read `Unaware` and prove nothing. The real check on the real
+    /// executable lives in `tests/dpi_manifest.rs`.
     #[test]
-    fn process_is_per_monitor_v2() {
-        // Guards against a Tauri upgrade or a build change quietly dropping the
-        // manifest. If this fails, do not "fix" the test.
-        assert_eq!(current(), Awareness::PerMonitorV2);
+    fn manifest_declares_per_monitor_v2() {
+        let manifest = include_str!("../../../app.manifest");
+        assert!(
+            manifest.contains("<dpiAwareness") && manifest.contains("PerMonitorV2"),
+            "app.manifest no longer declares PerMonitorV2"
+        );
+        assert!(
+            manifest.contains("true/pm"),
+            "app.manifest dropped the 2005-namespace dpiAware; older loaders read only that one"
+        );
+        assert!(
+            manifest.contains("longPathAware"),
+            "app.manifest dropped longPathAware; deep Steam and UE5 config paths will fail"
+        );
     }
 }

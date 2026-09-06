@@ -61,6 +61,10 @@ pub struct Cli {
     pub mock_fixture: Option<std::path::PathBuf>,
     /// `--simulate`: run a profile against mocks and print the plan, no UI.
     pub simulate: bool,
+    /// `--check-dpi`: print this process's DPI awareness and exit. Exists so an
+    /// integration test can interrogate the *real* executable, which is the
+    /// only binary the manifest is embedded into.
+    pub check_dpi: bool,
 }
 
 impl Cli {
@@ -75,6 +79,7 @@ impl Cli {
                     i += 1;
                 }
                 "--simulate" => cli.simulate = true,
+                "--check-dpi" => cli.check_dpi = true,
                 _ => {}
             }
             i += 1;
@@ -86,6 +91,15 @@ impl Cli {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let cli = Cli::from_env();
+
+    // Answered before anything else starts, so the check costs nothing and
+    // cannot be perturbed by logging or provider setup.
+    if cli.check_dpi {
+        let awareness = dpi_awareness();
+        println!("{awareness:?}");
+        std::process::exit(if awareness.is_acceptable() { 0 } else { 1 });
+    }
+
     let _log_guard = logging::init(logging::app_data_dir().join("logs"));
 
     // Checked before anything reads a monitor rectangle. See the module docs
