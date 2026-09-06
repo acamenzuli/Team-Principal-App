@@ -220,9 +220,12 @@ reported, always, and the UI shows the asymmetry when it exceeds ~1°.
 
 `gap_px` is `Option` on purpose. Converting a physical gap to pixels requires
 `gap_mm × px_per_mm`, which is only meaningful when the two panels across the
-seam have the same pixel pitch. Your 49" and your 27"s almost certainly do not.
-Returning `None` with a stated reason is more useful than returning a number
-that is quietly wrong.
+seam have the same pixel pitch. Whether yours do is not obvious and depends
+entirely on the side panels: a 5120×1440 49" has essentially the *same* pitch as
+a 27" 1440p panel (4.29 vs 4.28 px/mm — it is two 27" 1440p panels in one
+chassis), but against a 27" **1080p** side panel the pitch differs by about a
+third. So the app computes it per seam and returns `None` with a stated reason
+where it does not hold, rather than returning a number that is quietly wrong.
 
 ## 7. Handling mismatched screens
 

@@ -1,0 +1,17 @@
+[package]
+name = "tp-model"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# Deliberately depends on NOTHING platform-specific. No `windows`, no `tauri`.
+# This crate is the IPC contract; keeping it free of those makes the TypeScript
+# generator a fast standalone build and keeps the types testable everywhere.
+[dependencies]
+serde = { workspace = true }
+uuid = { workspace = true }
+ts-rs = { version = "10", features = ["serde-compat", "uuid-impl"] }
+
+[dev-dependencies]
+serde_json = { workspace = true }

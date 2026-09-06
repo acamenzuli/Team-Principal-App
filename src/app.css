@@ -1,0 +1,58 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* One hairline separates the bar from the body. No shadow, no card. */
+.app__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: 0 var(--s5);
+  height: 52px;
+  border-bottom: 1px solid var(--rule);
+  flex: 0 0 auto;
+}
+
+.app__mark {
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  font-size: var(--size-sm);
+}
+
+.app__milestone {
+  color: var(--ink-faint);
+  font-size: var(--size-sm);
+}
+
+.app__spacer {
+  flex: 1;
+}
+
+.app__body {
+  flex: 1;
+  overflow: auto;
+  padding: var(--s5);
+}
+
+.app__error {
+  color: var(--fail);
+  max-width: 60ch;
+}
+
+.badge {
+  font-size: var(--size-sm);
+  padding: var(--s1) var(--s3);
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
+  white-space: nowrap;
+}
+
+.badge--warn {
+  color: var(--warn);
+}
+
+.badge--fail {
+  color: var(--fail);
+}

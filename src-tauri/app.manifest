@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <assemblyIdentity type="win32" name="com.teamprincipal.app" version="0.1.0.0"/>
+
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <!-- Per-Monitor V2 from the first commit. All geometry math in this app
+           is in physical pixels; anything less than V2 means Windows lies to us
+           about monitor rectangles on a mixed-DPI setup, and every FOV and
+           window rectangle is then wrong by an invisible factor.
+
+           Both elements are present deliberately: older loaders read only the
+           2005-namespace dpiAware and ignore the 2016 dpiAwareness. -->
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true/pm</dpiAware>
+
+      <!-- Steam libraries on a secondary drive plus a UE5
+           Saved\Config\WindowsNoEditor\ chain gets close to MAX_PATH. -->
+      <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
+    </windowsSettings>
+  </application>
+
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows 10 / 11 -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
+    </application>
+  </compatibility>
+
+  <!-- Default integrity. The app ships unelevated and relaunches with the
+       `runas` verb only when a window operation is refused by UIPI, so the
+       common case never shows a UAC prompt. -->
+  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
+    <security>
+      <requestedPrivileges>
+        <requestedExecutionLevel level="asInvoker" uiAccess="false"/>
+      </requestedPrivileges>
+    </security>
+  </trustInfo>
+</assembly>

@@ -1,0 +1,172 @@
+{
+  "name": "Triple 27\" 1440p, identical",
+  "description": "Three matched panels on a clean baseline. The easy case, and the one every other tool assumes is universal.",
+  "monitors": [
+    {
+      "devicePath": "\\\\?\\DISPLAY#DELA1CF#1&L",
+      "gdiName": "\\\\.\\DISPLAY2",
+      "friendlyName": "Dell S2721DGF",
+      "identity": {
+        "manufacturerId": "DEL",
+        "productCode": 16847,
+        "serial": "9GH2Z13",
+        "serialNumber": 1,
+        "weekYear": [
+          12,
+          2023
+        ],
+        "cachedDevicePath": null
+      },
+      "nativeResolution": {
+        "width": 2560,
+        "height": 1440
+      },
+      "currentMode": {
+        "resolution": {
+          "width": 2560,
+          "height": 1440
+        },
+        "refreshHz": 165,
+        "bitsPerPixel": 32
+      },
+      "bounds": {
+        "x": -2560,
+        "y": 0,
+        "width": 2560,
+        "height": 1440
+      },
+      "isPrimary": false,
+      "dpiScale": 1.0,
+      "physicalSize": {
+        "width": 598,
+        "height": 336,
+        "millimetrePrecision": true
+      }
+    },
+    {
+      "devicePath": "\\\\?\\DISPLAY#DELA1CF#1&C",
+      "gdiName": "\\\\.\\DISPLAY1",
+      "friendlyName": "Dell S2721DGF",
+      "identity": {
+        "manufacturerId": "DEL",
+        "productCode": 16847,
+        "serial": "9GH2Z14",
+        "serialNumber": 2,
+        "weekYear": [
+          12,
+          2023
+        ],
+        "cachedDevicePath": null
+      },
+      "nativeResolution": {
+        "width": 2560,
+        "height": 1440
+      },
+      "currentMode": {
+        "resolution": {
+          "width": 2560,
+          "height": 1440
+        },
+        "refreshHz": 165,
+        "bitsPerPixel": 32
+      },
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 2560,
+        "height": 1440
+      },
+      "isPrimary": true,
+      "dpiScale": 1.0,
+      "physicalSize": {
+        "width": 598,
+        "height": 336,
+        "millimetrePrecision": true
+      }
+    },
+    {
+      "devicePath": "\\\\?\\DISPLAY#DELA1CF#1&R",
+      "gdiName": "\\\\.\\DISPLAY3",
+      "friendlyName": "Dell S2721DGF",
+      "identity": {
+        "manufacturerId": "DEL",
+        "productCode": 16847,
+        "serial": "9GH2Z15",
+        "serialNumber": 3,
+        "weekYear": [
+          12,
+          2023
+        ],
+        "cachedDevicePath": null
+      },
+      "nativeResolution": {
+        "width": 2560,
+        "height": 1440
+      },
+      "currentMode": {
+        "resolution": {
+          "width": 2560,
+          "height": 1440
+        },
+        "refreshHz": 165,
+        "bitsPerPixel": 32
+      },
+      "bounds": {
+        "x": 2560,
+        "y": 0,
+        "width": 2560,
+        "height": 1440
+      },
+      "isPrimary": false,
+      "dpiScale": 1.0,
+      "physicalSize": {
+        "width": 598,
+        "height": 336,
+        "millimetrePrecision": true
+      }
+    }
+  ],
+  "devices": [
+    {
+      "device": {
+        "vid": 3767,
+        "pid": 3588,
+        "serial": null,
+        "instancePath": "HID\\VID_0EB7&PID_0E04\\7&0&0000",
+        "displayName": "Fanatec CSL DD"
+      },
+      "manufacturer": "Endor AG",
+      "rawProductName": null,
+      "status": "connected",
+      "hidPresent": true,
+      "dinputPresent": true,
+      "dinputSlot": 0,
+      "dinputInstanceGuid": null,
+      "isVirtual": false,
+      "vjoy": null,
+      "bindingDrift": null
+    },
+    {
+      "device": {
+        "vid": 3767,
+        "pid": 6203,
+        "serial": null,
+        "instancePath": "HID\\VID_0EB7&PID_183B\\7&0&0000",
+        "displayName": "Fanatec ClubSport Pedals"
+      },
+      "manufacturer": "Endor AG",
+      "rawProductName": null,
+      "status": "connected",
+      "hidPresent": true,
+      "dinputPresent": true,
+      "dinputSlot": 1,
+      "dinputInstanceGuid": null,
+      "isVirtual": false,
+      "vjoy": null,
+      "bindingDrift": null
+    }
+  ],
+  "runningProcesses": [
+    "SimHub.exe"
+  ]
+}

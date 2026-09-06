@@ -1,0 +1,117 @@
+//! Team Principal — sim racing launcher and display manager.
+//!
+//! Milestone 1: skeleton. Tauri v2 + React, DPI manifest, structured logging,
+//! typed IPC, provider seams with fixture-driven mocks, CI.
+//!
+//! Architecture note: the frontend never touches Win32. It calls the commands
+//! in [`ipc`], which go through the traits in [`providers`], which have exactly
+//! two implementations — the real Win32 one and a mock driven by JSON fixtures.
+
+pub mod error;
+pub mod ipc;
+pub mod logging;
+pub mod providers;
+
+/// Which milestone this build represents. Shown in the UI and in diagnostics so
+/// a bug report says what was actually built, not what was planned.
+pub const MILESTONE: u8 = 1;
+
+#[cfg(windows)]
+pub use providers::win::dpi::Awareness;
+
+#[cfg(not(windows))]
+pub use non_windows_dpi::Awareness;
+
+#[cfg(not(windows))]
+mod non_windows_dpi {
+    /// Mirror of the Windows type so the rest of the app compiles anywhere.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub enum Awareness {
+        Unknown,
+    }
+    impl Awareness {
+        pub fn is_acceptable(self) -> bool {
+            false
+        }
+    }
+}
+
+pub fn dpi_awareness() -> Awareness {
+    #[cfg(windows)]
+    {
+        providers::win::dpi::current()
+    }
+    #[cfg(not(windows))]
+    {
+        Awareness::Unknown
+    }
+}
+
+/// ISO-8601 UTC, the timestamp format used everywhere in the model.
+pub fn now_iso8601() -> String {
+    time::OffsetDateTime::now_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".into())
+}
+
+/// Command-line options. Deliberately tiny.
+#[derive(Debug, Clone, Default)]
+pub struct Cli {
+    /// `--mock <path>`: run against a fixture instead of real hardware.
+    pub mock_fixture: Option<std::path::PathBuf>,
+    /// `--simulate`: run a profile against mocks and print the plan, no UI.
+    pub simulate: bool,
+}
+
+impl Cli {
+    pub fn from_env() -> Cli {
+        let args: Vec<String> = std::env::args().skip(1).collect();
+        let mut cli = Cli::default();
+        let mut i = 0;
+        while i < args.len() {
+            match args[i].as_str() {
+                "--mock" => {
+                    cli.mock_fixture = args.get(i + 1).map(std::path::PathBuf::from);
+                    i += 1;
+                }
+                "--simulate" => cli.simulate = true,
+                _ => {}
+            }
+            i += 1;
+        }
+        cli
+    }
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    let cli = Cli::from_env();
+    let _log_guard = logging::init(logging::app_data_dir().join("logs"));
+
+    // Checked before anything reads a monitor rectangle. See the module docs
+    // for why a wrong answer here poisons every geometry value in the app.
+    #[cfg(windows)]
+    providers::win::dpi::verify_and_log();
+
+    let providers = match providers::Providers::select(cli.mock_fixture.as_deref()) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::error!(error = %e, "could not initialise providers");
+            eprintln!("Team Principal could not start: {e}");
+            std::process::exit(1);
+        }
+    };
+
+    tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .manage(providers)
+        .invoke_handler(tauri::generate_handler![
+            ipc::app_info,
+            ipc::list_monitors,
+            ipc::list_devices,
+            ipc::parse_length,
+            ipc::solve_curvature,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running Team Principal");
+}

@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  # Everything that does not need a Windows runner. This is most of it, which is
+  # the point of keeping tp-model and tp-geometry free of `windows` and `tauri`:
+  # the core math and the whole IPC contract are checked in seconds on Linux.
+  check:
+    name: Lint, test, cross-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: x86_64-pc-windows-msvc
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Formatting
+        run: cargo fmt --all --check
+
+      - name: Test the platform-neutral crates
+        run: cargo test -p tp-model -p tp-geometry --all-targets
+
+      # Type-checks the Win32 code without needing an MSVC linker, so a broken
+      # `windows` call is caught here rather than on the Windows job minutes later.
+      - name: Cross-check the Windows build
+        run: cargo check --workspace --target x86_64-pc-windows-msvc --all-targets
+
+      - name: Clippy
+        run: cargo clippy --workspace --target x86_64-pc-windows-msvc --all-targets -- -D warnings
+
+      # `cargo test` regenerates src/bindings from the Rust types. If that
+      # produces a diff, the committed TypeScript contract is stale.
+      - name: TypeScript bindings are up to date
+        run: |
+          git diff --exit-code -- src/bindings \
+            || { echo "::error::src/bindings is stale — run 'cargo test -p tp-model' and commit the result"; exit 1; }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # ts-rs covers payload types but knows nothing about command *names*, so
+      # this closes the gap a rename would otherwise slip through.
+      - name: IPC command surface matches the client
+        run: node scripts/check-ipc.mjs
+
+      - name: Frontend typecheck and build
+        run: npm run build
+
+  # The real thing. Only this job can link, run the DPI-awareness assertion, or
+  # produce an installer.
+  windows:
+    name: Windows build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      # Includes the runtime assertion that the process really is Per-Monitor
+      # V2 DPI aware, which only means anything on a real Windows process.
+      - name: Test
+        run: cargo test --workspace --all-targets
+
+      - name: Build the app
+        run: cargo build --release -p team-principal
+
+      - name: Build the fake-game harness
+        run: cargo build --release -p tp-fakegame

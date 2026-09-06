@@ -1,0 +1,69 @@
+{
+  "name": "Single 49\" ultrawide",
+  "description": "One curved super-ultrawide, no side panels. Exercises the curvature path and the centre-only session mode.",
+  "monitors": [
+    {
+      "devicePath": "\\\\?\\DISPLAY#SAM7179#1&C",
+      "gdiName": "\\\\.\\DISPLAY1",
+      "friendlyName": "Odyssey G9",
+      "identity": {
+        "manufacturerId": "SAM",
+        "productCode": 29049,
+        "serial": "HNMX500123",
+        "serialNumber": 16,
+        "weekYear": [
+          12,
+          2023
+        ],
+        "cachedDevicePath": null
+      },
+      "nativeResolution": {
+        "width": 5120,
+        "height": 1440
+      },
+      "currentMode": {
+        "resolution": {
+          "width": 5120,
+          "height": 1440
+        },
+        "refreshHz": 240,
+        "bitsPerPixel": 32
+      },
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 5120,
+        "height": 1440
+      },
+      "isPrimary": true,
+      "dpiScale": 1.0,
+      "physicalSize": {
+        "width": 1193,
+        "height": 336,
+        "millimetrePrecision": true
+      }
+    }
+  ],
+  "devices": [
+    {
+      "device": {
+        "vid": 3767,
+        "pid": 3588,
+        "serial": null,
+        "instancePath": "HID\\VID_0EB7&PID_0E04\\7&0&0000",
+        "displayName": "Fanatec CSL DD"
+      },
+      "manufacturer": null,
+      "rawProductName": null,
+      "status": "connected",
+      "hidPresent": true,
+      "dinputPresent": true,
+      "dinputSlot": 0,
+      "dinputInstanceGuid": null,
+      "isVirtual": false,
+      "vjoy": null,
+      "bindingDrift": null
+    }
+  ],
+  "runningProcesses": []
+}

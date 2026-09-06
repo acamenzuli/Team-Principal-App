@@ -1,0 +1,151 @@
+{
+  "name": "Mixed DPI scaling",
+  "description": "150% on the centre panel, 100% on the sides. Every rectangle here is wrong unless the process is Per-Monitor V2 aware, which makes this the fixture that catches a dropped manifest.",
+  "monitors": [
+    {
+      "devicePath": "\\\\?\\DISPLAY#ACR0001#1&L",
+      "gdiName": "\\\\.\\DISPLAY2",
+      "friendlyName": "Acer XV240Y",
+      "identity": {
+        "manufacturerId": "ACR",
+        "productCode": 1,
+        "serial": null,
+        "serialNumber": 33,
+        "weekYear": [
+          12,
+          2023
+        ],
+        "cachedDevicePath": null
+      },
+      "nativeResolution": {
+        "width": 1920,
+        "height": 1080
+      },
+      "currentMode": {
+        "resolution": {
+          "width": 1920,
+          "height": 1080
+        },
+        "refreshHz": 144,
+        "bitsPerPixel": 32
+      },
+      "bounds": {
+        "x": -1920,
+        "y": 0,
+        "width": 1920,
+        "height": 1080
+      },
+      "isPrimary": false,
+      "dpiScale": 1.0,
+      "physicalSize": {
+        "width": 531,
+        "height": 299,
+        "millimetrePrecision": true
+      }
+    },
+    {
+      "devicePath": "\\\\?\\DISPLAY#LGD0002#1&C",
+      "gdiName": "\\\\.\\DISPLAY1",
+      "friendlyName": "LG 27GP950",
+      "identity": {
+        "manufacturerId": "LGD",
+        "productCode": 2,
+        "serial": "912NTAB1234",
+        "serialNumber": 34,
+        "weekYear": [
+          12,
+          2023
+        ],
+        "cachedDevicePath": null
+      },
+      "nativeResolution": {
+        "width": 3840,
+        "height": 2160
+      },
+      "currentMode": {
+        "resolution": {
+          "width": 3840,
+          "height": 2160
+        },
+        "refreshHz": 144,
+        "bitsPerPixel": 32
+      },
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 3840,
+        "height": 2160
+      },
+      "isPrimary": true,
+      "dpiScale": 1.5,
+      "physicalSize": {
+        "width": 598,
+        "height": 336,
+        "millimetrePrecision": true
+      }
+    },
+    {
+      "devicePath": "\\\\?\\DISPLAY#ACR0001#1&R",
+      "gdiName": "\\\\.\\DISPLAY3",
+      "friendlyName": "Acer XV240Y",
+      "identity": {
+        "manufacturerId": "ACR",
+        "productCode": 1,
+        "serial": null,
+        "serialNumber": 35,
+        "weekYear": [
+          12,
+          2023
+        ],
+        "cachedDevicePath": null
+      },
+      "nativeResolution": {
+        "width": 1920,
+        "height": 1080
+      },
+      "currentMode": {
+        "resolution": {
+          "width": 1920,
+          "height": 1080
+        },
+        "refreshHz": 144,
+        "bitsPerPixel": 32
+      },
+      "bounds": {
+        "x": 3840,
+        "y": 0,
+        "width": 1920,
+        "height": 1080
+      },
+      "isPrimary": false,
+      "dpiScale": 1.0,
+      "physicalSize": {
+        "width": 531,
+        "height": 299,
+        "millimetrePrecision": true
+      }
+    }
+  ],
+  "devices": [
+    {
+      "device": {
+        "vid": 3767,
+        "pid": 3588,
+        "serial": null,
+        "instancePath": "HID\\VID_0EB7&PID_0E04\\7&0&0000",
+        "displayName": "Wheelbase"
+      },
+      "manufacturer": null,
+      "rawProductName": null,
+      "status": "connected",
+      "hidPresent": true,
+      "dinputPresent": true,
+      "dinputSlot": 0,
+      "dinputInstanceGuid": null,
+      "isVirtual": false,
+      "vjoy": null,
+      "bindingDrift": null
+    }
+  ],
+  "runningProcesses": []
+}

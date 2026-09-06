@@ -9,8 +9,8 @@ dist
 dist-ssr
 .vite
 
-# Generated IPC bindings (checked by CI, not committed)
-/src/bindings.ts
+# Generated IPC bindings ARE committed — CI regenerates them and fails on a
+# diff, which is what makes a stale contract impossible to merge.
 
 # Local
 .env

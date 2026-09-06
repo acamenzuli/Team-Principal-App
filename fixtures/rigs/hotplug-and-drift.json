@@ -1,0 +1,241 @@
+{
+  "name": "Peripherals in every state",
+  "description": "One device in each of the three states, plus a connected device whose DirectInput slot has moved since the profile was saved, plus a vJoy target with no feeder running. These are the failures that are hard to see and expensive to discover on the grid.",
+  "monitors": [
+    {
+      "devicePath": "\\\\?\\DISPLAY#DELA1CF#1&L",
+      "gdiName": "\\\\.\\DISPLAY2",
+      "friendlyName": "Dell S2721DGF",
+      "identity": {
+        "manufacturerId": "DEL",
+        "productCode": 16847,
+        "serial": "9GH2Z13",
+        "serialNumber": 1,
+        "weekYear": [
+          12,
+          2023
+        ],
+        "cachedDevicePath": null
+      },
+      "nativeResolution": {
+        "width": 2560,
+        "height": 1440
+      },
+      "currentMode": {
+        "resolution": {
+          "width": 2560,
+          "height": 1440
+        },
+        "refreshHz": 165,
+        "bitsPerPixel": 32
+      },
+      "bounds": {
+        "x": -2560,
+        "y": 0,
+        "width": 2560,
+        "height": 1440
+      },
+      "isPrimary": false,
+      "dpiScale": 1.0,
+      "physicalSize": {
+        "width": 598,
+        "height": 336,
+        "millimetrePrecision": true
+      }
+    },
+    {
+      "devicePath": "\\\\?\\DISPLAY#DELA1CF#1&C",
+      "gdiName": "\\\\.\\DISPLAY1",
+      "friendlyName": "Dell S2721DGF",
+      "identity": {
+        "manufacturerId": "DEL",
+        "productCode": 16847,
+        "serial": "9GH2Z14",
+        "serialNumber": 2,
+        "weekYear": [
+          12,
+          2023
+        ],
+        "cachedDevicePath": null
+      },
+      "nativeResolution": {
+        "width": 2560,
+        "height": 1440
+      },
+      "currentMode": {
+        "resolution": {
+          "width": 2560,
+          "height": 1440
+        },
+        "refreshHz": 165,
+        "bitsPerPixel": 32
+      },
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 2560,
+        "height": 1440
+      },
+      "isPrimary": true,
+      "dpiScale": 1.0,
+      "physicalSize": {
+        "width": 598,
+        "height": 336,
+        "millimetrePrecision": true
+      }
+    },
+    {
+      "devicePath": "\\\\?\\DISPLAY#DELA1CF#1&R",
+      "gdiName": "\\\\.\\DISPLAY3",
+      "friendlyName": "Dell S2721DGF",
+      "identity": {
+        "manufacturerId": "DEL",
+        "productCode": 16847,
+        "serial": "9GH2Z15",
+        "serialNumber": 3,
+        "weekYear": [
+          12,
+          2023
+        ],
+        "cachedDevicePath": null
+      },
+      "nativeResolution": {
+        "width": 2560,
+        "height": 1440
+      },
+      "currentMode": {
+        "resolution": {
+          "width": 2560,
+          "height": 1440
+        },
+        "refreshHz": 165,
+        "bitsPerPixel": 32
+      },
+      "bounds": {
+        "x": 2560,
+        "y": 0,
+        "width": 2560,
+        "height": 1440
+      },
+      "isPrimary": false,
+      "dpiScale": 1.0,
+      "physicalSize": {
+        "width": 598,
+        "height": 336,
+        "millimetrePrecision": true
+      }
+    }
+  ],
+  "devices": [
+    {
+      "device": {
+        "vid": 3767,
+        "pid": 3588,
+        "serial": null,
+        "instancePath": "HID\\VID_0EB7&PID_0E04\\7&0&0000",
+        "displayName": "LaPrima wheelbase"
+      },
+      "manufacturer": "Simagic",
+      "rawProductName": null,
+      "status": "connected",
+      "hidPresent": true,
+      "dinputPresent": true,
+      "dinputSlot": 0,
+      "dinputInstanceGuid": null,
+      "isVirtual": false,
+      "vjoy": null,
+      "bindingDrift": null
+    },
+    {
+      "device": {
+        "vid": 8137,
+        "pid": 1,
+        "serial": null,
+        "instancePath": "HID\\VID_1FC9&PID_0001\\7&0&0000",
+        "displayName": "Invicta S-Series pedals"
+      },
+      "manufacturer": null,
+      "rawProductName": "HID-compliant game controller",
+      "status": "connecting",
+      "hidPresent": true,
+      "dinputPresent": false,
+      "dinputSlot": null,
+      "dinputInstanceGuid": null,
+      "isVirtual": false,
+      "vjoy": null,
+      "bindingDrift": null
+    },
+    {
+      "device": {
+        "vid": 5840,
+        "pid": 3855,
+        "serial": null,
+        "instancePath": "HID\\VID_16D0&PID_0F0F\\7&0&0000",
+        "displayName": "HGP shifter"
+      },
+      "manufacturer": null,
+      "rawProductName": null,
+      "status": "disconnected",
+      "hidPresent": false,
+      "dinputPresent": false,
+      "dinputSlot": null,
+      "dinputInstanceGuid": null,
+      "isVirtual": false,
+      "vjoy": null,
+      "bindingDrift": null
+    },
+    {
+      "device": {
+        "vid": 1155,
+        "pid": 22352,
+        "serial": null,
+        "instancePath": "HID\\VID_0483&PID_5750\\7&0&0000",
+        "displayName": "Forte button box"
+      },
+      "manufacturer": null,
+      "rawProductName": null,
+      "status": "connected",
+      "hidPresent": true,
+      "dinputPresent": true,
+      "dinputSlot": 4,
+      "dinputInstanceGuid": null,
+      "isVirtual": false,
+      "vjoy": null,
+      "bindingDrift": {
+        "expectedSlot": 2,
+        "actualSlot": 4,
+        "expectedInstanceGuid": null,
+        "actualInstanceGuid": null
+      }
+    },
+    {
+      "device": {
+        "vid": 4660,
+        "pid": 48813,
+        "serial": null,
+        "instancePath": "HID\\VID_1234&PID_BEAD\\7&0&0000",
+        "displayName": "Sim-Lab handbrake (via vJoy)"
+      },
+      "manufacturer": null,
+      "rawProductName": "vJoy Device",
+      "status": "connecting",
+      "hidPresent": true,
+      "dinputPresent": true,
+      "dinputSlot": 3,
+      "dinputInstanceGuid": null,
+      "isVirtual": true,
+      "vjoy": {
+        "deviceId": 1,
+        "driverVersion": "2.2.1",
+        "interfaceVersion": "2.2.1",
+        "status": "free",
+        "feederProcess": "JoystickGremlin.exe",
+        "feederRunning": false
+      },
+      "bindingDrift": null
+    }
+  ],
+  "runningProcesses": [
+    "SimHub.exe"
+  ]
+}

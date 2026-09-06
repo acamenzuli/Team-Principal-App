@@ -1,0 +1,172 @@
+{
+  "name": "Mismatched panel heights",
+  "description": "A 49\" 5120x1440 ultrawide flanked by two 27\" 1080p panels. Panel heights differ in pixels and physical pitch differs by a third, so the virtual desktop is a bounding box with dead regions and bezel gaps cannot be expressed in pixels across the seam. This is the shape the product exists for.",
+  "monitors": [
+    {
+      "devicePath": "\\\\?\\DISPLAY#DELA1CF#1&L",
+      "gdiName": "\\\\.\\DISPLAY2",
+      "friendlyName": "Dell S2721HGF",
+      "identity": {
+        "manufacturerId": "DEL",
+        "productCode": 16848,
+        "serial": "9GH2Z13",
+        "serialNumber": 1,
+        "weekYear": [
+          12,
+          2023
+        ],
+        "cachedDevicePath": null
+      },
+      "nativeResolution": {
+        "width": 1920,
+        "height": 1080
+      },
+      "currentMode": {
+        "resolution": {
+          "width": 1920,
+          "height": 1080
+        },
+        "refreshHz": 165,
+        "bitsPerPixel": 32
+      },
+      "bounds": {
+        "x": -1920,
+        "y": 0,
+        "width": 1920,
+        "height": 1080
+      },
+      "isPrimary": false,
+      "dpiScale": 1.0,
+      "physicalSize": {
+        "width": 598,
+        "height": 336,
+        "millimetrePrecision": true
+      }
+    },
+    {
+      "devicePath": "\\\\?\\DISPLAY#SAM7179#1&C",
+      "gdiName": "\\\\.\\DISPLAY1",
+      "friendlyName": "Odyssey G9",
+      "identity": {
+        "manufacturerId": "SAM",
+        "productCode": 29049,
+        "serial": "HNMX500123",
+        "serialNumber": 16,
+        "weekYear": [
+          12,
+          2023
+        ],
+        "cachedDevicePath": null
+      },
+      "nativeResolution": {
+        "width": 5120,
+        "height": 1440
+      },
+      "currentMode": {
+        "resolution": {
+          "width": 5120,
+          "height": 1440
+        },
+        "refreshHz": 240,
+        "bitsPerPixel": 32
+      },
+      "bounds": {
+        "x": 0,
+        "y": 300,
+        "width": 5120,
+        "height": 1440
+      },
+      "isPrimary": true,
+      "dpiScale": 1.0,
+      "physicalSize": {
+        "width": 1193,
+        "height": 336,
+        "millimetrePrecision": true
+      }
+    },
+    {
+      "devicePath": "\\\\?\\DISPLAY#DELA1CF#1&R",
+      "gdiName": "\\\\.\\DISPLAY3",
+      "friendlyName": "Dell S2721HGF",
+      "identity": {
+        "manufacturerId": "DEL",
+        "productCode": 16848,
+        "serial": "9GH2Z15",
+        "serialNumber": 3,
+        "weekYear": [
+          12,
+          2023
+        ],
+        "cachedDevicePath": null
+      },
+      "nativeResolution": {
+        "width": 1920,
+        "height": 1080
+      },
+      "currentMode": {
+        "resolution": {
+          "width": 1920,
+          "height": 1080
+        },
+        "refreshHz": 165,
+        "bitsPerPixel": 32
+      },
+      "bounds": {
+        "x": 5120,
+        "y": 0,
+        "width": 1920,
+        "height": 1080
+      },
+      "isPrimary": false,
+      "dpiScale": 1.0,
+      "physicalSize": {
+        "width": 598,
+        "height": 336,
+        "millimetrePrecision": true
+      }
+    }
+  ],
+  "devices": [
+    {
+      "device": {
+        "vid": 3767,
+        "pid": 3588,
+        "serial": null,
+        "instancePath": "HID\\VID_0EB7&PID_0E04\\7&0&0000",
+        "displayName": "Wheelbase"
+      },
+      "manufacturer": null,
+      "rawProductName": null,
+      "status": "connected",
+      "hidPresent": true,
+      "dinputPresent": true,
+      "dinputSlot": 0,
+      "dinputInstanceGuid": null,
+      "isVirtual": false,
+      "vjoy": null,
+      "bindingDrift": null
+    },
+    {
+      "device": {
+        "vid": 8137,
+        "pid": 1,
+        "serial": null,
+        "instancePath": "HID\\VID_1FC9&PID_0001\\7&0&0000",
+        "displayName": "Pedals"
+      },
+      "manufacturer": null,
+      "rawProductName": null,
+      "status": "connected",
+      "hidPresent": true,
+      "dinputPresent": true,
+      "dinputSlot": 1,
+      "dinputInstanceGuid": null,
+      "isVirtual": false,
+      "vjoy": null,
+      "bindingDrift": null
+    }
+  ],
+  "runningProcesses": [
+    "SimHub.exe"
+  ]
+}

@@ -1,0 +1,104 @@
+/* Team Principal — design tokens.
+ *
+ * See docs/design/0006-visual-language.md for the reasoning. The short version:
+ * this is an instrument read from 700 mm away in a dim room, not a web page.
+ */
+
+:root {
+  /* Ground and structure. Near-black, separated by hairlines rather than by
+     cards, shadows or elevation. */
+  --ground: #0b0d0f;
+  --ground-raised: #12161a;
+  --rule: #1e242a;
+  --rule-strong: #2c343c;
+
+  /* Text. Three levels, no more. */
+  --ink: #e9edf0;
+  --ink-dim: #9aa5ad;
+  --ink-faint: #5c666f;
+
+  /* Status. Always paired with a glyph and a word — never colour alone. */
+  --pass: #3bd16f;
+  --warn: #ffb02e;
+  --fail: #ff4d4d;
+  --run: #5aa9ff;
+  --idle: #5c666f;
+
+  /* Amber is the only saturated hue in the chrome: warnings and actions. */
+  --accent: #ffb02e;
+  --accent-ink: #0b0d0f;
+
+  /* Type. Sized for the rig, not the desk. */
+  --font-ui: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --font-num: "Cascadia Mono", "Consolas", ui-monospace, monospace;
+  --size-sm: 13px;
+  --size-base: 16px;
+  --size-row: 18px;
+  --size-readout: 22px;
+  --size-display: 34px;
+
+  /* Space. A 4px grid; nothing off it. */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+
+  /* Instrument, not web app. */
+  --radius: 2px;
+  --hit: 44px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: var(--size-base);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  /* No text selection on chrome: this is an appliance, and a stray drag
+     selecting half the UI looks broken. Inputs opt back in below. */
+  user-select: none;
+}
+
+input,
+textarea,
+[data-selectable] {
+  user-select: text;
+}
+
+/* Every number in this app is tabular. A value updating live must not shift
+   its neighbours, and columns of figures must align. */
+.num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Focus must be obvious from across a room. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
