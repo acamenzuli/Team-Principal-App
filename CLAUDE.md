@@ -78,7 +78,7 @@ cargo check --workspace --target x86_64-pc-windows-msvc --all-targets
 
 ## Milestones
 
-Stop at the end of each for hardware testing. Current: **9 complete**.
+Stop at the end of each for hardware testing. Current: **10 complete**.
 
 1. ✅ Skeleton — Tauri, DPI manifest, logging, typed IPC, mock providers, CI
 2. ✅ Display enumeration — CCD, EDID from the registry, dead regions
@@ -93,5 +93,6 @@ Stop at the end of each for hardware testing. Current: **9 complete**.
    actions, the ready gate and its second-click launch
 9. ✅ Display control — mode and layout planning, preview, staged apply with
    one commit, read-back, confirm-or-revert countdown, panic hotkey, snapshots
-10. Adapters wave one
+10. ✅ Adapters wave one — comment-preserving INI editor, backup store with
+    one-click restore, preview-before-apply diff, iRacing and Assetto Corsa
 11. Polish and packaging

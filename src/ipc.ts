@@ -12,7 +12,15 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type { AccentPreset } from "./bindings/AccentPreset";
 import type { AppInfo } from "./bindings/AppInfo";
+import type { AdapterInfo } from "./bindings/AdapterInfo";
+import type { AdapterPreview } from "./bindings/AdapterPreview";
+import type { AppliedAdapterInfo } from "./bindings/AppliedAdapterInfo";
 import type { AvailableModes } from "./bindings/AvailableModes";
+import type { BackupInfo } from "./bindings/BackupInfo";
+import type { Confidence } from "./bindings/Confidence";
+import type { FileDiff } from "./bindings/FileDiff";
+import type { MissingKey } from "./bindings/MissingKey";
+import type { ValueChange } from "./bindings/ValueChange";
 import type { AxisReading } from "./bindings/AxisReading";
 import type { ConfirmOutcome } from "./bindings/ConfirmOutcome";
 import type { ConfirmState } from "./bindings/ConfirmState";
@@ -62,7 +70,15 @@ import type { IpcError } from "./bindings/IpcError";
 
 export type {
   AccentPreset,
+  AdapterInfo,
+  AdapterPreview,
   AppInfo,
+  AppliedAdapterInfo,
+  BackupInfo,
+  Confidence,
+  FileDiff,
+  MissingKey,
+  ValueChange,
   AvailableModes,
   AxisReading,
   ConfirmOutcome,
@@ -222,6 +238,34 @@ export function onDevicesChanged(
 
 /** Null when no monitors are detected at all — not an empty desktop. */
 export const desktopLayout = () => invoke<DesktopLayoutInfo | null>("desktop_layout");
+
+// ------------------------------------------------------------------ adapters
+
+/**
+ * The adapters that exist, and how well each one's key names are known.
+ *
+ * Confidence is on the wire on purpose: "read out of the shipped file" and
+ * "corroborated across second-hand sources" are different claims, and the UI
+ * must not make them look alike.
+ */
+export const listAdapters = () => invoke<AdapterInfo[]>("list_adapters");
+
+/** What an adapter would write, and what is already correct. Reads only. */
+export const previewAdapter = (args: {
+  adapterId: string;
+  rig: RigModel;
+  session: SessionMode;
+}) => invoke<AdapterPreview>("preview_adapter", args);
+
+/** Back up, then write. Resolves to the backup id, so this write alone can be undone. */
+export const applyAdapter = (args: { adapterId: string; rig: RigModel; session: SessionMode }) =>
+  invoke<AppliedAdapterInfo>("apply_adapter", args);
+
+/** Every backup, newest first. */
+export const listBackups = () => invoke<BackupInfo[]>("list_backups");
+
+/** Put one operation's files back exactly as they were. */
+export const restoreBackup = (id: string) => invoke<string[]>("restore_backup", { id });
 
 // ------------------------------------------------------------ display control
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { Adapters } from "./adapters/Adapters";
 import { Dashboard } from "./dashboard/Dashboard";
 import { applyTheme } from "./design/theme";
 import { Peripherals } from "./devices/Peripherals";
@@ -17,7 +18,7 @@ import {
 } from "./ipc";
 import "./app.css";
 
-type View = "rig" | "screen" | "devices" | "games" | "windows" | "settings";
+type View = "rig" | "screen" | "devices" | "games" | "adapters" | "windows" | "settings";
 
 export function App() {
   const [info, setInfo] = useState<AppInfo | null>(null);
@@ -89,6 +90,9 @@ export function App() {
           <Tab id="games" current={view} onSelect={setView}>
             Games
           </Tab>
+          <Tab id="adapters" current={view} onSelect={setView}>
+            Game Settings
+          </Tab>
           <Tab id="windows" current={view} onSelect={setView}>
             Windows
           </Tab>
@@ -122,6 +126,7 @@ export function App() {
         {view === "rig" && <Dashboard />}
         {view === "devices" && <Peripherals />}
         {view === "games" && <Games />}
+        {view === "adapters" && <Adapters />}
         {view === "windows" && <WindowControl />}
         {view === "screen" &&
           (prefs ? <ScreenSetup unit={prefs.units} /> : <p className="note">Loading…</p>)}

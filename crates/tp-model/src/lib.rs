@@ -9,6 +9,7 @@
 //!   without a Windows runner;
 //! * nothing platform-specific can leak into the wire format by accident.
 
+pub mod adapter;
 pub mod axes;
 pub mod catalog;
 pub mod detect;
@@ -17,6 +18,7 @@ pub mod dinput;
 pub mod display;
 pub mod fixture;
 pub mod graph;
+pub mod ini;
 pub mod ipc;
 pub mod plan;
 pub mod preferences;
@@ -28,6 +30,11 @@ pub mod units;
 pub mod vdf;
 pub mod window;
 
+pub use adapter::{
+    apply as apply_edits, catalog as adapter_catalog, diff as diff_edits, plan as adapter_plan,
+    AdapterInfo, AdapterPlan, AdapterPreview, AppliedAdapterInfo, BackupInfo, Confidence, Edit,
+    FileDiff, FileEdits, MissingKey, ValueChange,
+};
 pub use axes::{axis_name, is_axis, normalise, normalise_unipolar};
 pub use catalog::{Catalog, CatalogEntry, DeviceKind};
 pub use detect::rig_from_monitors;
@@ -36,6 +43,7 @@ pub use dinput::{format_guid, vid_pid_from_product_guid};
 pub use display::*;
 pub use fixture::Fixture;
 pub use graph::{GraphError, Scheduler, StepView};
+pub use ini::{Ini, KeyError as IniError};
 pub use ipc::*;
 pub use plan::{build_steps, expected_exe, launch_exe};
 pub use preferences::*;

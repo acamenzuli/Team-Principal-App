@@ -7,6 +7,8 @@
 //! in [`ipc`], which go through the traits in [`providers`], which have exactly
 //! two implementations — the real Win32 one and a mock driven by JSON fixtures.
 
+pub mod adapters;
+pub mod backup;
 pub mod display;
 pub mod error;
 pub mod ipc;
@@ -22,7 +24,7 @@ pub mod window;
 
 /// Which milestone this build represents. Shown in the UI and in diagnostics so
 /// a bug report says what was actually built, not what was planned.
-pub const MILESTONE: u8 = 9;
+pub const MILESTONE: u8 = 10;
 
 #[cfg(windows)]
 pub use providers::win::dpi::Awareness;
@@ -196,6 +198,11 @@ pub fn run() {
             ipc::panic_hotkey,
             ipc::list_snapshots,
             ipc::restore_snapshot,
+            ipc::list_adapters,
+            ipc::preview_adapter,
+            ipc::apply_adapter,
+            ipc::list_backups,
+            ipc::restore_backup,
             ipc::get_preferences,
             ipc::save_preferences,
             ipc::accent_presets,

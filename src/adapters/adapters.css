@@ -1,0 +1,138 @@
+.ad__list {
+  list-style: none;
+  margin: var(--s4) 0 0;
+  padding: 0;
+}
+
+.ad__adapter {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--data-bg);
+}
+
+.ad__adapter + .ad__adapter {
+  margin-top: var(--s3);
+}
+
+.ad__adapter--on {
+  border-color: var(--accent-edge);
+  background: var(--accent-wash);
+}
+
+.ad__pick {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  width: 100%;
+  padding: var(--s4);
+  background: transparent;
+  border: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.ad__title {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-size: var(--size-row);
+  font-weight: 600;
+}
+
+.ad__scope {
+  color: var(--ink-dim);
+  font-size: var(--size-base);
+}
+
+.ad__source {
+  margin: 0;
+  padding: 0 var(--s4) var(--s4);
+  color: var(--ink-faint);
+  font-size: var(--size-sm);
+}
+
+.ad__file + .ad__file {
+  margin-top: var(--s5);
+}
+
+.ad__path {
+  margin: 0 0 var(--s2);
+  font-size: var(--size-sm);
+  color: var(--ink-faint);
+  word-break: break-all;
+}
+
+.ad__why {
+  color: var(--ink-dim);
+  font-size: var(--size-sm);
+}
+
+/* Already correct: present, so a second apply visibly does nothing, but never
+   competing with the rows that will actually change. */
+.ad__same td {
+  color: var(--ink-faint);
+}
+
+.ad__missing {
+  margin-top: var(--s3);
+}
+
+.ad__actions {
+  margin-top: var(--s4);
+}
+
+.ad__backups {
+  list-style: none;
+  margin: var(--s3) 0 0;
+  padding: 0;
+}
+
+.ad__backups li {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s3) 0;
+}
+
+.ad__backups li + li {
+  border-top: 1px solid var(--rule);
+}
+
+.ad__backups li .num:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.ad__session {
+  display: inline-flex;
+  margin: var(--s3) 0 0;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.ad__choice {
+  border: 0;
+  background: transparent;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: var(--size-sm);
+  min-height: 32px;
+  padding: 0 var(--s4);
+  cursor: pointer;
+}
+
+.ad__choice + .ad__choice {
+  border-left: 1px solid var(--rule-strong);
+}
+
+.ad__choice:hover {
+  background: var(--ground-raised);
+}
+
+.ad__choice--on {
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+}

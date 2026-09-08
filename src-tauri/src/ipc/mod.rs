@@ -824,3 +824,74 @@ pub fn owned_gdi_resolver(
         .collect();
     move |path: &str| map.get(path).cloned()
 }
+
+// ------------------------------------------------------------------ adapters
+
+/// The adapters that exist, and how well each one's key names are known.
+///
+/// Confidence is part of the wire type on purpose: "read out of the shipped
+/// file" and "corroborated across forum posts" are different claims and the UI
+/// must not make them look alike.
+#[tauri::command]
+pub fn list_adapters() -> Vec<tp_model::AdapterInfo> {
+    tp_model::adapter_catalog()
+}
+
+/// What an adapter would write for a rig, and what is already correct.
+///
+/// Reads only. The preview half of preview-before-apply, produced by the same
+/// code that performs the write so the two cannot drift.
+#[tauri::command]
+pub fn preview_adapter(
+    adapter_id: String,
+    rig: tp_model::RigModel,
+    session: tp_model::SessionMode,
+) -> AppResult<tp_model::AdapterPreview> {
+    let solution = solve_rig(rig.clone(), session);
+    let plan = tp_model::adapter_plan(&adapter_id, &rig, &solution, session)
+        .ok_or_else(|| AppError::Config(format!("there is no {adapter_id} adapter")))?;
+    Ok(tp_model::AdapterPreview {
+        files: crate::adapters::preview(&plan),
+        warnings: plan.warnings,
+    })
+}
+
+/// Back up, then write.
+///
+/// Returns the backup id, so the UI can offer to undo exactly this change
+/// rather than the whole history.
+#[tauri::command]
+pub fn apply_adapter(
+    adapter_id: String,
+    rig: tp_model::RigModel,
+    session: tp_model::SessionMode,
+) -> AppResult<tp_model::AppliedAdapterInfo> {
+    let solution = solve_rig(rig.clone(), session);
+    let plan = tp_model::adapter_plan(&adapter_id, &rig, &solution, session)
+        .ok_or_else(|| AppError::Config(format!("there is no {adapter_id} adapter")))?;
+    let applied = crate::adapters::apply(&plan)?;
+    Ok(tp_model::AppliedAdapterInfo {
+        backup: applied.backup,
+        written: applied.written,
+    })
+}
+
+/// Every backup, newest first. The one-click "put it back" list.
+#[tauri::command]
+pub fn list_backups() -> Vec<tp_model::BackupInfo> {
+    crate::backup::list()
+        .into_iter()
+        .map(|m| tp_model::BackupInfo {
+            id: m.taken_at.clone(),
+            taken_at: m.taken_at,
+            reason: m.reason,
+            files: m.files.into_iter().map(|f| f.original_path).collect(),
+        })
+        .collect()
+}
+
+/// Put one operation's files back exactly as they were.
+#[tauri::command]
+pub fn restore_backup(id: String) -> AppResult<Vec<String>> {
+    crate::backup::restore(&id)
+}
