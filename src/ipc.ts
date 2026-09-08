@@ -12,11 +12,13 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type { AccentPreset } from "./bindings/AccentPreset";
 import type { AppInfo } from "./bindings/AppInfo";
+import type { AxisReading } from "./bindings/AxisReading";
 import type { BestFitInfo } from "./bindings/BestFitInfo";
 import type { CurveResult } from "./bindings/CurveResult";
 import type { DesktopLayoutInfo } from "./bindings/DesktopLayoutInfo";
 import type { DetectedDevice } from "./bindings/DetectedDevice";
 import type { GlassLevel } from "./bindings/GlassLevel";
+import type { InputFrame } from "./bindings/InputFrame";
 import type { LoadedPreferences } from "./bindings/LoadedPreferences";
 import type { Preferences } from "./bindings/Preferences";
 import type { RigModel } from "./bindings/RigModel";
@@ -37,12 +39,14 @@ import type { IpcError } from "./bindings/IpcError";
 export type {
   AccentPreset,
   AppInfo,
+  AxisReading,
   BestFitInfo,
   CurveResult,
   DesktopLayoutInfo,
   DetectedDevice,
   DeviceStatus,
   GlassLevel,
+  InputFrame,
   IpcError,
   LoadedPreferences,
   LengthUnit,
@@ -77,6 +81,22 @@ export const refreshDevices = () => invoke<void>("refresh_devices");
  * real events, not on a timer, and a USB device bouncing during enumeration
  * never reaches the UI.
  */
+export const startInputMonitor = (instancePath: string) =>
+  invoke<void>("start_input_monitor", { instancePath });
+
+export const stopInputMonitor = () => invoke<void>("stop_input_monitor");
+
+/**
+ * Live axis and button values for the monitored device.
+ *
+ * Throttled to about 30 frames a second in Rust — sim hardware reports at
+ * 1000 Hz and forwarding all of it would be pure IPC traffic for motion no
+ * screen can show.
+ */
+export function onInput(handler: (frame: InputFrame) => void): Promise<UnlistenFn> {
+  return listen<InputFrame>("peripherals://input", (e) => handler(e.payload));
+}
+
 export function onDevicesChanged(
   handler: (devices: DetectedDevice[]) => void,
 ): Promise<UnlistenFn> {

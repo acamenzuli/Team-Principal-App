@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { Section, StatusPill } from "../dashboard/primitives";
+import { InputMonitor } from "./InputMonitor";
 import {
   asIpcError,
   listDevices,
@@ -22,6 +23,7 @@ export function Peripherals() {
   const [devices, setDevices] = useState<DetectedDevice[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scannedAt, setScannedAt] = useState<Date | null>(null);
+  const [watching, setWatching] = useState<DetectedDevice | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -80,6 +82,7 @@ export function Peripherals() {
                 <th>Serial</th>
                 <th>DirectInput</th>
                 <th>Notes</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -126,10 +129,33 @@ export function Peripherals() {
                       </span>
                     )}
                   </td>
+                  <td>
+                    {d.device.instancePath && (
+                      <button
+                        className="btn btn--quiet"
+                        onClick={() =>
+                          setWatching((current) =>
+                            current?.device.instancePath === d.device.instancePath ? null : d,
+                          )
+                        }
+                      >
+                        {watching?.device.instancePath === d.device.instancePath ? "Hide" : "Test"}
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        )}
+
+        {watching?.device.instancePath && (
+          <InputMonitor
+            key={watching.device.instancePath}
+            instancePath={watching.device.instancePath}
+            name={watching.device.displayName}
+            onClose={() => setWatching(null)}
+          />
         )}
 
         <div className="devices__actions">
@@ -145,9 +171,8 @@ export function Peripherals() {
         {/* Say plainly what is not finished, rather than letting a half-built
             page look like a broken one. */}
         <p className="devices__scope">
-          <strong>Still to come in this milestone:</strong> the live axis and button monitor, so
-          you can confirm a wheel or pedal set is actually working, and required-versus-optional
-          marking that feeds the pre-launch check.
+          <strong>Still to come:</strong> marking devices required or optional, which feeds the
+          pre-launch check in a later milestone.
         </p>
       </Section>
     </div>

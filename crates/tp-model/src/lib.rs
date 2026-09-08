@@ -9,6 +9,7 @@
 //!   without a Windows runner;
 //! * nothing platform-specific can leak into the wire format by accident.
 
+pub mod axes;
 pub mod catalog;
 pub mod detect;
 pub mod device;
@@ -22,6 +23,7 @@ pub mod profile;
 pub mod rig;
 pub mod units;
 
+pub use axes::{axis_name, is_axis, normalise, normalise_unipolar};
 pub use catalog::{Catalog, CatalogEntry, DeviceKind};
 pub use detect::rig_from_monitors;
 pub use device::*;

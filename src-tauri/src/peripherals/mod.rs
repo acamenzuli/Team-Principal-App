@@ -16,6 +16,7 @@
 
 pub mod dinput;
 pub mod hid;
+pub mod monitor;
 #[cfg(windows)]
 pub mod notify;
 pub mod vjoy;

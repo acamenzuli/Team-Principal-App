@@ -264,3 +264,29 @@ pub struct ResidualInfo {
     pub max_error_deg: f64,
     pub rms_error_deg: f64,
 }
+
+// ------------------------------------------------------------ input monitor
+
+/// One frame of live input from a device.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct InputFrame {
+    /// The device interface path, matching `DeviceRef.instancePath`.
+    pub instance_path: String,
+    pub axes: Vec<AxisReading>,
+    /// One entry per declared button, in report order, so the UI can draw a
+    /// stable grid rather than a list that changes length as buttons are held.
+    pub buttons: Vec<bool>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct AxisReading {
+    pub name: String,
+    /// -1.0 to 1.0.
+    pub value: f64,
+    /// 0.0 to 1.0. What a pedal wants: at rest is empty, not half full.
+    pub unipolar: f64,
+}

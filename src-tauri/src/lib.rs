@@ -133,6 +133,7 @@ pub fn run() {
             // the mock provider answers instead.
             let watcher = (!simulated).then(|| peripherals::watch::start(app.handle().clone()));
             app.manage(peripherals::watch::PeripheralWatch(watcher));
+            app.manage(peripherals::monitor::ActiveMonitor::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -140,6 +141,8 @@ pub fn run() {
             ipc::list_monitors,
             ipc::list_devices,
             ipc::refresh_devices,
+            ipc::start_input_monitor,
+            ipc::stop_input_monitor,
             ipc::desktop_layout,
             ipc::get_preferences,
             ipc::save_preferences,

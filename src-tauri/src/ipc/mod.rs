@@ -336,3 +336,36 @@ fn warning_to_wire(w: &tp_geometry::Warning) -> RigWarningInfo {
         screen_id,
     }
 }
+
+// ------------------------------------------------------------ input monitor
+
+/// Start watching one device's axes and buttons.
+///
+/// At most one device is monitored at a time: only one is on screen, and
+/// reading the rest would be work nobody asked for. Starting a new one replaces
+/// the previous.
+#[tauri::command]
+pub fn start_input_monitor(
+    app: tauri::AppHandle,
+    active: State<'_, crate::peripherals::monitor::ActiveMonitor>,
+    instance_path: String,
+) -> AppResult<()> {
+    let monitor = crate::peripherals::monitor::start(app, instance_path);
+    match active.0.lock() {
+        // Dropping the previous monitor stops its thread.
+        Ok(mut slot) => {
+            *slot = Some(monitor);
+            Ok(())
+        }
+        Err(_) => Err(AppError::Config(
+            "the input monitor is in a bad state".into(),
+        )),
+    }
+}
+
+#[tauri::command]
+pub fn stop_input_monitor(active: State<'_, crate::peripherals::monitor::ActiveMonitor>) {
+    if let Ok(mut slot) = active.0.lock() {
+        *slot = None;
+    }
+}

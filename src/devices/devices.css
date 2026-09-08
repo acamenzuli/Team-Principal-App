@@ -30,3 +30,94 @@
   flex-wrap: wrap;
   margin-top: var(--s4);
 }
+
+/* ---------------------------------------------------------- input monitor */
+
+.monitor {
+  margin-top: var(--s4);
+  padding: var(--s4);
+  background: var(--ground-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+.monitor__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  margin-bottom: var(--s4);
+}
+
+.monitor__title {
+  margin: 0;
+  font-size: var(--size-row);
+  font-weight: 600;
+}
+
+.axes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.axis {
+  display: grid;
+  grid-template-columns: 64px 1fr 80px;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.axis__name {
+  font-size: var(--size-sm);
+  color: var(--ink-dim);
+}
+
+.axis__track {
+  height: 14px;
+  background: var(--ground-deep);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+/* No transition: this is an instrument. A smoothed bar would misrepresent how
+   quickly a pedal actually moves, which is the thing being tested. */
+.axis__fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.axis__value {
+  font-size: var(--size-sm);
+  color: var(--ink-faint);
+  text-align: right;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  margin-top: var(--s4);
+}
+
+.button {
+  min-width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0 var(--s1);
+  background: var(--ground-deep);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-num);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.button--down {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
