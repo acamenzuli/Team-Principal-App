@@ -285,7 +285,33 @@ the test:
 Zero bezel makes it cross-checkable against published FOV calculators. A second
 fixture adds real bezels and gaps so the bezel path is covered too.
 
-## 11. Recompute and propagate
+## 11. Three bugs the reference values caught
+
+Milestone 3 implemented this document. The fixture in section 10 exists so that
+the implementation can be wrong and be *found* wrong, and it earned its keep
+immediately — all three of these passed a reading of the code and failed the
+numbers.
+
+**The yaw sign was inverted.** "Positive angle is inward" means a side panel's
+outboard edge wraps *toward* the driver, along `-Z`. The placement code yawed
+the other way, folding the panels away behind the rig. The outer edge of the
+right screen came out at 26.1 degrees instead of 73.0.
+
+**The curvature was counted twice.** The layout walk steps along chord lengths
+between chord endpoints, so it already produces chord-plane positions. The code
+then nudged each curved panel by its sagitta on top of that.
+
+**Vertical FOV was measured to the corners.** A corner is further from the eye
+than the midpoint of the same edge, so its elevation is smaller. Taking the
+extremes of corner elevations gave 24.9 degrees where the answer is 27.0.
+Vertical FOV is measured up the screen's centreline; horizontal is safe from
+the corners because azimuth ignores height.
+
+The last one is the instructive one: it is not a typo, it is a wrong idea about
+what the quantity means, and no amount of re-reading the code would have shown
+it. Only a number that had been worked out independently could.
+
+## 12. Recompute and propagate
 
 `RigModel.revision` increments on every save. Each profile stores the revision
 it was computed against **plus a snapshot of the derived values it actually
