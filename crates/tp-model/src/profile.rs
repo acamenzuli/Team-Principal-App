@@ -24,6 +24,9 @@ pub struct Profile {
     pub session_mode: SessionMode,
     pub window_plan: WindowPlan,
     pub peripherals: Vec<PeripheralRequirement>,
+    /// Utilities to have running before the game starts.
+    #[serde(default)]
+    pub utilities: Vec<UtilitySpec>,
     /// One graph. Each node declares its phase; the executor enforces that
     /// every preflight node is terminal before any launch node starts. That
     /// enforcement *is* the ready gate.
@@ -136,6 +139,12 @@ pub struct WindowTarget {
     /// Splash and loader filter. Never "the first window that appears".
     pub min_size: (u32, u32),
     pub require_visible: bool,
+    /// Millisecond durations cross into TypeScript as `number`, not `bigint`.
+    /// A u64 arrives as a bigint that cannot be compared with or divided by a
+    /// plain number without a cast at every call site, and no duration this app
+    /// expresses comes anywhere near the precision limit. The same
+    /// `#[ts(type = ...)]` appears on every `_ms` field below for that reason.
+    #[ts(type = "number")]
     pub timeout_ms: u64,
 }
 
@@ -146,9 +155,12 @@ pub struct WatchdogPolicy {
     /// Re-apply N times over `reapply_window_ms` after launch, because many
     /// sims reset their own window when the render device initialises.
     pub reapply_count: u32,
+    #[ts(type = "number")]
     pub reapply_window_ms: u64,
     /// Ongoing drift correction. `None` disables it.
+    #[ts(type = "number | null")]
     pub drift_check_interval_ms: Option<u64>,
+    #[ts(type = "number | null")]
     pub stop_after_stable_ms: Option<u64>,
 }
 
@@ -201,6 +213,28 @@ pub struct VJoyRequirement {
     pub feeder: Option<ProcessRequirement>,
 }
 
+/// A utility the profile wants running before a session.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct UtilitySpec {
+    pub label: String,
+    pub exe_path: String,
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// How to know it is *ready*, not merely running. This is the field that
+    /// replaces the hardcoded sleep every other launcher relies on.
+    pub ready_when: ReadinessGate,
+    #[ts(type = "number")]
+    pub timeout_ms: u64,
+    /// Whether failing to start it blocks the launch.
+    pub required: bool,
+    /// Labels of utilities that must be ready first. Names rather than ids, so
+    /// reordering the list does not break the chain.
+    #[serde(default)]
+    pub after: Vec<String>,
+}
+
 // ---------------------------------------------------------------- step graph
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, TS)]
@@ -221,11 +255,13 @@ pub struct StepSpec {
     pub depends_on: Vec<StepId>,
     pub action: StepAction,
     pub gate: ReadinessGate,
+    #[ts(type = "number")]
     pub timeout_ms: u64,
     pub severity: Severity,
     pub fix: Option<FixAction>,
     /// Minimum time a row stays visible, so an instant pass is readable rather
     /// than a flicker. Never used to pad the total run.
+    #[ts(type = "number")]
     pub min_visible_ms: u64,
 }
 
@@ -294,13 +330,20 @@ pub enum StepAction {
 pub enum ReadinessGate {
     Immediate,
     Delay {
+        #[ts(type = "number")]
         ms: u64,
     },
     ProcessExists {
         exe: String,
     },
+    /// Nothing by this name is running. The check that stops a second copy of
+    /// a sim being launched over the one already open.
+    ProcessAbsent {
+        exe: String,
+    },
     /// WaitForInputIdle — the process has drained its startup queue.
     InputIdle {
+        #[ts(type = "number")]
         timeout_ms: u64,
     },
     WindowExists {
@@ -386,6 +429,7 @@ pub struct StepOutcome {
     pub detail: String,
     pub started_at: Option<String>,
     pub finished_at: Option<String>,
+    #[ts(type = "number | null")]
     pub elapsed_ms: Option<u64>,
     pub error: Option<String>,
 }
@@ -398,6 +442,13 @@ pub enum ReadyState {
     Ready,
     ReadyWithWarnings,
     Blocked,
+    /// The user pressed Launch and the launch-phase steps are running.
+    Launching,
+    /// The game is up.
+    Racing,
+    /// The launch itself failed, which is a different thing from a preflight
+    /// that blocked — the checks passed and the start did not.
+    LaunchFailed,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

@@ -16,6 +16,7 @@ use tp_model::{
 use uuid::Uuid;
 
 use crate::error::{AppError, AppResult};
+use crate::launcher::run::Request;
 use crate::providers::Providers;
 
 #[tauri::command]
@@ -478,57 +479,33 @@ pub fn discover_games() -> Vec<tp_model::InstalledGameInfo> {
 
 // ------------------------------------------------------------- launch runs
 
-/// Start a preflight run.
+/// Start a preflight run for a saved profile.
 ///
 /// The steps come back as `launch://step` events rather than in the return
-/// value: the checklist is a view over a stream, so a self-healing check that
-/// turns green on its own reaches the UI the same way the first result did.
+/// value: the checklist is a view over a stream, which is what lets a
+/// self-healing check turn green on its own by the same path its first result
+/// took.
 #[tauri::command]
 pub fn start_preflight(
     app: tauri::AppHandle,
     active: State<'_, crate::launcher::run::ActiveRun>,
-    game_name: String,
+    watch: State<'_, crate::peripherals::watch::PeripheralWatch>,
+    profile_id: Uuid,
 ) -> AppResult<Vec<tp_model::StepView>> {
-    let mut profile = tp_model::Profile {
-        schema_version: tp_model::PROFILE_SCHEMA_VERSION,
-        id: uuid::Uuid::new_v4(),
-        name: game_name.clone(),
-        game: tp_model::GameRef {
-            adapter_id: String::new(),
-            install_path: None,
-            launch: tp_model::LaunchMethod::Uri { uri: String::new() },
-        },
-        rig: tp_model::RigBinding {
-            rig_id: uuid::Uuid::nil(),
-            computed_against_revision: 0,
-            derived_snapshot: Default::default(),
-        },
-        session_mode: tp_model::SessionMode::CenterOnly,
-        window_plan: tp_model::WindowPlan {
-            target: tp_model::WindowTarget {
-                exe_name: None,
-                window_class: None,
-                title_regex: None,
-                min_size: (640, 480),
-                require_visible: true,
-                timeout_ms: 30_000,
-            },
-            rect: tp_model::RectSource::FromGeometry,
-            rect_means: tp_model::RectMeans::ClientArea,
-            borderless: true,
-            always_on_top: false,
-            hide_taskbar: false,
-            watchdog: tp_model::WatchdogPolicy::default(),
-        },
-        peripherals: Vec::new(),
-        steps: Vec::new(),
-        teardown: tp_model::TeardownPolicy::default(),
-        created_at: crate::now_iso8601(),
-        updated_at: crate::now_iso8601(),
-    };
-    profile.steps = crate::launcher::run::demo_profile(&game_name);
+    let mut profile = crate::profiles::load(profile_id)?;
+    profile.steps = tp_model::build_steps(&profile);
 
-    let run = crate::launcher::run::start(app, profile)?;
+    // Device status comes from the watch thread, which has already debounced
+    // it. Re-enumerating here would be a second answer to the same question.
+    let devices: crate::launcher::run::DeviceSource = match &watch.0 {
+        Some(w) => {
+            let w = w.clone();
+            std::sync::Arc::new(move || w.latest())
+        }
+        None => std::sync::Arc::new(Vec::new),
+    };
+
+    let run = crate::launcher::run::start(app, profile, devices)?;
     let views = run.views();
 
     // Replacing the previous run cancels it: two preflights racing over the
@@ -550,4 +527,92 @@ pub fn cancel_preflight(active: State<'_, crate::launcher::run::ActiveRun>) {
             run.cancel();
         }
     }
+}
+
+/// Queue a request for the running preflight.
+///
+/// Queued rather than applied: the driver thread owns the scheduler, and
+/// mutating it from here would race the loop being steered.
+fn ask(active: &State<'_, crate::launcher::run::ActiveRun>, request: Request) -> AppResult<()> {
+    let slot = active
+        .0
+        .lock()
+        .map_err(|_| AppError::Config("the launch state is unreadable".into()))?;
+    let run = slot
+        .as_ref()
+        .ok_or_else(|| AppError::Config("nothing is running to act on".into()))?;
+    run.request(request);
+    Ok(())
+}
+
+/// Re-run one step and everything downstream of it.
+///
+/// Unlike self-healing, this re-runs the step's *action* — that is what the
+/// user asked for by pressing the button. Downstream steps go with it, so a
+/// utility that depends on the retried one is not left holding a stale result.
+#[tauri::command]
+pub fn retry_step(active: State<'_, crate::launcher::run::ActiveRun>, id: u32) -> AppResult<()> {
+    ask(&active, Request::Retry(tp_model::StepId(id)))
+}
+
+/// Stop one step blocking the gate.
+///
+/// The row becomes Skipped, never Passed: the checklist keeps saying this was
+/// overridden rather than satisfied.
+#[tauri::command]
+pub fn skip_step(active: State<'_, crate::launcher::run::ActiveRun>, id: u32) -> AppResult<()> {
+    ask(&active, Request::Skip(tp_model::StepId(id)))
+}
+
+/// The second click. Open the gate and run the launch phase.
+///
+/// `force` is "race anyway": it skips whatever is still failing so the gate
+/// opens. Without it the scheduler's phase gate holds the launch, which is why
+/// this cannot start a game behind a blocked preflight even if asked.
+#[tauri::command]
+pub fn launch_game(
+    active: State<'_, crate::launcher::run::ActiveRun>,
+    force: bool,
+) -> AppResult<()> {
+    ask(&active, Request::Launch { force })
+}
+
+// ----------------------------------------------------------------- profiles
+
+#[tauri::command]
+pub fn list_profiles() -> Vec<tp_model::Profile> {
+    crate::profiles::list()
+}
+
+#[tauri::command]
+pub fn save_profile(profile: tp_model::Profile) -> AppResult<tp_model::Profile> {
+    crate::profiles::save(&profile)
+}
+
+#[tauri::command]
+pub fn delete_profile(id: Uuid) -> AppResult<()> {
+    crate::profiles::delete(id)
+}
+
+/// A profile for a game that has none yet, saved and returned.
+///
+/// Deliberately empty of utilities and peripherals rather than guessing at
+/// them: a preflight that checks things nobody asked for is one people learn to
+/// ignore.
+#[tauri::command]
+pub fn create_profile(
+    name: String,
+    launch_uri: String,
+    install_path: Option<String>,
+) -> AppResult<tp_model::Profile> {
+    let launch = if launch_uri.is_empty() {
+        tp_model::LaunchMethod::Executable {
+            path: install_path.clone().unwrap_or_default(),
+            args: Vec::new(),
+            working_dir: None,
+        }
+    } else {
+        tp_model::LaunchMethod::Uri { uri: launch_uri }
+    };
+    crate::profiles::save(&crate::profiles::starter(&name, launch, install_path))
 }

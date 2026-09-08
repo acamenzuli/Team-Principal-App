@@ -19,7 +19,15 @@ import type { DesktopLayoutInfo } from "./bindings/DesktopLayoutInfo";
 import type { DetectedDevice } from "./bindings/DetectedDevice";
 import type { GlassLevel } from "./bindings/GlassLevel";
 import type { InputFrame } from "./bindings/InputFrame";
+import type { FixAction } from "./bindings/FixAction";
 import type { InstalledGameInfo } from "./bindings/InstalledGameInfo";
+import type { Necessity } from "./bindings/Necessity";
+import type { PeripheralRequirement } from "./bindings/PeripheralRequirement";
+import type { Profile } from "./bindings/Profile";
+import type { ReadinessGate } from "./bindings/ReadinessGate";
+import type { Severity } from "./bindings/Severity";
+import type { StepStatus } from "./bindings/StepStatus";
+import type { UtilitySpec } from "./bindings/UtilitySpec";
 import type { ReadyState } from "./bindings/ReadyState";
 import type { StepView } from "./bindings/StepView";
 import type { OpenWindow } from "./bindings/OpenWindow";
@@ -51,12 +59,20 @@ export type {
   DesktopLayoutInfo,
   DetectedDevice,
   DeviceStatus,
+  FixAction,
   GlassLevel,
   InputFrame,
   InstalledGameInfo,
   IpcError,
+  Necessity,
+  PeripheralRequirement,
+  Profile,
+  ReadinessGate,
   ReadyState,
+  Severity,
+  StepStatus,
   StepView,
+  UtilitySpec,
   OpenWindow,
   RectMeans,
   WindowResult,
@@ -99,10 +115,41 @@ export const discoverGames = () => invoke<InstalledGameInfo[]>("discover_games")
 
 // ---------------------------------------------------------------- preflight
 
-export const startPreflight = (gameName: string) =>
-  invoke<StepView[]>("start_preflight", { gameName });
+/**
+ * Run a saved profile's preflight. The launch phase is *not* started — that
+ * waits for launchGame(), which is the deliberate second click.
+ */
+export const startPreflight = (profileId: string) =>
+  invoke<StepView[]>("start_preflight", { profileId });
 
 export const cancelPreflight = () => invoke<void>("cancel_preflight");
+
+/** Re-run one step and everything downstream of it, actions and all. */
+export const retryStep = (id: number) => invoke<void>("retry_step", { id });
+
+/** Stop a step blocking the gate. The row stays Skipped, never Passed. */
+export const skipStep = (id: number) => invoke<void>("skip_step", { id });
+
+/**
+ * The second click. `force` is "race anyway" — it skips whatever is still
+ * failing so the gate opens.
+ */
+export const launchGame = (force: boolean) => invoke<void>("launch_game", { force });
+
+// ----------------------------------------------------------------- profiles
+
+export const listProfiles = () => invoke<Profile[]>("list_profiles");
+
+export const saveProfile = (profile: Profile) => invoke<Profile>("save_profile", { profile });
+
+export const deleteProfile = (id: string) => invoke<void>("delete_profile", { id });
+
+/** A profile for a game that has none yet, saved and returned. */
+export const createProfile = (args: {
+  name: string;
+  launchUri: string;
+  installPath: string | null;
+}) => invoke<Profile>("create_profile", args);
 
 /**
  * Step status changes.

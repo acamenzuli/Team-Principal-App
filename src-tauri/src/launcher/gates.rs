@@ -28,6 +28,8 @@ pub fn is_open(gate: &ReadinessGate, started: Instant) -> AppResult<bool> {
 
         ReadinessGate::ProcessExists { exe } => process_running(exe),
 
+        ReadinessGate::ProcessAbsent { exe } => !process_running(exe),
+
         ReadinessGate::InputIdle { timeout_ms } => input_idle(*timeout_ms),
 
         ReadinessGate::WindowExists { target } => {
@@ -75,6 +77,7 @@ pub fn describe(gate: &ReadinessGate) -> String {
         ReadinessGate::Immediate => "no wait needed".into(),
         ReadinessGate::Delay { ms } => format!("waiting {ms} ms"),
         ReadinessGate::ProcessExists { exe } => format!("waiting for {exe} to start"),
+        ReadinessGate::ProcessAbsent { exe } => format!("checking {exe} is not already running"),
         ReadinessGate::InputIdle { .. } => "waiting for it to finish starting up".into(),
         ReadinessGate::WindowExists { .. } => "waiting for its window to appear".into(),
         ReadinessGate::NamedMutex { name } => format!("waiting for {name}"),

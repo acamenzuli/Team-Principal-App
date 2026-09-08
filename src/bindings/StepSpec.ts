@@ -11,9 +11,9 @@ export type StepSpec = { id: StepId, label: string, phase: Phase,
  * Steps with no dependency between them run in parallel. A preflight that
  * insists on being sequential is a preflight nobody uses.
  */
-dependsOn: Array<StepId>, action: StepAction, gate: ReadinessGate, timeoutMs: bigint, severity: Severity, fix: FixAction | null, 
+dependsOn: Array<StepId>, action: StepAction, gate: ReadinessGate, timeoutMs: number, severity: Severity, fix: FixAction | null, 
 /**
  * Minimum time a row stays visible, so an instant pass is readable rather
  * than a flicker. Never used to pad the total run.
  */
-minVisibleMs: bigint, };
+minVisibleMs: number, };

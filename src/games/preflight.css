@@ -157,3 +157,70 @@
   color: var(--ink-dim);
   font-size: var(--size-base);
 }
+
+/* A failed row always carries a way out. See Fixes in Preflight.tsx. */
+.pf__fixes {
+  display: flex;
+  gap: var(--s2);
+}
+
+.btn--tiny {
+  font-size: var(--size-sm);
+  padding: 2px var(--s2);
+}
+
+.pf__step {
+  grid-template-columns: 24px 20px 1fr auto auto 56px;
+}
+
+.pf__step--skipped .pf__icon,
+.pf__step--skipped .pf__word {
+  color: var(--ink-faint);
+}
+
+.pf__gate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  flex-wrap: wrap;
+}
+
+.pf__verdict-block {
+  min-width: 0;
+}
+
+.pf__gate--launching {
+  border-left-color: var(--run);
+}
+.pf__gate--racing {
+  border-left-color: var(--pass);
+}
+.pf__gate--launch_failed {
+  border-left-color: var(--fail);
+}
+
+.pf__gate--launching .pf__verdict {
+  color: var(--run);
+}
+.pf__gate--racing .pf__verdict {
+  color: var(--pass);
+}
+.pf__gate--launch_failed .pf__verdict {
+  color: var(--fail);
+}
+
+/* The one button on this screen that starts a game. It is allowed to look
+   like it, and nothing else on the page competes with it. */
+.btn--go {
+  font-size: var(--size-row);
+  padding: var(--s3) var(--s5);
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent-edge);
+  box-shadow: var(--accent-glow);
+}
+
+.btn--override {
+  color: var(--warn);
+}

@@ -5,8 +5,8 @@ export type WatchdogPolicy = {
  * Re-apply N times over `reapply_window_ms` after launch, because many
  * sims reset their own window when the render device initialises.
  */
-reapplyCount: number, reapplyWindowMs: bigint, 
+reapplyCount: number, reapplyWindowMs: number, 
 /**
  * Ongoing drift correction. `None` disables it.
  */
-driftCheckIntervalMs: bigint | null, stopAfterStableMs: bigint | null, };
+driftCheckIntervalMs: number | null, stopAfterStableMs: number | null, };

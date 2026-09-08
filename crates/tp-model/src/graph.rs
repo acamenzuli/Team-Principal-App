@@ -326,6 +326,9 @@ pub struct StepView {
     /// earned — "Already running" is derived from this, never written by hand.
     pub action_taken: crate::ActionTaken,
     pub can_retry: bool,
+    /// The profile's own idea of how to fix this step, carried through so the
+    /// row can offer a button rather than leaving a red line with no way out.
+    pub fix: Option<crate::FixAction>,
 }
 
 #[cfg(test)]

@@ -13,6 +13,7 @@ pub mod ipc;
 pub mod launcher;
 pub mod logging;
 pub mod peripherals;
+pub mod profiles;
 pub mod providers;
 pub mod rig;
 pub mod settings;
@@ -20,7 +21,7 @@ pub mod window;
 
 /// Which milestone this build represents. Shown in the UI and in diagnostics so
 /// a bug report says what was actually built, not what was planned.
-pub const MILESTONE: u8 = 1;
+pub const MILESTONE: u8 = 8;
 
 #[cfg(windows)]
 pub use providers::win::dpi::Awareness;
@@ -150,6 +151,13 @@ pub fn run() {
             ipc::discover_games,
             ipc::start_preflight,
             ipc::cancel_preflight,
+            ipc::retry_step,
+            ipc::skip_step,
+            ipc::launch_game,
+            ipc::list_profiles,
+            ipc::save_profile,
+            ipc::delete_profile,
+            ipc::create_profile,
             ipc::list_windows,
             ipc::place_window,
             ipc::stop_watching_window,

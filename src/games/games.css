@@ -1,0 +1,158 @@
+.games__actions {
+  display: flex;
+  gap: var(--s2);
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ the editor */
+
+.pe {
+  margin-top: var(--s4);
+  padding: var(--s5);
+  background: var(--ground-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+}
+
+.pe__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding-bottom: var(--s4);
+  border-bottom: 1px solid var(--rule);
+}
+
+.pe__head-actions {
+  display: flex;
+  gap: var(--s2);
+}
+
+.pe__title {
+  margin: 0;
+  font-size: var(--size-readout);
+  font-weight: 600;
+}
+
+.pe__sub {
+  margin: var(--s1) 0 0;
+  font-size: var(--size-sm);
+  color: var(--ink-faint);
+  word-break: break-all;
+}
+
+.pe__block {
+  padding-top: var(--s5);
+}
+
+.pe__block-title {
+  margin: 0 0 var(--s2);
+  font-size: var(--size-row);
+  font-weight: 600;
+}
+
+.pe__devices {
+  list-style: none;
+  margin: var(--s3) 0 0;
+  padding: 0;
+  background: var(--data-bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+}
+
+.pe__device {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: var(--s3) var(--s4);
+}
+
+.pe__device + .pe__device {
+  border-top: 1px solid var(--rule);
+}
+
+.pe__device-name {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+}
+
+/* Three states in one control, because they are one decision. */
+.pe__necessity {
+  display: inline-flex;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex: none;
+}
+
+.pe__choice {
+  border: 0;
+  background: transparent;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: var(--size-sm);
+  padding: var(--s2) var(--s3);
+  cursor: pointer;
+}
+
+.pe__choice + .pe__choice {
+  border-left: 1px solid var(--rule-strong);
+}
+
+.pe__choice:hover {
+  background: var(--hit);
+}
+
+.pe__choice--on {
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+}
+
+.pe__utility {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s3) var(--s4);
+  margin: var(--s3) 0;
+  padding: var(--s4);
+  background: var(--data-bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+}
+
+.pe__utility .field--wide {
+  grid-column: 1 / -1;
+}
+
+.pe__utility-flags {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  padding-top: var(--s2);
+  border-top: 1px solid var(--rule);
+}
+
+.pe__gate {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+
+.pe__gate .note {
+  flex-basis: 100%;
+  margin: var(--s1) 0 0;
+}
+
+.pe__foot {
+  margin-top: var(--s5);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--rule);
+  display: flex;
+  justify-content: flex-end;
+}

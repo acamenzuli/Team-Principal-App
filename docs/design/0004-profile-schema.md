@@ -96,6 +96,7 @@ pub enum ReadinessGate {
     Immediate,
     Delay { ms: u64 },
     ProcessExists { exe: String },
+    ProcessAbsent { exe: String },          // "not already running", checked rather than assumed
     InputIdle { timeout_ms: u64 },          // WaitForInputIdle
     WindowExists(WindowTarget),
     NamedMutex { name: String },
@@ -134,6 +135,73 @@ subgraph is a backend concern. Self-healing works the same way: peripheral and
 process watchers feed the executor, which re-evaluates only the affected nodes
 and their dependents. No Retry button is required for a condition you just fixed
 by hand.
+
+### What self-healing may and may not touch
+
+Only failed steps are re-checked, and only their *gate*. Re-running a step's
+action would restart SimHub because a pedal check failed, which is exactly the
+behaviour that makes a preflight useless. Two further exclusions:
+
+* **Skipped is never healed.** A skipped step never ran — something it needed
+  failed, or the user overrode it. Passing it because its gate happens to be
+  open would claim a result nothing produced.
+* **`Immediate` is never healed.** A step gated on `Immediate` failed in its
+  action, and `Immediate` is open by definition; re-checking it would turn every
+  failed action green a moment later while nothing had changed. "The game is
+  installed" going green over a folder that is still missing is precisely the
+  lie this app exists not to tell.
+
+A retry the user *presses* does re-run the action, because that is what they
+asked for. It resets the step and everything downstream, never anything
+upstream.
+
+## The launch gate
+
+`ReadyState` is what the panel under the checklist says:
+
+```rust
+pub enum ReadyState {
+    Running, Ready, ReadyWithWarnings, Blocked,   // preflight
+    Launching, Racing, LaunchFailed,              // after the second click
+}
+```
+
+The first four are computed by the scheduler from the preflight phase alone. The
+last three are published by the executor around the launch phase, and
+`LaunchFailed` is deliberately distinct from `Blocked`: the checks passing and
+the game not starting is a different problem from the checks not passing.
+
+Launching is a second, deliberate press. The executor does not run the launch
+phase when preflight settles; it waits for `Request::Launch`. The scheduler's
+phase gate is the belt to that pair of braces — even a driver that asked early
+would be refused while a fatal preflight step is failing.
+
+"Race anyway" skips whatever is still failing so the gate opens. Skipped, never
+passed: the checklist keeps saying the check was overridden rather than
+satisfied, and `ActionTaken::Skipped` is what the row's text is derived from.
+
+## Utilities
+
+```rust
+pub struct UtilitySpec {
+    pub label: String,              // "SimHub"
+    pub exe_path: String,
+    pub args: Vec<String>,
+    pub ready_when: ReadinessGate,  // the field that replaces the hardcoded sleep
+    pub timeout_ms: u64,
+    pub required: bool,             // Fatal vs Warning
+    pub after: Vec<String>,         // labels, so reordering the list cannot break the chain
+}
+```
+
+`after` names other utilities by label rather than by id. A stale name is
+dropped when the graph is built, not carried through as a dangling dependency —
+one removed utility must not make the whole profile unrunnable.
+
+`tp_model::plan::build_steps` turns a profile into the graph. It lives in the
+model rather than in the executor so that the shape of a run — what depends on
+what, what is fatal, what merely warns — is tested without starting a single
+process.
 
 ## Peripheral requirement
 

@@ -4,4 +4,12 @@ export type WindowTarget = { exeName: string | null, windowClass: string | null,
 /**
  * Splash and loader filter. Never "the first window that appears".
  */
-minSize: [number, number], requireVisible: boolean, timeoutMs: bigint, };
+minSize: [number, number], requireVisible: boolean, 
+/**
+ * Millisecond durations cross into TypeScript as `number`, not `bigint`.
+ * A u64 arrives as a bigint that cannot be compared with or divided by a
+ * plain number without a cast at every call site, and no duration this app
+ * expresses comes anywhere near the precision limit. The same
+ * `#[ts(type = ...)]` appears on every `_ms` field below for that reason.
+ */
+timeoutMs: number, };

@@ -7,4 +7,4 @@ export type StepOutcome = { id: StepId, status: StepStatus, actionTaken: ActionT
 /**
  * The one-line live detail shown on the row.
  */
-detail: string, startedAt: string | null, finishedAt: string | null, elapsedMs: bigint | null, error: string | null, };
+detail: string, startedAt: string | null, finishedAt: string | null, elapsedMs: number | null, error: string | null, };

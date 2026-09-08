@@ -5,9 +5,14 @@ import type { RigBinding } from "./RigBinding";
 import type { SessionMode } from "./SessionMode";
 import type { StepSpec } from "./StepSpec";
 import type { TeardownPolicy } from "./TeardownPolicy";
+import type { UtilitySpec } from "./UtilitySpec";
 import type { WindowPlan } from "./WindowPlan";
 
 export type Profile = { schemaVersion: number, id: string, name: string, game: GameRef, rig: RigBinding, sessionMode: SessionMode, windowPlan: WindowPlan, peripherals: Array<PeripheralRequirement>, 
+/**
+ * Utilities to have running before the game starts.
+ */
+utilities: Array<UtilitySpec>, 
 /**
  * One graph. Each node declares its phase; the executor enforces that
  * every preflight node is terminal before any launch node starts. That
