@@ -44,6 +44,29 @@ Both the 2016 and 2005 elements are present because older loaders read only the
 latter. `longPathAware` is there because Steam library paths on a secondary
 drive plus a UE5 `Saved\Config\WindowsNoEditor\` chain gets close to `MAX_PATH`.
 
+### A custom manifest replaces Tauri's default wholesale
+
+This bit twice, and both failures reached a real machine, so it is written down.
+
+Passing `WindowsAttributes::app_manifest` does not merge with Tauri's default
+manifest — it replaces it. Everything the default provided has to be restated:
+
+- **Common Controls v6.** Omitting the `Microsoft.Windows.Common-Controls`
+  6.0.0.0 dependency makes the loader bind comctl32 v5 from system32, which does
+  not export `TaskDialogIndirect`. The process then dies at import resolution
+  with "Entry Point Not Found" *before `main` runs* — no window, no log, no
+  stdout. Tauri's own docs warn about this; I missed the warning.
+- **7-bit ASCII only.** The resource compiler reads the manifest as a narrow
+  string. One em dash in an XML comment fails the build with "Non-8-bit
+  codepoint can't occur in a user-defined narrow string".
+
+Three tests now hold the line: the manifest's text is checked for each required
+element and for non-ASCII characters; the built executable's bytes are checked
+for the embedded manifest; and the executable is **launched** with `--check-dpi`,
+because a manifest can be present and still leave the binary unable to load.
+That last one caught the Common Controls bug on the first CI run and I
+misdiagnosed it as a headless runner problem and demoted it. It is a gate again.
+
 Rules that follow from this and are enforced in review:
 
 - Every geometry value crossing the Rust/TS boundary is in **physical pixels**

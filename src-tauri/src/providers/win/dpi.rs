@@ -130,5 +130,24 @@ mod tests {
             manifest.contains("longPathAware"),
             "app.manifest dropped longPathAware; deep Steam and UE5 config paths will fail"
         );
+        assert!(
+            manifest.contains("Microsoft.Windows.Common-Controls")
+                && manifest.contains(r#"version="6.0.0.0""#),
+            "app.manifest dropped the Common Controls v6 dependency. Without it the loader \
+             binds comctl32 v5, TaskDialogIndirect is missing, and the app dies at load with \
+             \"Entry Point Not Found\" before main runs."
+        );
+        // The resource compiler reads the manifest as a narrow string. A single
+        // curly quote or em dash in a comment fails the build with
+        // "Non-8-bit codepoint can't occur in a user-defined narrow string",
+        // which is not an obvious message for what is really a typography slip.
+        if let Some(c) = manifest.chars().find(|c| !c.is_ascii()) {
+            panic!(
+                "app.manifest contains the non-ASCII character {c:?} (U+{:04X}). \
+                 The resource compiler cannot embed it; keep the manifest, comments \
+                 included, to 7-bit ASCII.",
+                c as u32
+            );
+        }
     }
 }

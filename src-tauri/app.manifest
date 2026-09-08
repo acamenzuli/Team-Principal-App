@@ -20,6 +20,25 @@
     </windowsSettings>
   </application>
 
+  <!-- Common Controls v6.
+       REQUIRED, and easy to lose: supplying a custom manifest replaces Tauri's
+       default one wholesale, and the default carries this. Without it the
+       loader binds comctl32 v5 from system32, which does not export
+       TaskDialogIndirect, and the process dies at load with "Entry Point Not
+       Found" before main ever runs - no window, no log, no stdout. -->
+  <dependency>
+    <dependentAssembly>
+      <assemblyIdentity
+        type="win32"
+        name="Microsoft.Windows.Common-Controls"
+        version="6.0.0.0"
+        processorArchitecture="*"
+        publicKeyToken="6595b64144ccf1df"
+        language="*"
+      />
+    </dependentAssembly>
+  </dependency>
+
   <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
     <application>
       <!-- Windows 10 / 11 -->
