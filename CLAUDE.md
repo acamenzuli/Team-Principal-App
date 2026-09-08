@@ -31,6 +31,11 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all
 ```
 
+CI runs clippy on `stable`, which gains lints over time. Run `rustup update
+stable` before trusting a local clippy pass — an older toolchain passing means
+nothing about what CI will say.
+
+
 Run against fixtures instead of hardware:
 
 ```powershell

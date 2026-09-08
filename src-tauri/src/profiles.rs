@@ -41,7 +41,7 @@ pub fn list() -> Vec<Profile> {
             }
         })
         .collect();
-    profiles.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    profiles.sort_by_key(|p| p.name.to_lowercase());
     profiles
 }
 

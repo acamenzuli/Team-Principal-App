@@ -31,7 +31,7 @@ pub enum GameSource {
 pub fn discover() -> Vec<InstalledGame> {
     let mut games = steam_games();
     games.extend(epic_games());
-    games.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    games.sort_by_key(|g| g.name.to_lowercase());
     games.dedup_by(|a, b| a.install_path == b.install_path);
     tracing::info!(count = games.len(), "discovered installed games");
     games
