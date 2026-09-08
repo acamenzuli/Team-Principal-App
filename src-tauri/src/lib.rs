@@ -10,6 +10,7 @@
 pub mod display;
 pub mod error;
 pub mod ipc;
+pub mod launcher;
 pub mod logging;
 pub mod peripherals;
 pub mod providers;
@@ -145,6 +146,7 @@ pub fn run() {
             ipc::refresh_devices,
             ipc::start_input_monitor,
             ipc::stop_input_monitor,
+            ipc::discover_games,
             ipc::list_windows,
             ipc::place_window,
             ipc::stop_watching_window,

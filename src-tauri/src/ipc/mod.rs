@@ -448,3 +448,30 @@ pub fn stop_watching_window(state: State<'_, crate::window::watchdog::ActiveWatc
         *slot = None;
     }
 }
+
+// ------------------------------------------------------------- game discovery
+
+/// Every game the launchers say is installed.
+///
+/// Read from Steam's own library index and Epic's manifests, so nobody has to
+/// type an install path. A manifest can outlive the files it describes, so a
+/// game whose folder is gone is not listed — a launch that fails for no visible
+/// reason is worse than an absent row.
+#[tauri::command]
+pub fn discover_games() -> Vec<tp_model::InstalledGameInfo> {
+    crate::launcher::discover()
+        .into_iter()
+        .map(|g| tp_model::InstalledGameInfo {
+            name: g.name,
+            install_path: g.install_path.display().to_string(),
+            launcher: match &g.source {
+                crate::launcher::GameSource::Steam { .. } => "steam".into(),
+                crate::launcher::GameSource::Epic { .. } => "epic".into(),
+            },
+            launch_uri: crate::launcher::launch_uri(&g.source),
+            // Adapters arrive in milestone 10. Claiming otherwise would be the
+            // exact kind of aspirational UI this project avoids.
+            has_adapter: false,
+        })
+        .collect()
+}

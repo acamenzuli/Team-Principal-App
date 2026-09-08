@@ -320,3 +320,22 @@ pub struct OpenWindow {
     /// True when this one would survive the splash-and-tool-window filters.
     pub plausible: bool,
 }
+
+// ------------------------------------------------------------- game discovery
+
+/// A game found on disk, with what it takes to start it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct InstalledGameInfo {
+    pub name: String,
+    pub install_path: String,
+    /// "steam" or "epic". The launcher it belongs to.
+    pub launcher: String,
+    /// The URI that starts it. Protocol launches return no process handle,
+    /// which is why the window matcher works from the executable name instead.
+    pub launch_uri: String,
+    /// Whether an adapter exists for this title yet. Adapters arrive in
+    /// milestone 10, so this is honest rather than aspirational.
+    pub has_adapter: bool,
+}

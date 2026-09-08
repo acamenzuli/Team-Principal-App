@@ -19,6 +19,7 @@ import type { DesktopLayoutInfo } from "./bindings/DesktopLayoutInfo";
 import type { DetectedDevice } from "./bindings/DetectedDevice";
 import type { GlassLevel } from "./bindings/GlassLevel";
 import type { InputFrame } from "./bindings/InputFrame";
+import type { InstalledGameInfo } from "./bindings/InstalledGameInfo";
 import type { OpenWindow } from "./bindings/OpenWindow";
 import type { RectMeans } from "./bindings/RectMeans";
 import type { WindowResult } from "./bindings/WindowResult";
@@ -50,6 +51,7 @@ export type {
   DeviceStatus,
   GlassLevel,
   InputFrame,
+  InstalledGameInfo,
   IpcError,
   OpenWindow,
   RectMeans,
@@ -88,6 +90,8 @@ export const refreshDevices = () => invoke<void>("refresh_devices");
  * never reaches the UI.
  */
 // --------------------------------------------------------- window control
+
+export const discoverGames = () => invoke<InstalledGameInfo[]>("discover_games");
 
 export const listWindows = () => invoke<OpenWindow[]>("list_windows");
 

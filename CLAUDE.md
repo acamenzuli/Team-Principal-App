@@ -82,7 +82,8 @@ Stop at the end of each for hardware testing. Current: **6 complete**.
 5. ✅ Peripherals — HID, DirectInput ordering, event hotplug, catalog,
    status rules, debounce, live axis and button monitor
 6. ✅ Window control — find, strip chrome, place, verify by read-back, watchdog
-7. Launch orchestration
+7. Launch orchestration — scheduler, gates and game discovery done;
+   the executor, Job Object teardown and profiles remain
 8. The "Let's race" flow
 9. Display control (topology, confirm-or-revert, panic hotkey)
 10. Adapters wave one
