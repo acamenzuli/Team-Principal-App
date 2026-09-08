@@ -165,8 +165,11 @@
 }
 
 .btn--tiny {
+  /* .btn is 44px tall for thumbs. These sit inside a checklist row that is
+     already dense, and the row itself is the large target. */
+  min-height: 26px;
   font-size: var(--size-sm);
-  padding: 2px var(--s2);
+  padding: 0 var(--s3);
 }
 
 .pf__step {
@@ -211,14 +214,12 @@
 }
 
 /* The one button on this screen that starts a game. It is allowed to look
-   like it, and nothing else on the page competes with it. */
+   like it, and nothing else on the page competes with it. Colour comes from
+   .btn; this only adds weight and the glow. */
 .btn--go {
+  padding: 0 var(--s6);
   font-size: var(--size-row);
-  padding: var(--s3) var(--s5);
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent-edge);
-  box-shadow: var(--accent-glow);
+  box-shadow: 0 0 20px var(--accent-glow);
 }
 
 .btn--override {

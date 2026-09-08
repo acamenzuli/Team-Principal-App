@@ -95,7 +95,8 @@
   color: var(--ink-dim);
   font: inherit;
   font-size: var(--size-sm);
-  padding: var(--s2) var(--s3);
+  min-height: 32px;
+  padding: 0 var(--s3);
   cursor: pointer;
 }
 
@@ -104,7 +105,7 @@
 }
 
 .pe__choice:hover {
-  background: var(--hit);
+  background: var(--ground-raised);
 }
 
 .pe__choice--on {

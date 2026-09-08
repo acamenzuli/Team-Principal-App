@@ -195,7 +195,7 @@ function subtitle(state: ReadyState, preflight: StepView[], blockers: StepView[]
     case "launching":
       return "Starting the game.";
     case "racing":
-      return "The game is up. Window geometry follows in this milestone's successor.";
+      return "The game is up. Applying the saved window geometry to it comes next.";
     case "launch_failed":
       return "The checks passed but the game did not start.";
   }
