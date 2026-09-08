@@ -12,6 +12,7 @@ pub mod error;
 pub mod ipc;
 pub mod logging;
 pub mod providers;
+pub mod settings;
 
 /// Which milestone this build represents. Shown in the UI and in diagnostics so
 /// a bug report says what was actually built, not what was planned.
@@ -125,6 +126,9 @@ pub fn run() {
             ipc::list_monitors,
             ipc::list_devices,
             ipc::desktop_layout,
+            ipc::get_preferences,
+            ipc::save_preferences,
+            ipc::accent_presets,
             ipc::parse_length,
             ipc::solve_curvature,
         ])

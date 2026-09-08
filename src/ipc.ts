@@ -9,10 +9,14 @@
  */
 import { invoke } from "@tauri-apps/api/core";
 
+import type { AccentPreset } from "./bindings/AccentPreset";
 import type { AppInfo } from "./bindings/AppInfo";
 import type { CurveResult } from "./bindings/CurveResult";
 import type { DesktopLayoutInfo } from "./bindings/DesktopLayoutInfo";
 import type { DetectedDevice } from "./bindings/DetectedDevice";
+import type { GlassLevel } from "./bindings/GlassLevel";
+import type { LoadedPreferences } from "./bindings/LoadedPreferences";
+import type { Preferences } from "./bindings/Preferences";
 import type { DeviceStatus } from "./bindings/DeviceStatus";
 import type { LengthUnit } from "./bindings/LengthUnit";
 import type { MonitorInfo } from "./bindings/MonitorInfo";
@@ -22,16 +26,20 @@ import type { ParsedLength } from "./bindings/ParsedLength";
 import type { IpcError } from "./bindings/IpcError";
 
 export type {
+  AccentPreset,
   AppInfo,
   CurveResult,
   DesktopLayoutInfo,
   DetectedDevice,
   DeviceStatus,
+  GlassLevel,
   IpcError,
+  LoadedPreferences,
   LengthUnit,
   MonitorInfo,
   MonitorPitch,
   ParsedLength,
+  Preferences,
   PixelRect,
 };
 
@@ -43,6 +51,13 @@ export const listDevices = () => invoke<DetectedDevice[]>("list_devices");
 
 /** Null when no monitors are detected at all — not an empty desktop. */
 export const desktopLayout = () => invoke<DesktopLayoutInfo | null>("desktop_layout");
+
+export const getPreferences = () => invoke<LoadedPreferences>("get_preferences");
+
+export const savePreferences = (preferences: Preferences) =>
+  invoke<LoadedPreferences>("save_preferences", { preferences });
+
+export const accentPresets = () => invoke<AccentPreset[]>("accent_presets");
 
 export const parseLength = (input: string, unit: LengthUnit) =>
   invoke<ParsedLength>("parse_length", { input, unit });

@@ -4,36 +4,116 @@
   height: 100%;
 }
 
-/* One hairline separates the bar from the body. No shadow, no card. */
+/* Glass belongs on the chrome. It floats over the field without ever sitting
+   between the eye and a number. */
 .app__bar {
   display: flex;
   align-items: center;
-  gap: var(--s4);
+  gap: var(--s5);
   padding: 0 var(--s5);
-  height: 52px;
-  border-bottom: 1px solid var(--rule);
+  height: 60px;
   flex: 0 0 auto;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-.app__mark {
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-width: 0;
+}
+
+.brand__logo {
+  height: 30px;
+  max-width: 130px;
+  object-fit: contain;
+}
+
+/* The stand-in before a logo is set: a mark built from the accent, so the app
+   looks deliberate on first run rather than unfinished. */
+.brand__mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 40%, #000));
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+.brand__names {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  min-width: 0;
+}
+
+.brand__product {
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.14em;
-  font-size: var(--size-sm);
+  letter-spacing: 0.16em;
+  color: var(--ink);
 }
 
-.app__milestone {
-  color: var(--ink-faint);
+.brand__team {
   font-size: var(--size-sm);
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tabs {
+  display: flex;
+  gap: var(--s1);
+  padding: var(--s1);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+.tab {
+  min-height: 34px;
+  padding: 0 var(--s4);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--ink-dim);
+  font-family: inherit;
+  font-size: var(--size-sm);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.tab:hover {
+  color: var(--ink);
+  background: var(--accent-wash);
+}
+
+.tab--on {
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 .app__spacer {
   flex: 1;
 }
 
+.app__version {
+  color: var(--ink-faint);
+  font-size: var(--size-sm);
+}
+
 .app__body {
   flex: 1;
   overflow: auto;
-  padding: var(--s5);
+  padding: var(--s6) var(--s5) var(--s7);
 }
 
 .app__error {
@@ -41,11 +121,24 @@
   max-width: 60ch;
 }
 
+.app__notice {
+  display: flex;
+  gap: var(--s3);
+  max-width: 80ch;
+  margin: 0 0 var(--s5);
+  padding: var(--s3) var(--s4);
+  border-left: 2px solid var(--warn);
+  background: var(--ground-raised);
+  border-radius: var(--radius-sm);
+  color: var(--ink-dim);
+  font-size: var(--size-base);
+}
+
 .badge {
   font-size: var(--size-sm);
   padding: var(--s1) var(--s3);
   border: 1px solid currentColor;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   white-space: nowrap;
 }
 

@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::PixelRect;
+use crate::{PixelRect, Preferences};
 
 /// Everything the UI needs to describe the running app, on the dashboard and
 /// in a support ticket.
@@ -125,4 +125,30 @@ pub struct MonitorPitch {
     /// pixels across the seam at all, and the app says so instead of returning
     /// a number that is quietly wrong.
     pub differs_from_neighbour: bool,
+}
+
+/// Preferences, plus a note if the stored file could not be used.
+///
+/// The note travels in the payload rather than as an error because a broken
+/// preferences file must not stop the app opening. It starts on defaults and
+/// says what happened, instead of silently discarding someone's settings.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct LoadedPreferences {
+    pub preferences: Preferences,
+    pub problem: Option<String>,
+    /// Black or white, whichever is legible on the chosen accent. Computed in
+    /// Rust and covered by tests, so a custom colour can never produce a button
+    /// whose label cannot be read.
+    pub accent_foreground: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct AccentPreset {
+    pub name: String,
+    pub hex: String,
+    pub foreground: String,
 }

@@ -4,12 +4,12 @@ import type { DeviceStatus } from "../ipc";
 
 export function Section(props: { title: string; note?: string; children: ReactNode }) {
   return (
-    <section className="section">
+    <section className="section glass">
       <h2 className="section__title">
         {props.title}
         {props.note && <span className="section__note">{props.note}</span>}
       </h2>
-      {props.children}
+      <div className="section__body">{props.children}</div>
     </section>
   );
 }

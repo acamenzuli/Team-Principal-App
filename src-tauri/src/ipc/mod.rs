@@ -8,8 +8,8 @@
 
 use tauri::State;
 use tp_model::{
-    AppInfo, CurveResult, DesktopLayoutInfo, DetectedDevice, LengthUnit, MonitorInfo, MonitorPitch,
-    ParsedLength,
+    AccentPreset, AppInfo, CurveResult, DesktopLayoutInfo, DetectedDevice, LengthUnit,
+    LoadedPreferences, MonitorInfo, MonitorPitch, ParsedLength, Preferences,
 };
 
 use crate::error::{AppError, AppResult};
@@ -137,4 +137,37 @@ pub fn solve_curvature(
             .filter(|r| *r > 0.0)
             .map(|r| s.worst_case_error_deg(eye, Mm(r))),
     }
+}
+
+#[tauri::command]
+pub fn get_preferences() -> LoadedPreferences {
+    let (preferences, problem) = crate::settings::load();
+    LoadedPreferences {
+        accent_foreground: tp_model::accent_foreground(&preferences.appearance.accent).to_string(),
+        preferences,
+        problem,
+    }
+}
+
+#[tauri::command]
+pub fn save_preferences(preferences: Preferences) -> AppResult<LoadedPreferences> {
+    let saved = crate::settings::save(&preferences)?;
+    Ok(LoadedPreferences {
+        accent_foreground: tp_model::accent_foreground(&saved.appearance.accent).to_string(),
+        preferences: saved,
+        problem: None,
+    })
+}
+
+/// The named accents offered in settings. A custom hex is always allowed.
+#[tauri::command]
+pub fn accent_presets() -> Vec<AccentPreset> {
+    tp_model::accent_presets()
+        .into_iter()
+        .map(|(name, hex)| AccentPreset {
+            name: name.to_string(),
+            hex: hex.to_string(),
+            foreground: tp_model::accent_foreground(hex).to_string(),
+        })
+        .collect()
 }

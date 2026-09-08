@@ -1,34 +1,64 @@
 /* Team Principal — design tokens.
  *
- * See docs/design/0006-visual-language.md for the reasoning. The short version:
- * this is an instrument read from 700 mm away in a dim room, not a web page.
+ * See docs/design/0006-visual-language.md. Two ideas held at once:
+ *
+ * 1. Glass, because depth and translucency make an app feel built rather than
+ *    assembled, and this is a product being sold.
+ * 2. Legibility at 700 mm in a dim room, which is what glass costs you if you
+ *    apply it indiscriminately.
+ *
+ * The resolution: glass lives on the *chrome* — the bar, the rail, sheets,
+ * overlays. Data surfaces, where the numbers are, stay solid. `--glass-*` is
+ * driven by the user's Glass setting, so Off collapses all of it to opaque
+ * without any component knowing.
  */
 
 :root {
-  /* Ground and structure. Near-black, separated by hairlines rather than by
-     cards, shadows or elevation. */
-  --ground: #0b0d0f;
-  --ground-raised: #12161a;
-  --rule: #1e242a;
-  --rule-strong: #2c343c;
+  /* ---- Ground. Near-black, with a faint field for the blur to work against.
+     A backdrop-filter over a flat colour produces nothing; there has to be
+     something behind it worth blurring. */
+  --ground: #0a0c0f;
+  --ground-deep: #06080a;
+  --ground-raised: #12161b;
 
-  /* Text. Three levels, no more. */
-  --ink: #e9edf0;
-  --ink-dim: #9aa5ad;
-  --ink-faint: #5c666f;
-
-  /* Status. Always paired with a glyph and a word — never colour alone. */
-  --pass: #3bd16f;
-  --warn: #ffb02e;
-  --fail: #ff4d4d;
-  --run: #5aa9ff;
-  --idle: #5c666f;
-
-  /* Amber is the only saturated hue in the chrome: warnings and actions. */
+  /* Accent. Set at runtime from preferences; these are the first-paint values
+     so the UI is never briefly unstyled. */
   --accent: #ffb02e;
   --accent-ink: #0b0d0f;
 
-  /* Type. Sized for the rig, not the desk. */
+  /* Everything tinted derives from --accent, so one setting moves the whole
+     interface rather than eight hard-coded shades. */
+  --accent-wash: color-mix(in srgb, var(--accent) 12%, transparent);
+  --accent-edge: color-mix(in srgb, var(--accent) 38%, transparent);
+  --accent-glow: color-mix(in srgb, var(--accent) 22%, transparent);
+  --accent-hover: color-mix(in srgb, var(--accent) 88%, white);
+
+  /* ---- Glass. Overridden wholesale by [data-glass] below. */
+  --glass-bg: rgba(20, 25, 32, 0.62);
+  --glass-bg-strong: rgba(16, 20, 26, 0.78);
+  --glass-blur: blur(20px) saturate(140%);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --glass-highlight: rgba(255, 255, 255, 0.055);
+  /* Data surfaces: solid at Subtle, translucent only at Full. */
+  --data-bg: var(--ground);
+
+  /* ---- Structure */
+  --rule: rgba(255, 255, 255, 0.07);
+  --rule-strong: rgba(255, 255, 255, 0.14);
+
+  /* ---- Text. Three levels, no more. */
+  --ink: #eef2f6;
+  --ink-dim: #a4b0ba;
+  --ink-faint: #6a7681;
+
+  /* ---- Status. Always paired with a glyph and a word, never colour alone. */
+  --pass: #3bd16f;
+  --warn: #ffb02e;
+  --fail: #ff5a5a;
+  --run: #5aa9ff;
+  --idle: #6a7681;
+
+  /* ---- Type. Sized for the rig, not the desk. */
   --font-ui: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
   --font-num: "Cascadia Mono", "Consolas", ui-monospace, monospace;
   --size-sm: 13px;
@@ -37,7 +67,7 @@
   --size-readout: 22px;
   --size-display: 34px;
 
-  /* Space. A 4px grid; nothing off it. */
+  /* ---- Space: a 4px grid, nothing off it. */
   --s1: 4px;
   --s2: 8px;
   --s3: 12px;
@@ -46,9 +76,31 @@
   --s6: 32px;
   --s7: 48px;
 
-  /* Instrument, not web app. */
-  --radius: 2px;
+  /* Glass wants a little more radius than an instrument panel does; 8px is the
+     compromise that reads as a pane rather than a pill. */
+  --radius: 8px;
+  --radius-sm: 4px;
   --hit: 44px;
+
+  --shadow-sheet: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+/* Off — flat and opaque. Highest contrast, cheapest to draw, and the answer
+   for anyone who finds blur hard to read. */
+:root[data-glass="off"] {
+  --glass-bg: #12161b;
+  --glass-bg-strong: #0f1318;
+  --glass-blur: none;
+  --glass-highlight: transparent;
+  --data-bg: var(--ground);
+}
+
+/* Full — translucency on data surfaces too. */
+:root[data-glass="full"] {
+  --glass-bg: rgba(22, 28, 36, 0.5);
+  --glass-bg-strong: rgba(16, 20, 26, 0.66);
+  --glass-blur: blur(28px) saturate(160%);
+  --data-bg: rgba(255, 255, 255, 0.022);
 }
 
 * {
@@ -63,37 +115,80 @@ body,
 }
 
 body {
-  background: var(--ground);
+  background: var(--ground-deep);
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: var(--size-base);
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
-  /* No text selection on chrome: this is an appliance, and a stray drag
-     selecting half the UI looks broken. Inputs opt back in below. */
+  /* An appliance, not a document: a stray drag must not select half the UI.
+     Inputs and data opt back in below. */
   user-select: none;
+}
+
+/* The field the glass blurs. Two wide, very low-opacity accent pools plus a
+   vertical fade — enough for translucency to read as depth, far too diffuse to
+   compete with any text. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(80ch 60ch at 12% -10%, var(--accent-glow), transparent 60%),
+    radial-gradient(70ch 50ch at 92% 8%, color-mix(in srgb, var(--run) 14%, transparent), transparent 62%),
+    linear-gradient(180deg, var(--ground) 0%, var(--ground-deep) 70%);
+  pointer-events: none;
+}
+
+:root[data-glass="off"] body::before {
+  background: var(--ground);
 }
 
 input,
 textarea,
-[data-selectable] {
+[data-selectable],
+.num {
   user-select: text;
 }
 
-/* Every number in this app is tabular. A value updating live must not shift
-   its neighbours, and columns of figures must align. */
+/* Every number in this app is tabular. A live value must not shift its
+   neighbours, and columns of figures must line up. */
 .num {
   font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
 
+/* One class, so glass is defined once and every pane inherits the setting. */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  /* The top highlight is what separates a glass pane from a grey box. */
+  box-shadow: inset 0 1px 0 0 var(--glass-highlight);
+}
+
+/* Where backdrop-filter is unavailable the translucent background alone reads
+   as muddy, so go opaque instead of shipping something half-rendered. */
+@supports not (backdrop-filter: blur(1px)) {
+  :root {
+    --glass-bg: #12161b;
+    --glass-bg-strong: #0f1318;
+  }
+}
+
 /* Focus must be obvious from across a room. */
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
+/* Either the OS or the app's own setting suppresses motion; whichever asks,
+   wins. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -101,4 +196,11 @@ textarea,
     animation-duration: 0.001ms !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+:root[data-reduce-motion="true"] *,
+:root[data-reduce-motion="true"] *::before,
+:root[data-reduce-motion="true"] *::after {
+  animation-duration: 0.001ms !important;
+  transition-duration: 0.001ms !important;
 }

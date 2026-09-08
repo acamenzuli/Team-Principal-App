@@ -11,6 +11,7 @@ license.workspace = true
 [dependencies]
 serde = { workspace = true }
 uuid = { workspace = true }
+thiserror = { workspace = true }
 ts-rs = { version = "10", features = ["serde-compat", "uuid-impl"] }
 
 [dev-dependencies]

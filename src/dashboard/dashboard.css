@@ -5,17 +5,24 @@
   max-width: 1400px;
 }
 
-/* A section is a heading and a rule. No card, no shadow, no radius. */
+/* A section is a glass pane with a ruled header. The pane carries the depth;
+   the data inside it sits on a solid surface so nothing is read through blur. */
 .section__title {
   display: flex;
   align-items: baseline;
   gap: var(--s3);
-  margin: 0 0 var(--s3);
-  padding-bottom: var(--s2);
-  border-bottom: 1px solid var(--rule-strong);
+  margin: 0;
+  padding: var(--s4) var(--s5);
+  border-bottom: 1px solid var(--rule);
   font-size: var(--size-base);
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+.section__body {
+  padding: var(--s2) var(--s5) var(--s4);
+  background: var(--data-bg);
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 
 .section__note {
@@ -44,6 +51,14 @@
   padding: var(--s3) var(--s3) var(--s3) 0;
   border-bottom: 1px solid var(--rule);
   vertical-align: baseline;
+}
+
+.grid tbody tr {
+  transition: background 120ms ease;
+}
+
+.grid tbody tr:hover {
+  background: var(--accent-wash);
 }
 
 .grid tbody tr:last-child td {
@@ -136,9 +151,13 @@
   padding: var(--s2) var(--s3);
   background: var(--ground-raised);
   border: 1px solid var(--rule-strong);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   color: var(--ink);
   font-size: var(--size-readout);
+}
+
+.field__input:focus {
+  border-color: var(--accent);
 }
 
 .field__suffix {
@@ -161,6 +180,8 @@
   gap: 1px;
   background: var(--rule);
   border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
 }
 
 .readout {
@@ -168,7 +189,13 @@
   flex-direction: column;
   gap: var(--s1);
   padding: var(--s3) var(--s4);
-  background: var(--ground);
+  background: var(--ground-raised);
+}
+
+/* The headline figure takes the accent, so the number the user came for is the
+   thing the eye lands on first. */
+.readout--key .readout__value {
+  color: var(--accent);
 }
 
 .readout__label {
@@ -182,7 +209,6 @@
 
 .readout--key .readout__value {
   font-size: var(--size-display);
-  color: var(--pass);
 }
 
 .readout__unit {
@@ -198,6 +224,7 @@
   margin: 0;
   padding: var(--s3) var(--s4);
   border-left: 2px solid var(--warn);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   background: var(--ground-raised);
   font-size: var(--size-base);
   color: var(--ink-dim);
@@ -222,7 +249,8 @@
   width: 100%;
   max-height: 320px;
   border: 1px solid var(--rule);
-  background: var(--ground);
+  border-radius: var(--radius-sm);
+  background: var(--ground-deep);
 }
 
 .map__caption {
