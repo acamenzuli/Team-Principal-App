@@ -9,7 +9,9 @@
 //! bezel math and best-fit solver land in milestone 3.
 
 pub mod curvature;
+pub mod layout;
 pub mod parse;
 
 pub use curvature::{solve as solve_curvature, CurveSolution};
+pub use layout::{desktop_layout, pitch_mismatch, pixel_pitch, DesktopLayout};
 pub use parse::{format_length, parse_length, ParseLengthError};

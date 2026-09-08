@@ -16,6 +16,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tp-model = { workspace = true }
 tp-geometry = { workspace = true }
+tp-edid = { workspace = true }
 
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"

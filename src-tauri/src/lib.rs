@@ -7,6 +7,7 @@
 //! in [`ipc`], which go through the traits in [`providers`], which have exactly
 //! two implementations — the real Win32 one and a mock driven by JSON fixtures.
 
+pub mod display;
 pub mod error;
 pub mod ipc;
 pub mod logging;
@@ -123,6 +124,7 @@ pub fn run() {
             ipc::app_info,
             ipc::list_monitors,
             ipc::list_devices,
+            ipc::desktop_layout,
             ipc::parse_length,
             ipc::solve_curvature,
         ])

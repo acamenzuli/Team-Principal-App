@@ -27,10 +27,17 @@ impl WinDisplayProvider {
 }
 impl DisplayProvider for WinDisplayProvider {
     fn enumerate(&self) -> AppResult<Vec<MonitorInfo>> {
-        Err(todo_in("monitor enumeration", 2))
+        crate::display::enumerate_monitors()
     }
+
+    /// Capturing is read-only and lands here in milestone 2 so that a snapshot
+    /// exists before anything can change a display. *Restoring* one is
+    /// milestone 9, with the confirm-or-revert countdown and the panic hotkey —
+    /// the point at which getting it wrong can leave a triple rig with nothing
+    /// on screen.
     fn capture_snapshot(&self) -> AppResult<TopologySnapshot> {
-        Err(todo_in("topology snapshots", 9))
+        let monitors = self.enumerate()?;
+        crate::display::capture_snapshot(&monitors)
     }
 }
 

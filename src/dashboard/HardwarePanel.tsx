@@ -1,16 +1,31 @@
 import { useEffect, useState } from "react";
 
-import { asIpcError, listDevices, listMonitors, type DetectedDevice, type MonitorInfo } from "../ipc";
+import {
+  asIpcError,
+  desktopLayout,
+  listDevices,
+  listMonitors,
+  type DesktopLayoutInfo,
+  type DetectedDevice,
+  type MonitorInfo,
+} from "../ipc";
+import { DesktopMap, rectLabel } from "./DesktopMap";
 import { Section, StatusPill } from "./primitives";
 
 export function HardwarePanel() {
   const [monitors, setMonitors] = useState<MonitorInfo[]>([]);
+  const [layout, setLayout] = useState<DesktopLayoutInfo | null>(null);
   const [devices, setDevices] = useState<DetectedDevice[]>([]);
   const [monitorError, setMonitorError] = useState<string | null>(null);
   const [deviceError, setDeviceError] = useState<string | null>(null);
 
   useEffect(() => {
     listMonitors().then(setMonitors).catch((e) => setMonitorError(asIpcError(e).message));
+    desktopLayout()
+      .then(setLayout)
+      // The layout is derived from the same enumeration, so a failure here is
+      // the same failure already reported above. Don't say it twice.
+      .catch(() => setLayout(null));
     listDevices().then(setDevices).catch((e) => setDeviceError(asIpcError(e).message));
   }, []);
 
@@ -29,6 +44,7 @@ export function HardwarePanel() {
                 <th>Position</th>
                 <th>Scale</th>
                 <th>Physical size</th>
+                <th>Pitch</th>
               </tr>
             </thead>
             <tbody>
@@ -64,10 +80,25 @@ export function HardwarePanel() {
                       <span className="note">not reported</span>
                     )}
                   </td>
+                  <td className="num">{pitchCell(layout, m)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+        )}
+        {layout && monitors.length > 0 && (
+          <>
+            <DesktopMap layout={layout} monitors={monitors} />
+            {!layout.isGapless && (
+              <ul className="deadlist">
+                {layout.deadRegions.map((d, i) => (
+                  <li key={i} className="num">
+                    {rectLabel(d)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </Section>
 
@@ -123,3 +154,25 @@ export function HardwarePanel() {
 }
 
 const hex = (n: number) => `0x${n.toString(16).toUpperCase().padStart(4, "0")}`;
+
+/**
+ * Pixel pitch, and whether it differs from the panel to its left.
+ *
+ * Where adjacent panels differ, a bezel gap measured in millimetres cannot be
+ * converted to pixels across that seam at all — so the app flags it rather than
+ * producing a number that looks right and is not.
+ */
+function pitchCell(layout: DesktopLayoutInfo | null, m: MonitorInfo) {
+  const pitch = layout?.pitches.find((p) => p.devicePath === m.devicePath);
+  if (!pitch || pitch.pxPerMm === null) return <span className="note">unknown</span>;
+  return (
+    <>
+      {pitch.pxPerMm.toFixed(2)} px/mm
+      {pitch.differsFromNeighbour && (
+        <span className="tag tag--warn" title="A bezel gap cannot be expressed in pixels across this seam">
+          ▲ differs
+        </span>
+      )}
+    </>
+  );
+}

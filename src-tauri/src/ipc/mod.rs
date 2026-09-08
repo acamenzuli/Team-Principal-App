@@ -7,7 +7,10 @@
 //! generates payload types but knows nothing about command *names*.
 
 use tauri::State;
-use tp_model::{AppInfo, CurveResult, DetectedDevice, LengthUnit, MonitorInfo, ParsedLength};
+use tp_model::{
+    AppInfo, CurveResult, DesktopLayoutInfo, DetectedDevice, LengthUnit, MonitorInfo, MonitorPitch,
+    ParsedLength,
+};
 
 use crate::error::{AppError, AppResult};
 use crate::providers::Providers;
@@ -36,6 +39,49 @@ pub fn list_monitors(providers: State<'_, Providers>) -> AppResult<Vec<MonitorIn
 #[tauri::command]
 pub fn list_devices(providers: State<'_, Providers>) -> AppResult<Vec<DetectedDevice>> {
     providers.peripherals.enumerate()
+}
+
+/// The virtual desktop's bounding box and its dead regions.
+///
+/// Separate from `list_monitors` because it is derived rather than detected:
+/// the trait computes it from the enumerated rectangles, so the real and mock
+/// providers cannot disagree about it.
+#[tauri::command]
+pub fn desktop_layout(providers: State<'_, Providers>) -> AppResult<Option<DesktopLayoutInfo>> {
+    let monitors = providers.display.enumerate()?;
+    let Some(layout) = providers.display.desktop_layout()? else {
+        return Ok(None);
+    };
+
+    // Pitch per monitor, left to right, each compared with its left neighbour.
+    let mut pitches: Vec<MonitorPitch> = Vec::with_capacity(monitors.len());
+    let mut previous: Option<f64> = None;
+    for m in &monitors {
+        let px_per_mm = m
+            .physical_size
+            .and_then(|p| tp_geometry::pixel_pitch(m.native_resolution.width, p.width.0));
+        let differs = match (previous, px_per_mm) {
+            (Some(prev), Some(now)) => tp_geometry::pitch_mismatch(prev, now) > 0.10,
+            _ => false,
+        };
+        if px_per_mm.is_some() {
+            previous = px_per_mm;
+        }
+        pitches.push(MonitorPitch {
+            device_path: m.device_path.clone(),
+            px_per_mm,
+            differs_from_neighbour: differs,
+        });
+    }
+
+    Ok(Some(DesktopLayoutInfo {
+        bounds: layout.bounds,
+        dead_area: layout.dead_area() as f64,
+        covered_area: layout.covered_area as f64,
+        is_gapless: layout.is_gapless(),
+        dead_regions: layout.dead_regions,
+        pitches,
+    }))
 }
 
 /// Parse a length the way the user typed it — `47.5in`, `1200mm`, `47 1/2"`.

@@ -1,0 +1,19 @@
+[package]
+name = "tp-edid"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# EDID parsing, as pure byte work.
+#
+# Deliberately free of `windows`: reading the blob off the machine is a Win32
+# problem, but *interpreting* it is not, and the interpretation is where the
+# bugs live. Keeping it here means the parser is covered by tests that run on
+# any machine, against blobs captured from real monitors.
+[dependencies]
+tp-model = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

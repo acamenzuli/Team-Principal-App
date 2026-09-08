@@ -40,7 +40,7 @@ cargo run -p team-principal -- --mock fixtures/rigs/mismatched-heights.json
 From a non-Windows machine, the useful subset:
 
 ```bash
-cargo test -p tp-model -p tp-geometry
+cargo test -p tp-model -p tp-geometry -p tp-edid
 cargo check --workspace --target x86_64-pc-windows-msvc --all-targets
 ```
 
@@ -49,6 +49,13 @@ cargo check --workspace --target x86_64-pc-windows-msvc --all-targets
 - **`tp-geometry` never depends on `windows`, `tauri`, or any game adapter.**
   Its manifest enforces this. Adapters consume its output; they never do their
   own trigonometry.
+- **Pure logic goes in a crate that builds on any platform.** `src-tauri` cannot
+  be compiled or tested off Windows, so anything testable — EDID parsing,
+  registry-key derivation, layout math — lives in `tp-model`, `tp-geometry` or
+  `tp-edid`. Only the platform call itself stays behind.
+- **EDID never supplies resolution.** Its timing fields cap at 4095 px and
+  655.35 MHz, so a 5120x1440 panel cannot express its native mode there.
+  Windows owns resolution; EDID owns physical size and identity.
 - **All geometry is physical pixels and millimetres.** Never DIPs. The process
   is Per-Monitor V2 DPI aware and a test asserts it.
 - **`src/bindings/` is generated**, by `cargo test -p tp-model`. Never hand-edit.
@@ -66,10 +73,10 @@ cargo check --workspace --target x86_64-pc-windows-msvc --all-targets
 
 ## Milestones
 
-Stop at the end of each for hardware testing. Current: **1 complete**.
+Stop at the end of each for hardware testing. Current: **2 complete**.
 
 1. ✅ Skeleton — Tauri, DPI manifest, logging, typed IPC, mock providers, CI
-2. Display enumeration (read-only, EDID physical size)
+2. ✅ Display enumeration — CCD, EDID from the registry, dead regions
 3. Geometry engine in full
 4. Screen Setup UI
 5. Peripherals

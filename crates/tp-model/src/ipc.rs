@@ -8,6 +8,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::PixelRect;
+
 /// Everything the UI needs to describe the running app, on the dashboard and
 /// in a support ticket.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -86,4 +88,41 @@ pub enum Remedy {
     OpenSettings {
         section: String,
     },
+}
+
+/// The virtual desktop's shape, as the layout editor needs to draw it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopLayoutInfo {
+    /// The bounding box of every monitor, in physical pixels. Its origin is
+    /// negative whenever a monitor sits left of or above the primary.
+    pub bounds: PixelRect,
+    /// Parts of `bounds` that map to no physical panel. A window placed here is
+    /// addressable and invisible.
+    pub dead_regions: Vec<PixelRect>,
+    /// Areas as f64 rather than u64: they cross into JavaScript, where an
+    /// integer beyond 2^53 would silently lose precision. A desktop would have
+    /// to be about 95 megapixels square to get near that, but `bigint` in the
+    /// binding for no reason is worse.
+    pub covered_area: f64,
+    pub dead_area: f64,
+    pub is_gapless: bool,
+    /// Per-monitor pixel pitch, in the same order as `list_monitors`.
+    pub pitches: Vec<MonitorPitch>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct MonitorPitch {
+    pub device_path: String,
+    /// `None` when the monitor reports no physical size. The UI must ask for a
+    /// measurement rather than assume a pitch.
+    pub px_per_mm: Option<f64>,
+    /// True when this monitor's pitch differs from its left-hand neighbour's by
+    /// more than 10%. Where that holds, a bezel gap cannot be expressed in
+    /// pixels across the seam at all, and the app says so instead of returning
+    /// a number that is quietly wrong.
+    pub differs_from_neighbour: bool,
 }

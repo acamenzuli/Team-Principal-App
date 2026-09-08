@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/tp-model", "crates/tp-geometry", "crates/tp-fakegame", "src-tauri"]
+members = ["crates/tp-model", "crates/tp-geometry", "crates/tp-edid", "crates/tp-fakegame", "src-tauri"]
 
 [workspace.package]
 version = "0.1.0"
@@ -12,6 +12,7 @@ authors = ["Alex Camenzuli"]
 [workspace.dependencies]
 tp-model = { path = "crates/tp-model" }
 tp-geometry = { path = "crates/tp-geometry" }
+tp-edid = { path = "crates/tp-edid" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"

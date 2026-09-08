@@ -11,22 +11,28 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { AppInfo } from "./bindings/AppInfo";
 import type { CurveResult } from "./bindings/CurveResult";
+import type { DesktopLayoutInfo } from "./bindings/DesktopLayoutInfo";
 import type { DetectedDevice } from "./bindings/DetectedDevice";
 import type { DeviceStatus } from "./bindings/DeviceStatus";
 import type { LengthUnit } from "./bindings/LengthUnit";
 import type { MonitorInfo } from "./bindings/MonitorInfo";
+import type { MonitorPitch } from "./bindings/MonitorPitch";
+import type { PixelRect } from "./bindings/PixelRect";
 import type { ParsedLength } from "./bindings/ParsedLength";
 import type { IpcError } from "./bindings/IpcError";
 
 export type {
   AppInfo,
   CurveResult,
+  DesktopLayoutInfo,
   DetectedDevice,
   DeviceStatus,
   IpcError,
   LengthUnit,
   MonitorInfo,
+  MonitorPitch,
   ParsedLength,
+  PixelRect,
 };
 
 export const appInfo = () => invoke<AppInfo>("app_info");
@@ -34,6 +40,9 @@ export const appInfo = () => invoke<AppInfo>("app_info");
 export const listMonitors = () => invoke<MonitorInfo[]>("list_monitors");
 
 export const listDevices = () => invoke<DetectedDevice[]>("list_devices");
+
+/** Null when no monitors are detected at all — not an empty desktop. */
+export const desktopLayout = () => invoke<DesktopLayoutInfo | null>("desktop_layout");
 
 export const parseLength = (input: string, unit: LengthUnit) =>
   invoke<ParsedLength>("parse_length", { input, unit });

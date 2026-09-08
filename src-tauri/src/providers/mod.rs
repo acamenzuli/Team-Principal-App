@@ -22,6 +22,17 @@ use crate::error::AppResult;
 pub trait DisplayProvider: Send + Sync {
     fn enumerate(&self) -> AppResult<Vec<MonitorInfo>>;
     fn capture_snapshot(&self) -> AppResult<TopologySnapshot>;
+
+    /// The virtual desktop bounding box and the dead regions inside it.
+    ///
+    /// Provided by the trait rather than by each implementation: it is pure
+    /// math over the enumerated rectangles, so the real and mock providers must
+    /// not be able to disagree about it.
+    fn desktop_layout(&self) -> AppResult<Option<tp_geometry::DesktopLayout>> {
+        let monitors = self.enumerate()?;
+        let rects: Vec<_> = monitors.iter().map(|m| m.bounds).collect();
+        Ok(tp_geometry::desktop_layout(&rects))
+    }
 }
 
 pub trait PeripheralProvider: Send + Sync {

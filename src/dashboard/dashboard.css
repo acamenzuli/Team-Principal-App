@@ -210,3 +210,42 @@
 .bench__warning strong {
   color: var(--ink);
 }
+
+/* ------------------------------------------------------------ desktop map */
+
+.map {
+  margin: var(--s5) 0 0;
+}
+
+.map__svg {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  border: 1px solid var(--rule);
+  background: var(--ground);
+}
+
+.map__caption {
+  margin-top: var(--s3);
+  font-size: var(--size-sm);
+  color: var(--ink-dim);
+}
+
+.map__ok {
+  color: var(--pass);
+}
+
+.map__dead {
+  color: var(--warn);
+}
+
+.map__dead strong {
+  color: var(--ink);
+}
+
+.deadlist {
+  margin: var(--s3) 0 0;
+  padding-left: var(--s5);
+  font-size: var(--size-sm);
+  color: var(--ink-faint);
+}
