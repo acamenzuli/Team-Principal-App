@@ -79,8 +79,8 @@ Stop at the end of each for hardware testing. Current: **4 complete**.
 2. ✅ Display enumeration — CCD, EDID from the registry, dead regions
 3. ✅ Geometry engine — rig solver, FOV, spans, frusta, bezels, best fit
 4. ✅ Screen Setup — rig form, auto-fill from EDID, live numbers, rig views
-5. Peripherals — HID layer, catalog, status rules and debounce done;
-   DirectInput ordering, event hotplug and the axis monitor remain
+5. Peripherals — HID, DirectInput ordering, event-driven hotplug, catalog,
+   status rules and debounce done; the live axis monitor remains
 6. Window control
 7. Launch orchestration
 8. The "Let's race" flow

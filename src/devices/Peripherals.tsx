@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { Section, StatusPill } from "../dashboard/primitives";
-import { asIpcError, listDevices, type DetectedDevice } from "../ipc";
+import {
+  asIpcError,
+  listDevices,
+  onDevicesChanged,
+  refreshDevices,
+  type DetectedDevice,
+} from "../ipc";
 import "./devices.css";
 
 /**
@@ -17,7 +23,7 @@ export function Peripherals() {
   const [error, setError] = useState<string | null>(null);
   const [scannedAt, setScannedAt] = useState<Date | null>(null);
 
-  const refresh = useCallback(async () => {
+  const load = useCallback(async () => {
     try {
       setDevices(await listDevices());
       setScannedAt(new Date());
@@ -28,13 +34,19 @@ export function Peripherals() {
   }, []);
 
   useEffect(() => {
-    void refresh();
-    // A slow reconciliation poll. Event-driven hotplug via
-    // CM_Register_Notification is the right mechanism and lands next; until
-    // then this is honest about being a poll rather than pretending to be live.
-    const timer = window.setInterval(() => void refresh(), 4000);
-    return () => window.clearInterval(timer);
-  }, [refresh]);
+    // One read for the current state, then events. The backend publishes only
+    // when a debounced status actually changes, so this component never polls
+    // and never re-renders to be told nothing happened.
+    void load();
+    let unlisten: (() => void) | undefined;
+    void onDevicesChanged((next) => {
+      setDevices(next);
+      setScannedAt(new Date());
+    }).then((f) => {
+      unlisten = f;
+    });
+    return () => unlisten?.();
+  }, [load]);
 
   return (
     <div className="devices">
@@ -44,7 +56,7 @@ export function Peripherals() {
           devices === null
             ? "scanning"
             : `${devices.length} game controller${devices.length === 1 ? "" : "s"}${
-                scannedAt ? ` · checked ${scannedAt.toLocaleTimeString()}` : ""
+                scannedAt ? ` · updated ${scannedAt.toLocaleTimeString()}` : ""
               }`
         }
       >
@@ -66,6 +78,7 @@ export function Peripherals() {
                 <th>Status</th>
                 <th>VID / PID</th>
                 <th>Serial</th>
+                <th>DirectInput</th>
                 <th>Notes</th>
               </tr>
             </thead>
@@ -87,6 +100,18 @@ export function Peripherals() {
                   <td className="num">
                     {d.device.serial ?? <span className="note">none reported</span>}
                   </td>
+                  <td className="num">
+                    {d.dinputPresent ? (
+                      <>
+                        slot {d.dinputSlot ?? "?"}
+                        {d.dinputInstanceGuid && (
+                          <span className="devices__raw">{d.dinputInstanceGuid}</span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="note">not listed</span>
+                    )}
+                  </td>
                   <td>
                     {d.isVirtual && <span className="tag">vJoy</span>}
                     {!d.dinputPresent && (
@@ -107,14 +132,22 @@ export function Peripherals() {
           </table>
         )}
 
+        <div className="devices__actions">
+          <button className="btn btn--quiet" onClick={() => void refreshDevices()}>
+            Rescan now
+          </button>
+          <span className="hint">
+            This list updates itself — Windows reports device arrival and removal, and a device
+            that bounces while it enumerates never reaches this page.
+          </span>
+        </div>
+
         {/* Say plainly what is not finished, rather than letting a half-built
             page look like a broken one. */}
         <p className="devices__scope">
-          <strong>Milestone 5, part one.</strong> This reads the HID layer: what is plugged in,
-          its identity, and whether it is a vJoy device. DirectInput ordering, event-driven
-          hotplug, and the live axis monitor are the rest of this milestone — until DirectInput is
-          read, every device shows as <em>Connecting</em> rather than claiming a readiness that
-          has not been checked.
+          <strong>Still to come in this milestone:</strong> the live axis and button monitor, so
+          you can confirm a wheel or pedal set is actually working, and required-versus-optional
+          marking that feeds the pre-launch check.
         </p>
       </Section>
     </div>

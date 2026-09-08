@@ -120,13 +120,26 @@ pub fn run() {
         }
     };
 
+    let simulated = providers.simulated;
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(providers)
+        .setup(move |app| {
+            use tauri::Manager;
+            // The peripheral watch owns the device list and publishes changes.
+            // Started here rather than lazily so the first render already has a
+            // scan behind it. Against fixtures there is nothing to watch, and
+            // the mock provider answers instead.
+            let watcher = (!simulated).then(|| peripherals::watch::start(app.handle().clone()));
+            app.manage(peripherals::watch::PeripheralWatch(watcher));
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             ipc::app_info,
             ipc::list_monitors,
             ipc::list_devices,
+            ipc::refresh_devices,
             ipc::desktop_layout,
             ipc::get_preferences,
             ipc::save_preferences,

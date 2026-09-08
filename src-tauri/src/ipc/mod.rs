@@ -39,9 +39,31 @@ pub fn list_monitors(providers: State<'_, Providers>) -> AppResult<Vec<MonitorIn
     providers.display.enumerate()
 }
 
+/// The current device list.
+///
+/// Read from the watch thread's cache rather than rescanned: the watcher is
+/// already the authority, it has run the statuses through their debouncers, and
+/// a second enumeration path would be a second answer to the same question.
+///
+/// Against fixtures there is no watcher, so the mock provider answers instead.
 #[tauri::command]
-pub fn list_devices(providers: State<'_, Providers>) -> AppResult<Vec<DetectedDevice>> {
-    providers.peripherals.enumerate()
+pub fn list_devices(
+    providers: State<'_, Providers>,
+    watch: State<'_, crate::peripherals::watch::PeripheralWatch>,
+) -> AppResult<Vec<DetectedDevice>> {
+    match &watch.0 {
+        Some(w) => Ok(w.latest()),
+        None => providers.peripherals.enumerate(),
+    }
+}
+
+/// Ask for an immediate rescan. The result arrives as a `peripherals://changed`
+/// event like any other, so there is one path into the UI rather than two.
+#[tauri::command]
+pub fn refresh_devices(watch: State<'_, crate::peripherals::watch::PeripheralWatch>) {
+    if let Some(w) = &watch.0 {
+        w.poke();
+    }
 }
 
 /// The virtual desktop's bounding box and its dead regions.

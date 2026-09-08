@@ -8,6 +8,7 @@
  * a renamed or removed command fails CI instead of failing at runtime.
  */
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type { AccentPreset } from "./bindings/AccentPreset";
 import type { AppInfo } from "./bindings/AppInfo";
@@ -64,6 +65,23 @@ export const appInfo = () => invoke<AppInfo>("app_info");
 export const listMonitors = () => invoke<MonitorInfo[]>("list_monitors");
 
 export const listDevices = () => invoke<DetectedDevice[]>("list_devices");
+
+/** Ask for an immediate rescan. The result arrives via onDevicesChanged. */
+export const refreshDevices = () => invoke<void>("refresh_devices");
+
+/**
+ * Subscribe to peripheral changes.
+ *
+ * The backend watches for device arrival and removal at the OS level and
+ * publishes only when a debounced status actually changes — so this fires on
+ * real events, not on a timer, and a USB device bouncing during enumeration
+ * never reaches the UI.
+ */
+export function onDevicesChanged(
+  handler: (devices: DetectedDevice[]) => void,
+): Promise<UnlistenFn> {
+  return listen<DetectedDevice[]>("peripherals://changed", (e) => handler(e.payload));
+}
 
 /** Null when no monitors are detected at all — not an empty desktop. */
 export const desktopLayout = () => invoke<DesktopLayoutInfo | null>("desktop_layout");

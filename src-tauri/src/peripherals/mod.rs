@@ -14,8 +14,12 @@
 //! The rules for turning those four answers into one status live in
 //! `tp_model::presence`, where they are tested without hardware.
 
+pub mod dinput;
 pub mod hid;
+#[cfg(windows)]
+pub mod notify;
 pub mod vjoy;
+pub mod watch;
 
 use tp_model::{Catalog, DetectedDevice, Observation};
 
@@ -29,6 +33,13 @@ pub fn enumerate(catalog: &Catalog) -> AppResult<Vec<DetectedDevice>> {
         .collect();
 
     let vjoy = vjoy::probe();
+    let di_devices = dinput::enumerate();
+
+    // How many of each VID/PID have already been matched, so a pair of
+    // identical pedals gets one DirectInput slot each rather than both taking
+    // the first. Order within a model is the only thing available to pair them
+    // by, and it is at least stable within a single scan.
+    let mut taken: std::collections::HashMap<(u16, u16), usize> = std::collections::HashMap::new();
 
     let mut out: Vec<DetectedDevice> = hid_devices
         .iter()
@@ -36,28 +47,39 @@ pub fn enumerate(catalog: &Catalog) -> AppResult<Vec<DetectedDevice>> {
             let is_virtual = vjoy::is_vjoy_device(d.vid, d.pid);
             let display_name = catalog.best_name(d.vid, d.pid, None, d.product.as_deref());
 
-            // DirectInput ordering is not yet read; until it is, a device is
-            // reported as present at HID and not yet confirmed visible to
-            // games. Claiming otherwise would be exactly the lie this module
-            // exists to prevent.
+            let nth = taken.entry((d.vid, d.pid)).or_insert(0);
+            let di = di_devices
+                .iter()
+                .filter(|x| x.vid == d.vid && x.pid == d.pid)
+                .nth(*nth);
+            *nth += 1;
+
             let observation = Observation {
                 hid_present: true,
-                dinput_present: false,
+                dinput_present: di.is_some(),
+                // A profile declares vendor and feeder requirements; a bare
+                // scan has none to check. None means "nothing declared", not
+                // "checked and failed".
                 vendor_process_running: None,
-                vjoy_feeder_running: is_virtual.then_some(false),
+                vjoy_feeder_running: None,
             };
 
             DetectedDevice {
                 device: d.to_ref(display_name),
                 manufacturer: d.manufacturer.clone(),
-                raw_product_name: d.product.clone(),
+                raw_product_name: d
+                    .product
+                    .clone()
+                    .or_else(|| di.and_then(|x| x.product_name.clone())),
                 status: observation.status(),
                 hid_present: true,
-                dinput_present: false,
-                dinput_slot: None,
-                dinput_instance_guid: None,
+                dinput_present: di.is_some(),
+                dinput_slot: di.map(|x| x.slot),
+                dinput_instance_guid: di.map(|x| x.instance_guid.clone()),
                 is_virtual,
                 vjoy: is_virtual.then(|| vjoy.info_for(d.vid, d.pid)),
+                // Drift is a comparison against a saved profile, so it is
+                // decided when a profile is in hand, not during a bare scan.
                 binding_drift: None,
             }
         })
@@ -73,6 +95,10 @@ pub fn enumerate(catalog: &Catalog) -> AppResult<Vec<DetectedDevice>> {
             .then_with(|| a.device.instance_path.cmp(&b.device.instance_path))
     });
 
-    tracing::info!(count = out.len(), "enumerated game controllers");
+    tracing::info!(
+        hid = hid_devices.len(),
+        dinput = di_devices.len(),
+        "enumerated game controllers"
+    );
     Ok(out)
 }

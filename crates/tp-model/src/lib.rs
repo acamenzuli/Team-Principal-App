@@ -12,6 +12,7 @@
 pub mod catalog;
 pub mod detect;
 pub mod device;
+pub mod dinput;
 pub mod display;
 pub mod fixture;
 pub mod ipc;
@@ -24,6 +25,7 @@ pub mod units;
 pub use catalog::{Catalog, CatalogEntry, DeviceKind};
 pub use detect::rig_from_monitors;
 pub use device::*;
+pub use dinput::{format_guid, vid_pid_from_product_guid};
 pub use display::*;
 pub use fixture::Fixture;
 pub use ipc::*;

@@ -22,3 +22,11 @@
 .devices__scope strong {
   color: var(--ink);
 }
+
+.devices__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  margin-top: var(--s4);
+}
