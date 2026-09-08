@@ -12,6 +12,7 @@ pub mod error;
 pub mod ipc;
 pub mod logging;
 pub mod providers;
+pub mod rig;
 pub mod settings;
 
 /// Which milestone this build represents. Shown in the UI and in diagnostics so
@@ -129,6 +130,13 @@ pub fn run() {
             ipc::get_preferences,
             ipc::save_preferences,
             ipc::accent_presets,
+            ipc::list_rigs,
+            ipc::current_rig,
+            ipc::save_rig,
+            ipc::delete_rig,
+            ipc::detect_rig,
+            ipc::solve_rig,
+            ipc::fit_rig,
             ipc::parse_length,
             ipc::solve_curvature,
         ])

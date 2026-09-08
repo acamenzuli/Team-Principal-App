@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Dashboard } from "./dashboard/Dashboard";
 import { applyTheme } from "./design/theme";
+import { ScreenSetup } from "./screen/ScreenSetup";
 import { Settings } from "./settings/Settings";
 import {
   appInfo,
@@ -13,7 +14,7 @@ import {
 } from "./ipc";
 import "./app.css";
 
-type View = "rig" | "settings";
+type View = "rig" | "screen" | "settings";
 
 export function App() {
   const [info, setInfo] = useState<AppInfo | null>(null);
@@ -74,7 +75,10 @@ export function App() {
 
         <nav className="tabs" aria-label="Sections">
           <Tab id="rig" current={view} onSelect={setView}>
-            Rig
+            Displays
+          </Tab>
+          <Tab id="screen" current={view} onSelect={setView}>
+            Screen Setup
           </Tab>
           <Tab id="settings" current={view} onSelect={setView}>
             Settings
@@ -104,6 +108,8 @@ export function App() {
           </p>
         )}
         {view === "rig" && <Dashboard />}
+        {view === "screen" &&
+          (prefs ? <ScreenSetup unit={prefs.units} /> : <p className="note">Loading…</p>)}
         {view === "settings" &&
           (prefs ? (
             <Settings prefs={prefs} onChange={updatePrefs} />

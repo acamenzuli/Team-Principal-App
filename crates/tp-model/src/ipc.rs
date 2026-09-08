@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{PixelRect, Preferences};
+use crate::{PixelRect, Preferences, ScreenId, ScreenRole};
 
 /// Everything the UI needs to describe the running app, on the dashboard and
 /// in a support ticket.
@@ -151,4 +151,116 @@ pub struct AccentPreset {
     pub name: String,
     pub hex: String,
     pub foreground: String,
+}
+
+// --------------------------------------------------------- solved geometry
+
+/// A solved rig, flattened for the UI.
+///
+/// `tp-geometry` owns the real types; these are the wire shapes. Keeping them
+/// here rather than deriving serde in the geometry crate keeps that crate about
+/// mathematics, and keeps every TypeScript binding generated from one place.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct RigSolutionInfo {
+    pub screens: Vec<ScreenSolutionInfo>,
+    /// Outer edge to outer edge, bezel gaps included.
+    pub total_coverage_deg: f64,
+    /// Sum of the per-screen spans, gaps excluded.
+    pub visible_coverage_deg: f64,
+    pub warnings: Vec<RigWarningInfo>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ScreenSolutionInfo {
+    pub id: ScreenId,
+    pub role: ScreenRole,
+    pub distance_mm: f64,
+    /// What a flat-projecting sim should be told. For a curved panel this is
+    /// the chord width at the chord-plane distance, not the arc.
+    pub flat_width_mm: f64,
+    pub flat_height_mm: f64,
+    /// The symmetric equivalent: `|left| + |right|`.
+    pub h_fov_deg: f64,
+    pub v_fov_deg: f64,
+    /// The asymmetric truth. Any yawed screen or lateral seating offset makes
+    /// left and right differ, and a single half-angle would hide it.
+    pub span: SpanInfo,
+    pub px_per_deg_h: f64,
+    pub px_per_deg_v: f64,
+    pub inner_gap: Option<GapInfo>,
+    pub curvature_error_deg: Option<f64>,
+    /// Centre of the visible surface in the eye frame, millimetres.
+    /// `[x right, y up, z forward]`. The schematic draws straight from this.
+    pub centre: [f64; 3],
+    /// Visible corners in the same frame: inboard-bottom, inboard-top,
+    /// outboard-bottom, outboard-top.
+    pub corners: [[f64; 3]; 4],
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct SpanInfo {
+    pub left_deg: f64,
+    pub right_deg: f64,
+    pub bottom_deg: f64,
+    pub top_deg: f64,
+    /// How far off-centre the screen sits. Above about 1 degree the UI shows
+    /// the asymmetry rather than only the symmetric equivalent.
+    pub asymmetry_deg: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct GapInfo {
+    /// The physical dark band to the inboard neighbour: both bezels plus the
+    /// mount gap.
+    pub mm: f64,
+    /// `None` when the panels either side have different pixel pitch, where
+    /// there is no single pixel size the gap could have.
+    pub px: Option<f64>,
+    pub deg: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct RigWarningInfo {
+    /// A stable slug, for styling and for tests. The UI renders `message`.
+    pub kind: String,
+    /// One sentence saying what is wrong and what it means, written for a
+    /// person rather than a log.
+    pub message: String,
+    pub screen_id: Option<ScreenId>,
+}
+
+/// A single set of triple-screen values fitted to a rig that is not uniform.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct BestFitInfo {
+    pub width_mm: f64,
+    pub height_mm: f64,
+    pub bezel_mm: f64,
+    pub distance_mm: f64,
+    pub angle_deg: f64,
+    pub worst_error_deg: f64,
+    /// True when the rig is uniform enough that this is exact rather than a
+    /// compromise. The UI must never present a fit as exact when it is not.
+    pub is_exact: bool,
+    pub residuals: Vec<ResidualInfo>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ResidualInfo {
+    pub id: ScreenId,
+    pub max_error_deg: f64,
+    pub rms_error_deg: f64,
 }

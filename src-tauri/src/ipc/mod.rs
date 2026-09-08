@@ -8,9 +8,12 @@
 
 use tauri::State;
 use tp_model::{
-    AccentPreset, AppInfo, CurveResult, DesktopLayoutInfo, DetectedDevice, LengthUnit,
-    LoadedPreferences, MonitorInfo, MonitorPitch, ParsedLength, Preferences,
+    AccentPreset, AppInfo, BestFitInfo, CurveResult, DesktopLayoutInfo, DetectedDevice, GapInfo,
+    LengthUnit, LoadedPreferences, MonitorInfo, MonitorPitch, ParsedLength, Preferences,
+    ResidualInfo, RigModel, RigSolutionInfo, RigWarningInfo, ScreenSolutionInfo, SessionMode,
+    SpanInfo,
 };
+use uuid::Uuid;
 
 use crate::error::{AppError, AppResult};
 use crate::providers::Providers;
@@ -170,4 +173,144 @@ pub fn accent_presets() -> Vec<AccentPreset> {
             foreground: tp_model::accent_foreground(hex).to_string(),
         })
         .collect()
+}
+
+// ------------------------------------------------------------------- the rig
+
+/// Every saved rig, newest first.
+#[tauri::command]
+pub fn list_rigs() -> Vec<RigModel> {
+    crate::rig::list()
+}
+
+/// The rig to work on: the most recently updated, or a fresh one built from the
+/// monitors currently plugged in.
+///
+/// Never returns nothing. A first run should land on Screen Setup with the
+/// detectable half already filled in, not on an empty form.
+#[tauri::command]
+pub fn current_rig(providers: State<'_, Providers>) -> RigModel {
+    if let Some(rig) = crate::rig::list().into_iter().next() {
+        return rig;
+    }
+    let monitors = providers.display.enumerate().unwrap_or_default();
+    crate::rig::detect::from_monitors(&monitors, None)
+}
+
+#[tauri::command]
+pub fn save_rig(rig: RigModel) -> AppResult<RigModel> {
+    crate::rig::save(&rig)
+}
+
+#[tauri::command]
+pub fn delete_rig(id: Uuid) -> AppResult<()> {
+    crate::rig::delete(id)
+}
+
+/// Re-read the monitors and fold them into a rig, keeping every measurement.
+///
+/// Screens are matched by EDID identity, so a cable swap or a rearranged
+/// desktop cannot lose the bezel and angle numbers someone measured by hand.
+#[tauri::command]
+pub fn detect_rig(
+    providers: State<'_, Providers>,
+    existing: Option<RigModel>,
+) -> AppResult<RigModel> {
+    let monitors = providers.display.enumerate()?;
+    Ok(crate::rig::detect::from_monitors(
+        &monitors,
+        existing.as_ref(),
+    ))
+}
+
+/// Solve a rig without saving it, so the UI can show live numbers as fields
+/// change. The geometry crate is the only place this maths exists.
+#[tauri::command]
+pub fn solve_rig(rig: RigModel, session: SessionMode) -> RigSolutionInfo {
+    to_wire(tp_geometry::solve(&rig, session))
+}
+
+/// Fit one set of triple-screen values to a rig that is not uniform, for titles
+/// that accept only one.
+#[tauri::command]
+pub fn fit_rig(rig: RigModel, session: SessionMode) -> Option<BestFitInfo> {
+    let uniform = tp_geometry::solve::screens_are_uniform(&rig);
+    let fit = tp_geometry::best_fit(&rig, session, tp_geometry::FitWeights::default())?;
+    Some(BestFitInfo {
+        width_mm: fit.width_mm,
+        height_mm: fit.height_mm,
+        bezel_mm: fit.bezel_mm,
+        distance_mm: fit.distance_mm,
+        angle_deg: fit.angle_deg,
+        worst_error_deg: fit.worst_error_deg(),
+        // Uniform screens *and* a negligible residual. Either alone could
+        // mislead, and the UI must never present a fit as exact when it is not.
+        is_exact: uniform && fit.worst_error_deg() < 0.25,
+        residuals: fit
+            .residuals
+            .iter()
+            .map(|r| ResidualInfo {
+                id: r.id,
+                max_error_deg: r.max_error_deg,
+                rms_error_deg: r.rms_error_deg,
+            })
+            .collect(),
+    })
+}
+
+fn to_wire(s: tp_geometry::RigSolution) -> RigSolutionInfo {
+    RigSolutionInfo {
+        total_coverage_deg: s.total_coverage.0,
+        visible_coverage_deg: s.visible_coverage.0,
+        warnings: s.warnings.iter().map(warning_to_wire).collect(),
+        screens: s
+            .screens
+            .iter()
+            .map(|screen| ScreenSolutionInfo {
+                id: screen.id,
+                role: screen.role.clone(),
+                distance_mm: screen.distance.0,
+                flat_width_mm: screen.flat.width.0,
+                flat_height_mm: screen.flat.height.0,
+                h_fov_deg: screen.h_fov.0,
+                v_fov_deg: screen.v_fov.0,
+                span: SpanInfo {
+                    left_deg: screen.span.left.0,
+                    right_deg: screen.span.right.0,
+                    bottom_deg: screen.span.bottom.0,
+                    top_deg: screen.span.top.0,
+                    asymmetry_deg: screen.span.asymmetry(),
+                },
+                px_per_deg_h: screen.px_per_deg_h,
+                px_per_deg_v: screen.px_per_deg_v,
+                inner_gap: screen.inner_gap.map(|g| GapInfo {
+                    mm: g.mm.0,
+                    px: g.px,
+                    deg: g.deg.0,
+                }),
+                curvature_error_deg: screen.curvature_error.map(|d| d.0),
+                centre: [screen.centre.x, screen.centre.y, screen.centre.z],
+                corners: screen.corners.map(|c| [c.x, c.y, c.z]),
+            })
+            .collect(),
+    }
+}
+
+fn warning_to_wire(w: &tp_geometry::Warning) -> RigWarningInfo {
+    use tp_geometry::Warning::*;
+    let (kind, screen_id) = match w {
+        NoCentreScreen => ("no_centre_screen", None),
+        FovTooWide { id, .. } => ("fov_too_wide", Some(*id)),
+        FovTooNarrow { id, .. } => ("fov_too_narrow", Some(*id)),
+        SeatingTooClose { .. } => ("seating_too_close", None),
+        ScreenEdgeBehindEye { id } => ("screen_edge_behind_eye", Some(*id)),
+        PitchMismatch { id, .. } => ("pitch_mismatch", Some(*id)),
+        CurvatureErrorHigh { id, .. } => ("curvature_error_high", Some(*id)),
+        MissingPhysicalSize { id } => ("missing_physical_size", Some(*id)),
+    };
+    RigWarningInfo {
+        kind: kind.to_string(),
+        message: w.message(),
+        screen_id,
+    }
 }

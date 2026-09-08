@@ -1,0 +1,236 @@
+.setup {
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) minmax(420px, 1fr);
+  gap: var(--s5);
+  align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .setup {
+    grid-template-columns: 1fr;
+  }
+}
+
+.setup__form,
+.setup__results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+  min-width: 0;
+}
+
+/* The numbers follow you down the form, because they are the reason to type
+   into it. */
+.setup__results {
+  position: sticky;
+  top: var(--s5);
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4);
+  padding: var(--s3) 0;
+}
+
+.fields--inline {
+  align-items: center;
+}
+
+.lf {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  min-width: 150px;
+}
+
+.lf__label {
+  font-size: var(--size-sm);
+  color: var(--ink-dim);
+}
+
+.lf__input {
+  min-height: var(--hit);
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  background: var(--ground-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: var(--size-readout);
+}
+
+.lf__input:focus {
+  border-color: var(--accent);
+}
+
+.lf__input--bad {
+  border-color: var(--fail);
+}
+
+.lf__helper {
+  font-size: 12px;
+  color: var(--ink-faint);
+  min-height: 16px;
+}
+
+.lf__helper--bad {
+  color: var(--fail);
+}
+
+.setup__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.setup__saved {
+  color: var(--pass);
+  font-size: var(--size-sm);
+}
+
+.setup__error {
+  color: var(--fail);
+  font-size: var(--size-sm);
+}
+
+/* ------------------------------------------------------------------ modes */
+
+.modes {
+  display: flex;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: var(--s4);
+}
+
+.modebtn {
+  flex: 1;
+  min-height: var(--hit);
+  border: none;
+  background: var(--ground-raised);
+  color: var(--ink-dim);
+  font-family: inherit;
+  font-size: var(--size-base);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.modebtn--on {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* ---------------------------------------------------------------- figures */
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s3) var(--s4);
+  background: var(--ground-raised);
+}
+
+.figure__label {
+  font-size: var(--size-sm);
+  color: var(--ink-faint);
+}
+
+.figure__value {
+  font-size: var(--size-display);
+  line-height: 1.1;
+}
+
+.figure--total .figure__value {
+  color: var(--accent);
+}
+
+.figure__sub {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+/* ------------------------------------------------------------------ views */
+
+.schematic,
+.elevation {
+  margin: var(--s5) 0 0;
+}
+
+.schematic__svg,
+.elevation__svg {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  background: var(--ground-deep);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+}
+
+.schematic__caption,
+.elevation__caption {
+  margin-top: var(--s2);
+  font-size: var(--size-sm);
+  color: var(--ink-faint);
+  max-width: 60ch;
+}
+
+/* --------------------------------------------------------------- warnings */
+
+.warnings {
+  list-style: none;
+  margin: var(--s5) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.warn {
+  display: flex;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  border-left: 2px solid var(--warn);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--ground-raised);
+  color: var(--ink-dim);
+  font-size: var(--size-base);
+  max-width: 70ch;
+}
+
+.warn--hard {
+  border-left-color: var(--fail);
+  color: var(--ink);
+}
+
+.fitnote {
+  margin: var(--s5) 0 0;
+  padding: var(--s3) var(--s4);
+  border-left: 2px solid var(--run);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--ground-raised);
+  color: var(--ink-dim);
+  font-size: var(--size-base);
+  max-width: 70ch;
+}
+
+.fitnote--exact {
+  border-left-color: var(--pass);
+}
+
+.fitnote strong {
+  color: var(--ink);
+}

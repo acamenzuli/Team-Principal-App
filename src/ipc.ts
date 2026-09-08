@@ -11,12 +11,20 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type { AccentPreset } from "./bindings/AccentPreset";
 import type { AppInfo } from "./bindings/AppInfo";
+import type { BestFitInfo } from "./bindings/BestFitInfo";
 import type { CurveResult } from "./bindings/CurveResult";
 import type { DesktopLayoutInfo } from "./bindings/DesktopLayoutInfo";
 import type { DetectedDevice } from "./bindings/DetectedDevice";
 import type { GlassLevel } from "./bindings/GlassLevel";
 import type { LoadedPreferences } from "./bindings/LoadedPreferences";
 import type { Preferences } from "./bindings/Preferences";
+import type { RigModel } from "./bindings/RigModel";
+import type { RigSolutionInfo } from "./bindings/RigSolutionInfo";
+import type { RigWarningInfo } from "./bindings/RigWarningInfo";
+import type { ScreenRole } from "./bindings/ScreenRole";
+import type { ScreenSolutionInfo } from "./bindings/ScreenSolutionInfo";
+import type { ScreenSpec } from "./bindings/ScreenSpec";
+import type { SessionMode } from "./bindings/SessionMode";
 import type { DeviceStatus } from "./bindings/DeviceStatus";
 import type { LengthUnit } from "./bindings/LengthUnit";
 import type { MonitorInfo } from "./bindings/MonitorInfo";
@@ -28,6 +36,7 @@ import type { IpcError } from "./bindings/IpcError";
 export type {
   AccentPreset,
   AppInfo,
+  BestFitInfo,
   CurveResult,
   DesktopLayoutInfo,
   DetectedDevice,
@@ -41,6 +50,13 @@ export type {
   ParsedLength,
   Preferences,
   PixelRect,
+  RigModel,
+  RigSolutionInfo,
+  RigWarningInfo,
+  ScreenRole,
+  ScreenSolutionInfo,
+  ScreenSpec,
+  SessionMode,
 };
 
 export const appInfo = () => invoke<AppInfo>("app_info");
@@ -58,6 +74,28 @@ export const savePreferences = (preferences: Preferences) =>
   invoke<LoadedPreferences>("save_preferences", { preferences });
 
 export const accentPresets = () => invoke<AccentPreset[]>("accent_presets");
+
+// ------------------------------------------------------------------- the rig
+
+export const listRigs = () => invoke<RigModel[]>("list_rigs");
+
+/** Never null: falls back to a rig built from the monitors plugged in now. */
+export const currentRig = () => invoke<RigModel>("current_rig");
+
+export const saveRig = (rig: RigModel) => invoke<RigModel>("save_rig", { rig });
+
+export const deleteRig = (id: string) => invoke<void>("delete_rig", { id });
+
+/** Re-read the monitors, keeping every measurement already entered. */
+export const detectRig = (existing: RigModel | null) =>
+  invoke<RigModel>("detect_rig", { existing });
+
+/** Solve without saving, so the numbers update as fields change. */
+export const solveRig = (rig: RigModel, session: SessionMode) =>
+  invoke<RigSolutionInfo>("solve_rig", { rig, session });
+
+export const fitRig = (rig: RigModel, session: SessionMode) =>
+  invoke<BestFitInfo | null>("fit_rig", { rig, session });
 
 export const parseLength = (input: string, unit: LengthUnit) =>
   invoke<ParsedLength>("parse_length", { input, unit });
