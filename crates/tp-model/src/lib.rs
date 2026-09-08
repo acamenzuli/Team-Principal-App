@@ -9,22 +9,26 @@
 //!   without a Windows runner;
 //! * nothing platform-specific can leak into the wire format by accident.
 
+pub mod catalog;
 pub mod detect;
 pub mod device;
 pub mod display;
 pub mod fixture;
 pub mod ipc;
 pub mod preferences;
+pub mod presence;
 pub mod profile;
 pub mod rig;
 pub mod units;
 
+pub use catalog::{Catalog, CatalogEntry, DeviceKind};
 pub use detect::rig_from_monitors;
 pub use device::*;
 pub use display::*;
 pub use fixture::Fixture;
 pub use ipc::*;
 pub use preferences::*;
+pub use presence::{detect_drift, Debouncer, Observation};
 pub use profile::*;
 pub use rig::*;
 pub use units::*;

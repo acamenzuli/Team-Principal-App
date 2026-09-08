@@ -11,6 +11,7 @@ pub mod display;
 pub mod error;
 pub mod ipc;
 pub mod logging;
+pub mod peripherals;
 pub mod providers;
 pub mod rig;
 pub mod settings;

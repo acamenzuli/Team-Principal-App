@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Dashboard } from "./dashboard/Dashboard";
 import { applyTheme } from "./design/theme";
+import { Peripherals } from "./devices/Peripherals";
 import { ScreenSetup } from "./screen/ScreenSetup";
 import { Settings } from "./settings/Settings";
 import {
@@ -14,7 +15,7 @@ import {
 } from "./ipc";
 import "./app.css";
 
-type View = "rig" | "screen" | "settings";
+type View = "rig" | "screen" | "devices" | "settings";
 
 export function App() {
   const [info, setInfo] = useState<AppInfo | null>(null);
@@ -80,6 +81,9 @@ export function App() {
           <Tab id="screen" current={view} onSelect={setView}>
             Screen Setup
           </Tab>
+          <Tab id="devices" current={view} onSelect={setView}>
+            Peripherals
+          </Tab>
           <Tab id="settings" current={view} onSelect={setView}>
             Settings
           </Tab>
@@ -108,6 +112,7 @@ export function App() {
           </p>
         )}
         {view === "rig" && <Dashboard />}
+        {view === "devices" && <Peripherals />}
         {view === "screen" &&
           (prefs ? <ScreenSetup unit={prefs.units} /> : <p className="note">Loading…</p>)}
         {view === "settings" &&

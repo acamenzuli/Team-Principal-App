@@ -50,7 +50,10 @@ impl WinPeripheralProvider {
 }
 impl PeripheralProvider for WinPeripheralProvider {
     fn enumerate(&self) -> AppResult<Vec<DetectedDevice>> {
-        Err(todo_in("peripheral enumeration", 5))
+        // The catalog is rebuilt per scan rather than cached: it is a few
+        // entries, and a user rename must take effect on the next refresh
+        // rather than on the next restart.
+        crate::peripherals::enumerate(&tp_model::Catalog::seeded())
     }
 }
 
