@@ -369,3 +369,82 @@ pub fn stop_input_monitor(active: State<'_, crate::peripherals::monitor::ActiveM
         *slot = None;
     }
 }
+
+// ----------------------------------------------------------- window control
+
+/// Every top-level window, so the test panel can show what the matcher sees.
+#[tauri::command]
+pub fn list_windows() -> Vec<tp_model::OpenWindow> {
+    crate::window::enumerate_windows()
+        .into_iter()
+        .map(|c| tp_model::OpenWindow {
+            plausible: c.is_plausible_game_window((640, 480)),
+            candidate: c,
+        })
+        .collect()
+}
+
+/// Place a window and keep it there.
+///
+/// The result is read back from the window after the change rather than
+/// inferred from a return value: UIPI refuses these calls silently when the
+/// target runs at a higher integrity level, and no return value distinguishes
+/// that from success.
+#[tauri::command]
+pub fn place_window(
+    state: State<'_, crate::window::watchdog::ActiveWatchdog>,
+    hwnd: String,
+    rect: tp_model::PixelRect,
+    means: tp_model::RectMeans,
+    borderless: bool,
+    watch: bool,
+) -> AppResult<tp_model::WindowResult> {
+    let handle: u64 = hwnd
+        .parse()
+        .map_err(|_| AppError::Config(format!("{hwnd:?} is not a window handle")))?;
+
+    let applied = crate::window::apply_geometry(handle, rect, means, borderless, false)?;
+
+    // Replacing the previous watchdog stops it: only one window is being
+    // managed at a time, and two threads fighting over one window would be
+    // worse than none.
+    let watching = if watch {
+        let policy = tp_model::WatchdogPolicy::default();
+        if let Ok(mut slot) = state.0.lock() {
+            *slot = Some(crate::window::Watchdog::start(
+                handle, rect, means, borderless, policy,
+            ));
+        }
+        true
+    } else {
+        if let Ok(mut slot) = state.0.lock() {
+            *slot = None;
+        }
+        false
+    };
+
+    let title = crate::window::enumerate_windows()
+        .into_iter()
+        .find(|c| c.hwnd == handle)
+        .map(|c| c.title)
+        .unwrap_or_default();
+
+    Ok(tp_model::WindowResult {
+        hwnd,
+        title,
+        matched_by: Vec::new(),
+        requested: applied.requested,
+        actual_outer: applied.actual.outer,
+        actual_client: applied.actual.client,
+        borderless: applied.borderless,
+        watching,
+    })
+}
+
+/// Stop putting a window back when the game moves it.
+#[tauri::command]
+pub fn stop_watching_window(state: State<'_, crate::window::watchdog::ActiveWatchdog>) {
+    if let Ok(mut slot) = state.0.lock() {
+        *slot = None;
+    }
+}

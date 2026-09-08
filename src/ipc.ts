@@ -19,6 +19,9 @@ import type { DesktopLayoutInfo } from "./bindings/DesktopLayoutInfo";
 import type { DetectedDevice } from "./bindings/DetectedDevice";
 import type { GlassLevel } from "./bindings/GlassLevel";
 import type { InputFrame } from "./bindings/InputFrame";
+import type { OpenWindow } from "./bindings/OpenWindow";
+import type { RectMeans } from "./bindings/RectMeans";
+import type { WindowResult } from "./bindings/WindowResult";
 import type { LoadedPreferences } from "./bindings/LoadedPreferences";
 import type { Preferences } from "./bindings/Preferences";
 import type { RigModel } from "./bindings/RigModel";
@@ -48,6 +51,9 @@ export type {
   GlassLevel,
   InputFrame,
   IpcError,
+  OpenWindow,
+  RectMeans,
+  WindowResult,
   LoadedPreferences,
   LengthUnit,
   MonitorInfo,
@@ -81,6 +87,20 @@ export const refreshDevices = () => invoke<void>("refresh_devices");
  * real events, not on a timer, and a USB device bouncing during enumeration
  * never reaches the UI.
  */
+// --------------------------------------------------------- window control
+
+export const listWindows = () => invoke<OpenWindow[]>("list_windows");
+
+export const placeWindow = (args: {
+  hwnd: string;
+  rect: PixelRect;
+  means: RectMeans;
+  borderless: boolean;
+  watch: boolean;
+}) => invoke<WindowResult>("place_window", args);
+
+export const stopWatchingWindow = () => invoke<void>("stop_watching_window");
+
 export const startInputMonitor = (instancePath: string) =>
   invoke<void>("start_input_monitor", { instancePath });
 

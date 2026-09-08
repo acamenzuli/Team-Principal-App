@@ -15,6 +15,7 @@ pub mod peripherals;
 pub mod providers;
 pub mod rig;
 pub mod settings;
+pub mod window;
 
 /// Which milestone this build represents. Shown in the UI and in diagnostics so
 /// a bug report says what was actually built, not what was planned.
@@ -134,6 +135,7 @@ pub fn run() {
             let watcher = (!simulated).then(|| peripherals::watch::start(app.handle().clone()));
             app.manage(peripherals::watch::PeripheralWatch(watcher));
             app.manage(peripherals::monitor::ActiveMonitor::default());
+            app.manage(window::watchdog::ActiveWatchdog::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -143,6 +145,9 @@ pub fn run() {
             ipc::refresh_devices,
             ipc::start_input_monitor,
             ipc::stop_input_monitor,
+            ipc::list_windows,
+            ipc::place_window,
+            ipc::stop_watching_window,
             ipc::desktop_layout,
             ipc::get_preferences,
             ipc::save_preferences,

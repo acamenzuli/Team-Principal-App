@@ -73,7 +73,7 @@ cargo check --workspace --target x86_64-pc-windows-msvc --all-targets
 
 ## Milestones
 
-Stop at the end of each for hardware testing. Current: **5 complete**.
+Stop at the end of each for hardware testing. Current: **6 complete**.
 
 1. ✅ Skeleton — Tauri, DPI manifest, logging, typed IPC, mock providers, CI
 2. ✅ Display enumeration — CCD, EDID from the registry, dead regions
@@ -81,7 +81,7 @@ Stop at the end of each for hardware testing. Current: **5 complete**.
 4. ✅ Screen Setup — rig form, auto-fill from EDID, live numbers, rig views
 5. ✅ Peripherals — HID, DirectInput ordering, event hotplug, catalog,
    status rules, debounce, live axis and button monitor
-6. Window control
+6. ✅ Window control — find, strip chrome, place, verify by read-back, watchdog
 7. Launch orchestration
 8. The "Let's race" flow
 9. Display control (topology, confirm-or-revert, panic hotkey)

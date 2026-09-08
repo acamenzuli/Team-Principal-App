@@ -22,6 +22,7 @@ pub mod presence;
 pub mod profile;
 pub mod rig;
 pub mod units;
+pub mod window;
 
 pub use axes::{axis_name, is_axis, normalise, normalise_unipolar};
 pub use catalog::{Catalog, CatalogEntry, DeviceKind};
@@ -36,3 +37,7 @@ pub use presence::{detect_drift, Debouncer, Observation};
 pub use profile::*;
 pub use rig::*;
 pub use units::*;
+pub use window::{
+    borderless_ex_style, borderless_style, client_from_outer, has_drifted, is_borderless,
+    outer_from_client, pick_target, title_matches, FrameInsets, WindowCandidate, WindowMatch,
+};

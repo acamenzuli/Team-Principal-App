@@ -8,7 +8,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{PixelRect, Preferences, ScreenId, ScreenRole};
+use crate::{PixelRect, Preferences, ScreenId, ScreenRole, WindowCandidate};
 
 /// Everything the UI needs to describe the running app, on the dashboard and
 /// in a support ticket.
@@ -289,4 +289,34 @@ pub struct AxisReading {
     pub value: f64,
     /// 0.0 to 1.0. What a pedal wants: at rest is empty, not half full.
     pub unipolar: f64,
+}
+
+// ----------------------------------------------------------- window control
+
+/// The outcome of placing a window, after it has been read back.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowResult {
+    pub hwnd: String,
+    pub title: String,
+    /// What identified this window as the game, so a wrong pick is diagnosable.
+    pub matched_by: Vec<String>,
+    pub requested: PixelRect,
+    /// Read back after the change, never assumed from a return value.
+    pub actual_outer: PixelRect,
+    pub actual_client: PixelRect,
+    pub borderless: bool,
+    /// True while the watchdog is putting the window back when the game moves it.
+    pub watching: bool,
+}
+
+/// A window the user can pick from, for the test panel.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenWindow {
+    pub candidate: WindowCandidate,
+    /// True when this one would survive the splash-and-tool-window filters.
+    pub plausible: bool,
 }

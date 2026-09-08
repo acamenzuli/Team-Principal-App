@@ -5,6 +5,7 @@ import { applyTheme } from "./design/theme";
 import { Peripherals } from "./devices/Peripherals";
 import { ScreenSetup } from "./screen/ScreenSetup";
 import { Settings } from "./settings/Settings";
+import { WindowControl } from "./windowctl/WindowControl";
 import {
   appInfo,
   asIpcError,
@@ -15,7 +16,7 @@ import {
 } from "./ipc";
 import "./app.css";
 
-type View = "rig" | "screen" | "devices" | "settings";
+type View = "rig" | "screen" | "devices" | "windows" | "settings";
 
 export function App() {
   const [info, setInfo] = useState<AppInfo | null>(null);
@@ -84,6 +85,9 @@ export function App() {
           <Tab id="devices" current={view} onSelect={setView}>
             Peripherals
           </Tab>
+          <Tab id="windows" current={view} onSelect={setView}>
+            Windows
+          </Tab>
           <Tab id="settings" current={view} onSelect={setView}>
             Settings
           </Tab>
@@ -113,6 +117,7 @@ export function App() {
         )}
         {view === "rig" && <Dashboard />}
         {view === "devices" && <Peripherals />}
+        {view === "windows" && <WindowControl />}
         {view === "screen" &&
           (prefs ? <ScreenSetup unit={prefs.units} /> : <p className="note">Loading…</p>)}
         {view === "settings" &&
