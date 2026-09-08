@@ -23,6 +23,7 @@ pub mod preferences;
 pub mod presence;
 pub mod profile;
 pub mod rig;
+pub mod topology;
 pub mod units;
 pub mod vdf;
 pub mod window;
@@ -41,6 +42,11 @@ pub use preferences::*;
 pub use presence::{detect_drift, Debouncer, Observation};
 pub use profile::*;
 pub use rig::*;
+pub use topology::{
+    describe as describe_topology_change, preview as preview_topology,
+    validate as validate_topology, validate_modes, AvailableModes, ProblemSeverity, TopologyChange,
+    TopologyPreview, TopologyProblem,
+};
 pub use units::*;
 pub use window::{
     borderless_ex_style, borderless_style, client_from_outer, has_drifted, is_borderless,

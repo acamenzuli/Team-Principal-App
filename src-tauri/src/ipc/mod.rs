@@ -616,3 +616,211 @@ pub fn create_profile(
     };
     crate::profiles::save(&crate::profiles::starter(&name, launch, install_path))
 }
+
+// ----------------------------------------------------------- display control
+
+/// Every mode each attached output can run.
+///
+/// Enumerated per output rather than once, because two panels on the same
+/// adapter do not share a mode list and offering the union of them is how a
+/// picker ends up suggesting a mode that blacks out one screen.
+#[tauri::command]
+pub fn available_modes(
+    providers: State<'_, Providers>,
+) -> AppResult<Vec<tp_model::AvailableModes>> {
+    Ok(providers
+        .display
+        .enumerate()?
+        .into_iter()
+        .map(|m| tp_model::AvailableModes {
+            modes: crate::display::apply::available_modes(&m.gdi_name),
+            device_path: m.device_path,
+        })
+        .collect())
+}
+
+/// The desktop exactly as it is now, in the shape a plan takes.
+///
+/// The starting point for the editor, and the thing a plan is diffed against.
+#[tauri::command]
+pub fn current_topology(providers: State<'_, Providers>) -> AppResult<tp_model::TopologySnapshot> {
+    let monitors = providers.display.enumerate()?;
+    crate::display::capture_snapshot(&monitors)
+}
+
+/// What a plan would do, and what is wrong with it. Nothing is written.
+///
+/// The preview-before-apply rule, applied to the one thing in this app that can
+/// leave a machine unusable.
+#[tauri::command]
+pub fn preview_topology(
+    providers: State<'_, Providers>,
+    plan: tp_model::TopologySnapshot,
+) -> AppResult<tp_model::TopologyPreview> {
+    let monitors = providers.display.enumerate()?;
+    let current = crate::display::capture_snapshot(&monitors)?;
+    let names = friendly_names(&monitors);
+
+    let mut preview = tp_model::preview_topology(&current, &plan, &names);
+    // The mode check needs the driver's list, which only the platform layer
+    // has, so it is folded in here rather than left to the caller to remember.
+    let available: Vec<tp_model::AvailableModes> = monitors
+        .iter()
+        .map(|m| tp_model::AvailableModes {
+            device_path: m.device_path.clone(),
+            modes: crate::display::apply::available_modes(&m.gdi_name),
+        })
+        .collect();
+    preview
+        .problems
+        .extend(tp_model::validate_modes(&plan, &available, &names));
+    Ok(preview)
+}
+
+/// Apply a plan, then start the countdown.
+///
+/// The order matters and is not negotiable: capture, validate, apply, read
+/// back, and only then ask. If the read-back does not match the plan, it is put
+/// back immediately without asking — the answer to "do you want to keep this"
+/// is already no when what happened is not what was requested.
+#[tauri::command]
+pub fn apply_topology(
+    app: tauri::AppHandle,
+    providers: State<'_, Providers>,
+    pending: State<'_, crate::display::confirm::PendingChange>,
+    plan: tp_model::TopologySnapshot,
+) -> AppResult<Vec<String>> {
+    let monitors = providers.display.enumerate()?;
+    let names = friendly_names(&monitors);
+    let before = crate::display::capture_snapshot(&monitors)?;
+
+    let available: Vec<tp_model::AvailableModes> = monitors
+        .iter()
+        .map(|m| tp_model::AvailableModes {
+            device_path: m.device_path.clone(),
+            modes: crate::display::apply::available_modes(&m.gdi_name),
+        })
+        .collect();
+
+    let mut problems = tp_model::validate_topology(&plan, &names);
+    problems.extend(tp_model::validate_modes(&plan, &available, &names));
+    if let Some(blocker) = problems
+        .iter()
+        .find(|p| p.severity == tp_model::ProblemSeverity::Blocking)
+    {
+        return Err(AppError::Config(blocker.message.clone()));
+    }
+
+    // On disk before anything changes, so a crash mid-change still leaves
+    // something to put the desktop back with.
+    crate::snapshots::save(&before)?;
+    crate::snapshots::prune(20);
+
+    let resolver = gdi_resolver(&monitors);
+    crate::display::apply::apply(&plan, &resolver)?;
+
+    // Read-back. DISP_CHANGE_SUCCESSFUL means accepted, not achieved.
+    let actual = crate::display::capture_snapshot(&providers.display.enumerate()?)?;
+    let differences = crate::display::apply::matches(&plan, &actual);
+    if !differences.is_empty() {
+        tracing::warn!(
+            ?differences,
+            "the desktop did not match the plan; putting it back"
+        );
+        crate::display::apply::apply(&before, &resolver)?;
+        crate::display::confirm::publish_outcome(
+            &app,
+            crate::display::confirm::ConfirmOutcome::RevertedOnMismatch,
+        );
+        return Ok(differences);
+    }
+
+    let revert_resolver = owned_gdi_resolver(&monitors);
+    crate::display::confirm::start(app, &pending, before, move |snapshot| {
+        crate::display::apply::apply(snapshot, &revert_resolver)
+    })?;
+    Ok(Vec::new())
+}
+
+/// Keep the pending change. Ends the countdown.
+#[tauri::command]
+pub fn keep_topology(pending: State<'_, crate::display::confirm::PendingChange>) -> AppResult<()> {
+    crate::display::confirm::keep(&pending)
+}
+
+/// Put the desktop back now, without waiting for the countdown.
+#[tauri::command]
+pub fn revert_topology(
+    app: tauri::AppHandle,
+    providers: State<'_, Providers>,
+    pending: State<'_, crate::display::confirm::PendingChange>,
+) -> AppResult<()> {
+    let resolver = owned_gdi_resolver(&providers.display.enumerate()?);
+    crate::display::confirm::revert_now(
+        &app,
+        &pending,
+        move |snapshot| crate::display::apply::apply(snapshot, &resolver),
+        crate::display::confirm::ConfirmOutcome::RevertedOnRequest,
+    )
+}
+
+/// Whether the panic hotkey is actually registered, and what it is.
+///
+/// Reported rather than assumed: a hotkey the user believes in and that another
+/// program already owns is worse than no hotkey at all.
+#[tauri::command]
+pub fn panic_hotkey(state: State<'_, crate::display::hotkey::HotkeyState>) -> tp_model::HotkeyInfo {
+    tp_model::HotkeyInfo {
+        combination: crate::display::hotkey::DESCRIPTION.to_string(),
+        registered: state.registered(),
+    }
+}
+
+/// Snapshots on disk, newest first, so a change nothing is left running to undo
+/// can still be undone later.
+#[tauri::command]
+pub fn list_snapshots() -> Vec<tp_model::TopologySnapshot> {
+    crate::snapshots::list()
+}
+
+/// Apply a stored snapshot as a plan. Goes through the same countdown.
+#[tauri::command]
+pub fn restore_snapshot(
+    app: tauri::AppHandle,
+    providers: State<'_, Providers>,
+    pending: State<'_, crate::display::confirm::PendingChange>,
+    id: Uuid,
+) -> AppResult<Vec<String>> {
+    let plan = crate::snapshots::load(id)?;
+    apply_topology(app, providers, pending, plan)
+}
+
+/// Device path to friendly name, for messages a person can read.
+fn friendly_names(monitors: &[MonitorInfo]) -> std::collections::BTreeMap<String, String> {
+    monitors
+        .iter()
+        .map(|m| (m.device_path.clone(), m.friendly_name.clone()))
+        .collect()
+}
+
+/// CCD device path to GDI name. The two namespaces are separate and only the
+/// enumeration knows how they line up.
+fn gdi_resolver(monitors: &[MonitorInfo]) -> impl Fn(&str) -> Option<String> + '_ {
+    move |path: &str| {
+        monitors
+            .iter()
+            .find(|m| m.device_path == path)
+            .map(|m| m.gdi_name.clone())
+    }
+}
+
+/// The same map, owned, for the closures that outlive this call.
+pub fn owned_gdi_resolver(
+    monitors: &[MonitorInfo],
+) -> impl Fn(&str) -> Option<String> + Send + 'static {
+    let map: std::collections::BTreeMap<String, String> = monitors
+        .iter()
+        .map(|m| (m.device_path.clone(), m.gdi_name.clone()))
+        .collect();
+    move |path: &str| map.get(path).cloned()
+}

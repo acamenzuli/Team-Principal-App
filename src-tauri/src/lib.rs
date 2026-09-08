@@ -17,11 +17,12 @@ pub mod profiles;
 pub mod providers;
 pub mod rig;
 pub mod settings;
+pub mod snapshots;
 pub mod window;
 
 /// Which milestone this build represents. Shown in the UI and in diagnostics so
 /// a bug report says what was actually built, not what was planned.
-pub const MILESTONE: u8 = 8;
+pub const MILESTONE: u8 = 9;
 
 #[cfg(windows)]
 pub use providers::win::dpi::Awareness;
@@ -139,6 +140,30 @@ pub fn run() {
             app.manage(peripherals::monitor::ActiveMonitor::default());
             app.manage(window::watchdog::ActiveWatchdog::default());
             app.manage(launcher::run::ActiveRun::default());
+            app.manage(display::confirm::PendingChange::default());
+
+            // The panic hotkey owns its own thread and message loop. Registered
+            // last so everything it might need already exists, and kept alive
+            // for the life of the process.
+            let hotkey = display::hotkey::start(app.handle().clone(), |app| {
+                use tauri::Manager;
+                let pending = app.state::<display::confirm::PendingChange>();
+                let providers = app.state::<providers::Providers>();
+                let Ok(monitors) = providers.display.enumerate() else {
+                    tracing::error!("panic hotkey pressed but the displays could not be read");
+                    return;
+                };
+                let resolver = ipc::owned_gdi_resolver(&monitors);
+                if let Err(e) = display::confirm::revert_now(
+                    app,
+                    &pending,
+                    move |snapshot| display::apply::apply(snapshot, &resolver),
+                    display::confirm::ConfirmOutcome::RevertedOnRequest,
+                ) {
+                    tracing::warn!(error = %e, "panic hotkey pressed with nothing to undo");
+                }
+            });
+            app.manage(hotkey);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -162,6 +187,15 @@ pub fn run() {
             ipc::place_window,
             ipc::stop_watching_window,
             ipc::desktop_layout,
+            ipc::available_modes,
+            ipc::current_topology,
+            ipc::preview_topology,
+            ipc::apply_topology,
+            ipc::keep_topology,
+            ipc::revert_topology,
+            ipc::panic_hotkey,
+            ipc::list_snapshots,
+            ipc::restore_snapshot,
             ipc::get_preferences,
             ipc::save_preferences,
             ipc::accent_presets,

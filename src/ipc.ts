@@ -12,7 +12,17 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type { AccentPreset } from "./bindings/AccentPreset";
 import type { AppInfo } from "./bindings/AppInfo";
+import type { AvailableModes } from "./bindings/AvailableModes";
 import type { AxisReading } from "./bindings/AxisReading";
+import type { ConfirmOutcome } from "./bindings/ConfirmOutcome";
+import type { ConfirmState } from "./bindings/ConfirmState";
+import type { DisplayMode } from "./bindings/DisplayMode";
+import type { HotkeyInfo } from "./bindings/HotkeyInfo";
+import type { SnapshotEntry } from "./bindings/SnapshotEntry";
+import type { TopologyChange } from "./bindings/TopologyChange";
+import type { TopologyPreview } from "./bindings/TopologyPreview";
+import type { TopologyProblem } from "./bindings/TopologyProblem";
+import type { TopologySnapshot } from "./bindings/TopologySnapshot";
 import type { BestFitInfo } from "./bindings/BestFitInfo";
 import type { CurveResult } from "./bindings/CurveResult";
 import type { DesktopLayoutInfo } from "./bindings/DesktopLayoutInfo";
@@ -53,7 +63,17 @@ import type { IpcError } from "./bindings/IpcError";
 export type {
   AccentPreset,
   AppInfo,
+  AvailableModes,
   AxisReading,
+  ConfirmOutcome,
+  ConfirmState,
+  DisplayMode,
+  HotkeyInfo,
+  SnapshotEntry,
+  TopologyChange,
+  TopologyPreview,
+  TopologyProblem,
+  TopologySnapshot,
   BestFitInfo,
   CurveResult,
   DesktopLayoutInfo,
@@ -202,6 +222,53 @@ export function onDevicesChanged(
 
 /** Null when no monitors are detected at all — not an empty desktop. */
 export const desktopLayout = () => invoke<DesktopLayoutInfo | null>("desktop_layout");
+
+// ------------------------------------------------------------ display control
+
+/** Every mode each output can run, per output — never the union of them. */
+export const availableModes = () => invoke<AvailableModes[]>("available_modes");
+
+/** The desktop as it is now, in the shape a plan takes. */
+export const currentTopology = () => invoke<TopologySnapshot>("current_topology");
+
+/** What a plan would do and what is wrong with it. Writes nothing. */
+export const previewTopology = (plan: TopologySnapshot) =>
+  invoke<TopologyPreview>("preview_topology", { plan });
+
+/**
+ * Apply a plan and start the countdown.
+ *
+ * Resolves to a list of differences when the desktop did not end up matching
+ * what was asked for — in which case it has already been put back, and no
+ * countdown is running. An empty list means the change is live and waiting to
+ * be confirmed.
+ */
+export const applyTopology = (plan: TopologySnapshot) =>
+  invoke<string[]>("apply_topology", { plan });
+
+/** Keep the pending change. Ends the countdown. */
+export const keepTopology = () => invoke<void>("keep_topology");
+
+/** Put it back now, without waiting for the countdown. */
+export const revertTopology = () => invoke<void>("revert_topology");
+
+/** What the panic hotkey is, and whether it actually registered. */
+export const panicHotkey = () => invoke<HotkeyInfo>("panic_hotkey");
+
+export const listSnapshots = () => invoke<TopologySnapshot[]>("list_snapshots");
+
+/** Apply a stored snapshot. Goes through the same countdown as any change. */
+export const restoreSnapshot = (id: string) => invoke<string[]>("restore_snapshot", { id });
+
+/**
+ * The countdown, and how it ended.
+ *
+ * Owned by Rust, not by this timer: if the change made the screen unreadable
+ * there is nobody here to run a clock, and silence has to mean revert.
+ */
+export function onConfirmState(handler: (state: ConfirmState) => void): Promise<UnlistenFn> {
+  return listen<ConfirmState>("display://confirm", (e) => handler(e.payload));
+}
 
 export const getPreferences = () => invoke<LoadedPreferences>("get_preferences");
 

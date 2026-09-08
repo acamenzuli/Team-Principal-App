@@ -1,0 +1,93 @@
+.dc__table select,
+.dc__table input[type="number"] {
+  min-height: 32px;
+  font-size: var(--size-sm);
+}
+
+.dc__row--off td {
+  color: var(--ink-faint);
+}
+
+.dc__position {
+  display: flex;
+  gap: var(--s2);
+}
+
+.dc__position input {
+  width: 6.5ch;
+}
+
+.dc__preview {
+  margin-top: var(--s4);
+}
+
+.dc__preview-title {
+  margin: 0 0 var(--s2);
+  font-size: var(--size-row);
+  font-weight: 600;
+}
+
+.dc__list {
+  margin: 0 0 var(--s3);
+  padding-left: var(--s5);
+  color: var(--ink-dim);
+  font-size: var(--size-base);
+}
+
+.dc__actions {
+  display: flex;
+  gap: var(--s3);
+  margin-top: var(--s4);
+}
+
+.dc__mismatch {
+  margin-top: var(--s4);
+}
+
+/* The countdown is the loudest thing on the page while it runs, because the
+   alternative to reading it is losing the desktop for fifteen seconds. */
+.dc__confirm {
+  margin-top: var(--s5);
+  padding: var(--s5);
+  background: var(--data-bg);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius);
+}
+
+.dc__confirm-title {
+  margin: 0;
+  font-size: var(--size-readout);
+  font-weight: 600;
+}
+
+.dc__confirm-sub {
+  margin: var(--s2) 0 0;
+  color: var(--ink-dim);
+}
+
+.dc__count {
+  font-size: var(--size-readout);
+  color: var(--warn);
+}
+
+.dc__snapshots {
+  list-style: none;
+  margin: var(--s3) 0 0;
+  padding: 0;
+}
+
+.dc__snapshots li {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s3) 0;
+}
+
+.dc__snapshots li + li {
+  border-top: 1px solid var(--rule);
+}
+
+.dc__snapshots li .num {
+  flex: 1;
+  min-width: 0;
+}
