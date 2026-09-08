@@ -475,3 +475,79 @@ pub fn discover_games() -> Vec<tp_model::InstalledGameInfo> {
         })
         .collect()
 }
+
+// ------------------------------------------------------------- launch runs
+
+/// Start a preflight run.
+///
+/// The steps come back as `launch://step` events rather than in the return
+/// value: the checklist is a view over a stream, so a self-healing check that
+/// turns green on its own reaches the UI the same way the first result did.
+#[tauri::command]
+pub fn start_preflight(
+    app: tauri::AppHandle,
+    active: State<'_, crate::launcher::run::ActiveRun>,
+    game_name: String,
+) -> AppResult<Vec<tp_model::StepView>> {
+    let mut profile = tp_model::Profile {
+        schema_version: tp_model::PROFILE_SCHEMA_VERSION,
+        id: uuid::Uuid::new_v4(),
+        name: game_name.clone(),
+        game: tp_model::GameRef {
+            adapter_id: String::new(),
+            install_path: None,
+            launch: tp_model::LaunchMethod::Uri { uri: String::new() },
+        },
+        rig: tp_model::RigBinding {
+            rig_id: uuid::Uuid::nil(),
+            computed_against_revision: 0,
+            derived_snapshot: Default::default(),
+        },
+        session_mode: tp_model::SessionMode::CenterOnly,
+        window_plan: tp_model::WindowPlan {
+            target: tp_model::WindowTarget {
+                exe_name: None,
+                window_class: None,
+                title_regex: None,
+                min_size: (640, 480),
+                require_visible: true,
+                timeout_ms: 30_000,
+            },
+            rect: tp_model::RectSource::FromGeometry,
+            rect_means: tp_model::RectMeans::ClientArea,
+            borderless: true,
+            always_on_top: false,
+            hide_taskbar: false,
+            watchdog: tp_model::WatchdogPolicy::default(),
+        },
+        peripherals: Vec::new(),
+        steps: Vec::new(),
+        teardown: tp_model::TeardownPolicy::default(),
+        created_at: crate::now_iso8601(),
+        updated_at: crate::now_iso8601(),
+    };
+    profile.steps = crate::launcher::run::demo_profile(&game_name);
+
+    let run = crate::launcher::run::start(app, profile)?;
+    let views = run.views();
+
+    // Replacing the previous run cancels it: two preflights racing over the
+    // same utilities would be worse than one.
+    if let Ok(mut slot) = active.0.lock() {
+        if let Some(previous) = slot.take() {
+            previous.cancel();
+        }
+        *slot = Some(run);
+    }
+    Ok(views)
+}
+
+/// Cancel a run and tear down whatever it started.
+#[tauri::command]
+pub fn cancel_preflight(active: State<'_, crate::launcher::run::ActiveRun>) {
+    if let Ok(mut slot) = active.0.lock() {
+        if let Some(run) = slot.take() {
+            run.cancel();
+        }
+    }
+}

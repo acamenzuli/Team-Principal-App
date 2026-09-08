@@ -318,7 +318,10 @@ pub struct StepView {
     pub severity: Severity,
     pub status: StepStatus,
     pub detail: String,
-    pub elapsed_ms: Option<u64>,
+    /// f64 rather than u64: a u64 crosses into JavaScript as `bigint`, which
+    /// cannot be divided by a number without a cast at every call site. Elapsed
+    /// milliseconds never approach the precision limit.
+    pub elapsed_ms: Option<f64>,
     /// What the app actually did, so the row cannot claim credit it has not
     /// earned — "Already running" is derived from this, never written by hand.
     pub action_taken: crate::ActionTaken,

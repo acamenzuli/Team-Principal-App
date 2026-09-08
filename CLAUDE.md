@@ -73,7 +73,7 @@ cargo check --workspace --target x86_64-pc-windows-msvc --all-targets
 
 ## Milestones
 
-Stop at the end of each for hardware testing. Current: **6 complete**.
+Stop at the end of each for hardware testing. Current: **7 complete**.
 
 1. ✅ Skeleton — Tauri, DPI manifest, logging, typed IPC, mock providers, CI
 2. ✅ Display enumeration — CCD, EDID from the registry, dead regions
@@ -82,8 +82,8 @@ Stop at the end of each for hardware testing. Current: **6 complete**.
 5. ✅ Peripherals — HID, DirectInput ordering, event hotplug, catalog,
    status rules, debounce, live axis and button monitor
 6. ✅ Window control — find, strip chrome, place, verify by read-back, watchdog
-7. Launch orchestration — scheduler, gates and game discovery done;
-   the executor, Job Object teardown and profiles remain
+7. ✅ Launch orchestration — scheduler, gates, discovery, parallel executor,
+   Job Object teardown. Profile editing lands with the Let's race flow.
 8. The "Let's race" flow
 9. Display control (topology, confirm-or-revert, panic hotkey)
 10. Adapters wave one

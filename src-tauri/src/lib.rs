@@ -137,6 +137,7 @@ pub fn run() {
             app.manage(peripherals::watch::PeripheralWatch(watcher));
             app.manage(peripherals::monitor::ActiveMonitor::default());
             app.manage(window::watchdog::ActiveWatchdog::default());
+            app.manage(launcher::run::ActiveRun::default());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -147,6 +148,8 @@ pub fn run() {
             ipc::start_input_monitor,
             ipc::stop_input_monitor,
             ipc::discover_games,
+            ipc::start_preflight,
+            ipc::cancel_preflight,
             ipc::list_windows,
             ipc::place_window,
             ipc::stop_watching_window,

@@ -6,5 +6,8 @@
 
 pub mod discovery;
 pub mod gates;
+pub mod job;
+pub mod process;
+pub mod run;
 
 pub use discovery::{discover, launch_uri, GameSource, InstalledGame};

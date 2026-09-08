@@ -20,6 +20,8 @@ import type { DetectedDevice } from "./bindings/DetectedDevice";
 import type { GlassLevel } from "./bindings/GlassLevel";
 import type { InputFrame } from "./bindings/InputFrame";
 import type { InstalledGameInfo } from "./bindings/InstalledGameInfo";
+import type { ReadyState } from "./bindings/ReadyState";
+import type { StepView } from "./bindings/StepView";
 import type { OpenWindow } from "./bindings/OpenWindow";
 import type { RectMeans } from "./bindings/RectMeans";
 import type { WindowResult } from "./bindings/WindowResult";
@@ -53,6 +55,8 @@ export type {
   InputFrame,
   InstalledGameInfo,
   IpcError,
+  ReadyState,
+  StepView,
   OpenWindow,
   RectMeans,
   WindowResult,
@@ -92,6 +96,28 @@ export const refreshDevices = () => invoke<void>("refresh_devices");
 // --------------------------------------------------------- window control
 
 export const discoverGames = () => invoke<InstalledGameInfo[]>("discover_games");
+
+// ---------------------------------------------------------------- preflight
+
+export const startPreflight = (gameName: string) =>
+  invoke<StepView[]>("start_preflight", { gameName });
+
+export const cancelPreflight = () => invoke<void>("cancel_preflight");
+
+/**
+ * Step status changes.
+ *
+ * The checklist is a pure view over this stream — it never drives the
+ * sequencing, which is what lets a self-healing check turn green on its own by
+ * the same path the first result took.
+ */
+export function onStep(handler: (step: StepView) => void): Promise<UnlistenFn> {
+  return listen<StepView>("launch://step", (e) => handler(e.payload));
+}
+
+export function onLaunchState(handler: (state: ReadyState) => void): Promise<UnlistenFn> {
+  return listen<ReadyState>("launch://state", (e) => handler(e.payload));
+}
 
 export const listWindows = () => invoke<OpenWindow[]>("list_windows");
 

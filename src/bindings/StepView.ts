@@ -8,7 +8,13 @@ import type { StepStatus } from "./StepStatus";
 /**
  * Wire shape for the UI: one row of the preflight checklist.
  */
-export type StepView = { id: StepId, label: string, phase: Phase, severity: Severity, status: StepStatus, detail: string, elapsedMs: bigint | null, 
+export type StepView = { id: StepId, label: string, phase: Phase, severity: Severity, status: StepStatus, detail: string, 
+/**
+ * f64 rather than u64: a u64 crosses into JavaScript as `bigint`, which
+ * cannot be divided by a number without a cast at every call site. Elapsed
+ * milliseconds never approach the precision limit.
+ */
+elapsedMs: number | null, 
 /**
  * What the app actually did, so the row cannot claim credit it has not
  * earned — "Already running" is derived from this, never written by hand.

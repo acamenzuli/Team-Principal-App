@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Section } from "../dashboard/primitives";
 import { asIpcError, discoverGames, type InstalledGameInfo } from "../ipc";
+import { Preflight } from "./Preflight";
 
 /**
  * Installed games, found rather than typed.
@@ -14,6 +15,7 @@ import { asIpcError, discoverGames, type InstalledGameInfo } from "../ipc";
 export function Games() {
   const [games, setGames] = useState<InstalledGameInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [racing, setRacing] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -51,6 +53,7 @@ export function Games() {
                 <th>Launcher</th>
                 <th>Installed at</th>
                 <th>Starts with</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -63,11 +66,18 @@ export function Games() {
                   <td>{g.launcher === "steam" ? "Steam" : "Epic"}</td>
                   <td className="num">{g.installPath}</td>
                   <td className="num">{g.launchUri}</td>
+                  <td>
+                    <button className="btn" onClick={() => setRacing(g.name)}>
+                      Let's race
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
+
+        {racing && <Preflight key={racing} gameName={racing} onClose={() => setRacing(null)} />}
 
         <div className="devices__actions">
           <button className="btn btn--quiet" onClick={() => void load()}>
@@ -76,10 +86,10 @@ export function Games() {
         </div>
 
         <p className="devices__scope">
-          <strong>Milestone 7, part one.</strong> Finding games, the readiness gates, and the
-          dependency scheduler are done and tested. Running a profile end to end — starting
-          utilities, waiting on gates, launching, and tearing down through a Job Object — is the
-          rest of this milestone.
+          <strong>Milestone 7.</strong> The scheduler runs, gates are checked, and the session's
+          utilities go into a Job Object so nothing outlives a crash. The profile that says which
+          utilities to start and which peripherals are required is next, along with the full
+          "Let's race" screen.
         </p>
       </Section>
     </div>
