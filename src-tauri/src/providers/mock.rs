@@ -9,7 +9,7 @@ use std::path::Path;
 
 use tp_model::{DetectedDevice, Fixture, MonitorInfo, TopologySnapshot};
 
-use super::{DisplayProvider, PeripheralProvider, ProcessProvider, Providers, WindowProvider};
+use super::{DisplayProvider, PeripheralProvider, Providers};
 use crate::error::{AppError, AppResult};
 
 pub fn from_fixture(path: &Path) -> AppResult<Providers> {
@@ -28,8 +28,6 @@ pub fn from_fixture(path: &Path) -> AppResult<Providers> {
         peripherals: Box::new(MockPeripheralProvider {
             fixture: fixture.clone(),
         }),
-        window: Box::new(MockWindowProvider),
-        process: Box::new(MockProcessProvider { fixture }),
         simulated: true,
     })
 }
@@ -71,27 +69,5 @@ pub struct MockPeripheralProvider {
 impl PeripheralProvider for MockPeripheralProvider {
     fn enumerate(&self) -> AppResult<Vec<DetectedDevice>> {
         Ok(self.fixture.devices.clone())
-    }
-}
-
-pub struct MockWindowProvider;
-
-impl WindowProvider for MockWindowProvider {
-    fn find_window(&self, _exe_name: &str) -> AppResult<Option<u64>> {
-        Ok(None)
-    }
-}
-
-pub struct MockProcessProvider {
-    fixture: Fixture,
-}
-
-impl ProcessProvider for MockProcessProvider {
-    fn is_running(&self, exe_name: &str) -> AppResult<bool> {
-        Ok(self
-            .fixture
-            .running_processes
-            .iter()
-            .any(|p| p.eq_ignore_ascii_case(exe_name)))
     }
 }

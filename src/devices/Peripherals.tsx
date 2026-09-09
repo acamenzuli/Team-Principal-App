@@ -168,11 +168,10 @@ export function Peripherals() {
           </span>
         </div>
 
-        {/* Say plainly what is not finished, rather than letting a half-built
-            page look like a broken one. */}
         <p className="devices__scope">
-          <strong>Still to come:</strong> marking devices required or optional, which feeds the
-          pre-launch check in a later milestone.
+          This page is the truth about what is plugged in. Which of these a game <em>requires</em>
+          is set per game, on its profile in Games — nothing here is assumed, because a preflight
+          that checks things nobody asked for is one people learn to scroll past.
         </p>
       </Section>
     </div>

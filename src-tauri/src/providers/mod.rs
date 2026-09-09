@@ -39,23 +39,19 @@ pub trait PeripheralProvider: Send + Sync {
     fn enumerate(&self) -> AppResult<Vec<DetectedDevice>>;
 }
 
-/// Window manipulation. Deliberately narrow — find it, restyle it, place it,
-/// and *verify* the result by reading it back rather than trusting a return
-/// code, because UIPI makes silent failure the normal case.
-pub trait WindowProvider: Send + Sync {
-    fn find_window(&self, exe_name: &str) -> AppResult<Option<u64>>;
-}
-
-pub trait ProcessProvider: Send + Sync {
-    fn is_running(&self, exe_name: &str) -> AppResult<bool>;
-}
+// There were WindowProvider and ProcessProvider traits here. They were seams
+// designed in milestone 1 for code that had not been written, and by the time
+// it was, the real implementations had no use for them: window control needs a
+// window handle, a style, a rectangle and a read-back, not a "find me an exe"
+// call, and process checks are one function in `launcher::gates`. Nothing ever
+// called either trait, and both were still returning "not implemented yet" for
+// milestones that had shipped. A seam nobody uses is a claim about the
+// architecture that is not true, so they are gone.
 
 /// The set of providers the app is running against. Held in Tauri state.
 pub struct Providers {
     pub display: Box<dyn DisplayProvider>,
     pub peripherals: Box<dyn PeripheralProvider>,
-    pub window: Box<dyn WindowProvider>,
-    pub process: Box<dyn ProcessProvider>,
     /// True when running against fixtures. Surfaced in the UI so a screenshot
     /// from a support ticket can never be mistaken for real hardware.
     pub simulated: bool,
@@ -73,8 +69,6 @@ impl Providers {
             Ok(Providers {
                 display: Box::new(win::WinDisplayProvider::new()),
                 peripherals: Box::new(win::WinPeripheralProvider::new()),
-                window: Box::new(win::WinWindowProvider::new()),
-                process: Box::new(win::WinProcessProvider::new()),
                 simulated: false,
             })
         }

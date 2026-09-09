@@ -8,15 +8,8 @@ pub mod dpi;
 
 use tp_model::{DetectedDevice, MonitorInfo, TopologySnapshot};
 
-use super::{DisplayProvider, PeripheralProvider, ProcessProvider, WindowProvider};
-use crate::error::{AppError, AppResult};
-
-fn todo_in(what: &str, milestone: u8) -> AppError {
-    AppError::NotYetImplemented {
-        what: what.to_string(),
-        milestone,
-    }
-}
+use super::{DisplayProvider, PeripheralProvider};
+use crate::error::AppResult;
 
 #[derive(Default)]
 pub struct WinDisplayProvider;
@@ -54,31 +47,5 @@ impl PeripheralProvider for WinPeripheralProvider {
         // entries, and a user rename must take effect on the next refresh
         // rather than on the next restart.
         crate::peripherals::enumerate(&tp_model::Catalog::seeded())
-    }
-}
-
-#[derive(Default)]
-pub struct WinWindowProvider;
-impl WinWindowProvider {
-    pub fn new() -> Self {
-        Self
-    }
-}
-impl WindowProvider for WinWindowProvider {
-    fn find_window(&self, _exe_name: &str) -> AppResult<Option<u64>> {
-        Err(todo_in("window control", 6))
-    }
-}
-
-#[derive(Default)]
-pub struct WinProcessProvider;
-impl WinProcessProvider {
-    pub fn new() -> Self {
-        Self
-    }
-}
-impl ProcessProvider for WinProcessProvider {
-    fn is_running(&self, _exe_name: &str) -> AppResult<bool> {
-        Err(todo_in("process orchestration", 7))
     }
 }

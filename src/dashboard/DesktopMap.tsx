@@ -4,9 +4,11 @@ import type { DesktopLayoutInfo } from "../ipc";
 /**
  * The virtual desktop drawn to scale, with dead regions marked.
  *
- * Not the layout editor — that arrives in milestone 4, draws to *physical*
- * scale using EDID millimetres, and lets you drag a viewport. This draws pixel
- * space, which is the thing that decides where a window can actually go.
+ * Not the rig schematic — that lives on Screen Setup and draws *physical*
+ * space, in millimetres, from above. This draws pixel space, which is a
+ * different question and the one that decides where a window can actually go:
+ * two screens can be side by side in the room and nowhere near each other in
+ * the desktop's coordinates.
  *
  * It earns its place now because dead regions are invisible until you see
  * them: on a rig with panels of different heights, part of the desktop is
