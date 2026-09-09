@@ -359,6 +359,14 @@ pub enum StepAction {
     },
     LaunchGame,
     ApplyWindowGeometry,
+
+    // Teardown. Never scheduled alongside the rest — see `Phase::Teardown`.
+    /// Restore the game config files this session wrote, from their backup.
+    RestoreConfigs,
+    /// Put the desktop back to the snapshot taken before this session.
+    RestoreDisplay,
+    /// Terminate the utilities this session started, and only those.
+    CloseUtilities,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -490,6 +498,10 @@ pub enum ReadyState {
     /// The launch itself failed, which is a different thing from a preflight
     /// that blocked — the checks passed and the start did not.
     LaunchFailed,
+    /// The game has exited and the session is being undone.
+    TearingDown,
+    /// Everything this session changed has been put back.
+    Done,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

@@ -335,6 +335,15 @@ fn supervise(context: Context, mut scheduler: Scheduler) {
                     };
                     tracing::info!(?state, "launch phase settled");
                     publish_state(&context.app, state);
+
+                    // Wait for the race to end, then put everything back. This
+                    // is the half of the promise that runs when nobody is
+                    // watching, an hour later.
+                    if state == ReadyState::Racing {
+                        await_exit(&context);
+                        run_teardown(&context, &mut scheduler);
+                        return;
+                    }
                 }
             }
         }
@@ -580,7 +589,27 @@ fn perform(action: &StepAction, profile: &Profile, job: &JobObject) -> (ActionTa
             ),
         },
 
-        StepAction::CheckConfigWritable => (ActionTaken::NoActionNeeded, String::new(), false),
+        // A real check, not a green row. Every file the profile's adapter would
+        // write is opened for append and closed again — the only way to learn
+        // what Windows will actually allow, since a read-only attribute, a
+        // permission, and a file the game has open exclusively all look
+        // identical from a metadata query.
+        StepAction::CheckConfigWritable => match writable_files(profile) {
+            Ok(0) => (
+                ActionTaken::NoActionNeeded,
+                "nothing to write for this game".into(),
+                false,
+            ),
+            Ok(n) => (
+                ActionTaken::NoActionNeeded,
+                format!(
+                    "{n} config {} writable",
+                    if n == 1 { "file" } else { "files" }
+                ),
+                false,
+            ),
+            Err(e) => (ActionTaken::NoActionNeeded, e.to_string(), true),
+        },
         StepAction::CheckDisplayTopology => (ActionTaken::NoActionNeeded, String::new(), false),
         StepAction::CheckPeripheral { device } => (
             ActionTaken::NoActionNeeded,
@@ -607,22 +636,242 @@ fn perform(action: &StepAction, profile: &Profile, job: &JobObject) -> (ActionTa
             Err(e) => (ActionTaken::NotAttempted, e.to_string(), true),
         },
 
-        // Not built yet, and saying so beats a step that silently passes.
-        StepAction::ApplyAdapter { adapter_id } => (
-            ActionTaken::NotAttempted,
-            format!("no adapter for {adapter_id} yet — game settings arrive in milestone 10"),
-            true,
-        ),
+        StepAction::ApplyAdapter { adapter_id } => write_game_settings(profile, adapter_id),
+
+        // Deliberately still not wired into a launch. The machinery exists and
+        // works from the Displays tab, but a display change inside a preflight
+        // puts a confirm-or-revert countdown on a screen that is in the middle
+        // of changing, and it is not yet clear that is a good idea. Saying so
+        // beats a step that silently passes.
         StepAction::ApplyDisplaySnapshot { .. } => (
             ActionTaken::NotAttempted,
-            "display changes arrive in milestone 9, behind the confirm-or-revert flow".into(),
+            "changing displays during a launch is not wired up — use the Displays \
+             tab, where the confirm-or-revert countdown is visible"
+                .into(),
             true,
         ),
+
+        // Teardown. Never reached from the preflight or launch phases; the
+        // scheduler refuses to run these alongside a session.
+        StepAction::RestoreConfigs => restore_configs(),
+        StepAction::RestoreDisplay => (
+            ActionTaken::NoActionNeeded,
+            "no display change to undo — this session did not make one".into(),
+            false,
+        ),
+        StepAction::CloseUtilities => {
+            job.terminate_all();
+            (
+                ActionTaken::Started,
+                "closed what this session started".into(),
+                false,
+            )
+        }
         // Re-apply a rectangle that was proven by hand. Everything here is the
         // milestone 6 machinery; what is new is that nobody had to press
         // anything.
         StepAction::ApplyWindowGeometry => place_window(profile),
     }
+}
+
+/// Block until the game's process is gone, or the run is cancelled.
+///
+/// Polled once a second rather than with a wait handle: a protocol launch never
+/// gives us a process handle in the first place — Steam starts the game as a
+/// grandchild we never spawned — so the executable name is all there is to
+/// watch, and a poll is what watching a name means.
+fn await_exit(context: &Context) {
+    let Some(exe) = tp_model::expected_exe(&context.profile) else {
+        // Nothing nameable to watch. Teardown will run when the user asks or
+        // when the app closes, rather than being triggered by a guess.
+        tracing::info!(
+            "no executable name for this profile, so the end of the session              cannot be detected; teardown waits for the app to close"
+        );
+        return;
+    };
+
+    // Give the game time to appear before concluding it has ended. A protocol
+    // launch returns immediately and the process arrives seconds later, so
+    // watching from the first tick would tear down a session that had not
+    // started.
+    let appear_by = Instant::now() + Duration::from_secs(120);
+    let mut seen = false;
+
+    while !context.cancel.load(Ordering::Relaxed) {
+        let running = super::gates::process_running(&exe);
+        if running {
+            seen = true;
+        } else if seen {
+            tracing::info!(%exe, "the game has exited");
+            return;
+        } else if Instant::now() >= appear_by {
+            tracing::warn!(
+                %exe,
+                "never saw the game start; not tearing down on that basis alone"
+            );
+            return;
+        }
+        std::thread::sleep(Duration::from_secs(1));
+    }
+}
+
+/// Undo what the session changed.
+///
+/// Run directly rather than through the scheduler, because the scheduler
+/// refuses to schedule a teardown step — that refusal is what stops one running
+/// alongside a live session, and it is worth keeping.
+fn run_teardown(context: &Context, scheduler: &mut Scheduler) {
+    publish_state(&context.app, ReadyState::TearingDown);
+
+    for step in scheduler.steps().to_vec() {
+        if step.phase != Phase::Teardown {
+            continue;
+        }
+        update(context, step.id, |v| {
+            v.status = StepStatus::Running;
+            v.detail = String::new();
+        });
+
+        let started = Instant::now();
+        let (action, detail, failed) = perform(&step.action, &context.profile, &context.job);
+        let status = if failed {
+            StepStatus::Failed
+        } else {
+            StepStatus::Passed
+        };
+        scheduler.record(step.id, status);
+        update(context, step.id, |v| {
+            v.status = status;
+            v.action_taken = action;
+            v.detail = detail.clone();
+            v.elapsed_ms = Some(started.elapsed().as_millis() as f64);
+        });
+    }
+
+    // Only now: the marker is what tells a later start that something is still
+    // outstanding, so clearing it before the work is done would lose exactly
+    // the case it exists for.
+    crate::session::clear();
+    publish_state(&context.app, ReadyState::Done);
+    tracing::info!("session torn down");
+}
+
+/// Check that every file the adapter would write can actually be written.
+///
+/// By opening each for append and closing it again, which is the only way to
+/// learn what Windows will allow: a read-only attribute, a denied permission,
+/// and a file the game currently holds open exclusively are indistinguishable
+/// from a metadata query and produce three different failures at write time.
+fn writable_files(profile: &Profile) -> AppResult<usize> {
+    let Some(plan) = adapter_plan_for(profile) else {
+        return Ok(0);
+    };
+
+    let mut checked = 0usize;
+    for file in &plan.files {
+        let path = crate::adapters::resolve(&file.path_template)?;
+        if !path.is_file() {
+            return Err(AppError::Config(format!(
+                "{} is not there. Run the game once so it writes its settings.",
+                path.display()
+            )));
+        }
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(&path)
+            .map_err(|e| {
+                AppError::Config(format!(
+                    "{} cannot be written: {e}. If the game is running, close it.",
+                    path.display()
+                ))
+            })?;
+        checked += 1;
+    }
+    Ok(checked)
+}
+
+/// Write the rig into the game's own config, backing it up first.
+fn write_game_settings(profile: &Profile, adapter_id: &str) -> (ActionTaken, String, bool) {
+    let Some(plan) = adapter_plan_for(profile) else {
+        return (
+            ActionTaken::NotAttempted,
+            format!("no {adapter_id} adapter in this build"),
+            true,
+        );
+    };
+
+    // Nothing to do is worth saying plainly, so a second launch visibly leaves
+    // the file alone rather than looking like it rewrote it.
+    let preview = crate::adapters::preview(&plan);
+    if !preview.iter().any(|f| f.will_change()) {
+        return (ActionTaken::NoActionNeeded, "already correct".into(), false);
+    }
+
+    match crate::adapters::apply(&plan) {
+        Ok(applied) => {
+            let changed: usize = preview
+                .iter()
+                .map(|f| f.changes.iter().filter(|c| !c.unchanged).count())
+                .sum();
+            // The backup id goes to the log rather than the row: the row has to
+            // stay readable at a glance, and the id is what a support bundle
+            // needs rather than what the driver does.
+            tracing::info!(backup = %applied.backup, changed, "game settings written");
+            // Onto the crash marker too, so a session that never reaches
+            // teardown can still be undone from a later start.
+            crate::session::record_backup(&applied.backup);
+            (
+                ActionTaken::Started,
+                format!(
+                    "{changed} {} written, backed up first",
+                    if changed == 1 { "setting" } else { "settings" }
+                ),
+                // A missing key is reported on the Game Settings tab rather than
+                // failing this step: the settings that do exist were still
+                // written, and that diff names the ones that were not.
+                false,
+            )
+        }
+        Err(e) => (ActionTaken::NotAttempted, e.to_string(), true),
+    }
+}
+
+/// Put back whatever the most recent adapter write changed.
+fn restore_configs() -> (ActionTaken, String, bool) {
+    let Some(latest) = crate::backup::list().into_iter().next() else {
+        return (
+            ActionTaken::NoActionNeeded,
+            "nothing was written, so there is nothing to put back".into(),
+            false,
+        );
+    };
+    match crate::backup::restore(&latest.taken_at) {
+        Ok(files) => (
+            ActionTaken::Started,
+            format!(
+                "restored {} {}",
+                files.len(),
+                if files.len() == 1 { "file" } else { "files" }
+            ),
+            false,
+        ),
+        Err(e) => (ActionTaken::NotAttempted, e.to_string(), true),
+    }
+}
+
+/// The adapter plan for this profile, solved against its rig.
+fn adapter_plan_for(profile: &Profile) -> Option<tp_model::AdapterPlan> {
+    let rig = crate::rig::list()
+        .into_iter()
+        .find(|r| r.id == profile.rig.rig_id)
+        .or_else(|| crate::rig::list().into_iter().next())?;
+    let solution = tp_geometry::solve(&rig, profile.session_mode);
+    tp_model::adapter_plan(
+        &profile.game.adapter_id,
+        &rig,
+        &crate::ipc::to_wire(solution),
+        profile.session_mode,
+    )
 }
 
 /// Find the game's window and put it where the profile says.

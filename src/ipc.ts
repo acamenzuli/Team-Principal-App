@@ -42,6 +42,7 @@ import type { Tier } from "./bindings/Tier";
 import type { FixAction } from "./bindings/FixAction";
 import type { InstalledGameInfo } from "./bindings/InstalledGameInfo";
 import type { Necessity } from "./bindings/Necessity";
+import type { PendingSession } from "./bindings/PendingSession";
 import type { PeripheralRequirement } from "./bindings/PeripheralRequirement";
 import type { Platform } from "./bindings/Platform";
 import type { Profile } from "./bindings/Profile";
@@ -107,6 +108,7 @@ export type {
   Tier,
   IpcError,
   Necessity,
+  PendingSession,
   PeripheralRequirement,
   Platform,
   Profile,
@@ -167,6 +169,23 @@ export const startPreflight = (profileId: string) =>
   invoke<StepView[]>("start_preflight", { profileId });
 
 export const cancelPreflight = () => invoke<void>("cancel_preflight");
+
+// ------------------------------------------------------------------ recovery
+
+/**
+ * The session that did not finish, if there is one.
+ *
+ * A session changes things outside the app. If it is killed mid-flight — crash,
+ * power cut, Task Manager — nothing is left running to put them back, so a
+ * marker on disk is what lets a later start notice and offer.
+ */
+export const pendingSession = () => invoke<PendingSession | null>("pending_session");
+
+/** Undo what the unfinished session changed. */
+export const recoverSession = () => invoke<string[]>("recover_session");
+
+/** Leave it alone and stop asking. */
+export const dismissPendingSession = () => invoke<void>("dismiss_pending_session");
 
 /** Re-run one step and everything downstream of it, actions and all. */
 export const retryStep = (id: number) => invoke<void>("retry_step", { id });

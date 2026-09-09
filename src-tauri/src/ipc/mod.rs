@@ -281,7 +281,7 @@ pub fn fit_rig(rig: RigModel, session: SessionMode) -> Option<BestFitInfo> {
     })
 }
 
-fn to_wire(s: tp_geometry::RigSolution) -> RigSolutionInfo {
+pub fn to_wire(s: tp_geometry::RigSolution) -> RigSolutionInfo {
     RigSolutionInfo {
         total_coverage_deg: s.total_coverage.0,
         visible_coverage_deg: s.visible_coverage.0,
@@ -463,6 +463,7 @@ pub fn discover_games() -> Vec<tp_model::InstalledGameInfo> {
     crate::launcher::discover()
         .into_iter()
         .map(|g| tp_model::InstalledGameInfo {
+            has_adapter: tp_model::adapter_for_game(&g.name).is_some(),
             name: g.name,
             install_path: g.install_path.display().to_string(),
             launcher: match &g.source {
@@ -470,9 +471,6 @@ pub fn discover_games() -> Vec<tp_model::InstalledGameInfo> {
                 crate::launcher::GameSource::Epic { .. } => "epic".into(),
             },
             launch_uri: crate::launcher::launch_uri(&g.source),
-            // Adapters arrive in milestone 10. Claiming otherwise would be the
-            // exact kind of aspirational UI this project avoids.
-            has_adapter: false,
         })
         .collect()
 }
@@ -493,7 +491,22 @@ pub fn start_preflight(
     profile_id: Uuid,
 ) -> AppResult<Vec<tp_model::StepView>> {
     let mut profile = crate::profiles::load(profile_id)?;
+
+    // Fill in the adapter, if one handles this game and the profile has not
+    // recorded it yet. Matching is exact — see tp_model::adapter::for_game for
+    // why a fuzzy match here would write one game's settings into another.
+    if profile.game.adapter_id.is_empty() {
+        if let Some(adapter) = tp_model::adapter_for_game(&profile.name) {
+            profile.game.adapter_id = adapter.id;
+            let _ = crate::profiles::save(&profile);
+        }
+    }
+
     profile.steps = tp_model::build_steps(&profile);
+
+    // The crash marker, before anything is changed. If the app dies from here
+    // on, the next start knows a session was in flight and offers to undo it.
+    crate::session::begin(profile.id, &profile.name)?;
 
     // Device status comes from the watch thread, which has already debounced
     // it. Re-enumerating here would be a second answer to the same question.
@@ -1117,4 +1130,51 @@ pub fn deactivate_licence() -> AppResult<tp_model::LicenceState> {
     crate::licence::provider()
         .deactivate()
         .map_err(AppError::Config)
+}
+
+// ------------------------------------------------------------------ recovery
+
+/// The session that did not finish, if there is one.
+///
+/// A session changes things outside this app. If it is killed mid-flight —
+/// crash, power cut, Task Manager — nothing is left running to put them back,
+/// so a marker on disk is what lets a later start notice and offer.
+#[tauri::command]
+pub fn pending_session() -> Option<tp_model::PendingSession> {
+    crate::session::pending().map(|s| tp_model::PendingSession {
+        profile_name: s.profile_name,
+        started_at: s.started_at,
+        has_config_backup: s.config_backup.is_some(),
+    })
+}
+
+/// Undo what the unfinished session changed.
+#[tauri::command]
+pub fn recover_session() -> AppResult<Vec<String>> {
+    let Some(marker) = crate::session::pending() else {
+        return Err(AppError::Config("nothing is outstanding".into()));
+    };
+
+    let mut done = Vec::new();
+    if let Some(backup) = &marker.config_backup {
+        match crate::backup::restore(backup) {
+            Ok(files) => done.push(format!(
+                "put back {} game config {}",
+                files.len(),
+                if files.len() == 1 { "file" } else { "files" }
+            )),
+            // Reported rather than aborting: the marker still has to be
+            // cleared, or the app offers the same failing recovery forever.
+            Err(e) => done.push(format!("could not restore the config files: {e}")),
+        }
+    }
+
+    crate::session::clear();
+    Ok(done)
+}
+
+/// Leave the unfinished session alone and stop asking.
+#[tauri::command]
+pub fn dismiss_pending_session() {
+    crate::session::clear();
 }

@@ -65,11 +65,18 @@ export function Preflight({
   }, [profileId]);
 
   const preflight = steps.filter((s) => s.phase === "preflight");
-  const launch = steps.filter((s) => s.phase === "launch");
+  const launch = steps.filter((s) => s.phase !== "preflight");
   const done = preflight.filter((s) => TERMINAL.has(s.status)).length;
   const progress = preflight.length === 0 ? 0 : done / preflight.length;
   const blockers = preflight.filter((s) => s.status === "failed" && s.severity === "fatal");
-  const started = state === "launching" || state === "racing" || state === "launch_failed";
+  // Once the launch has begun, the launch and teardown rows join the list —
+  // before that they would be noise, since neither can run yet.
+  const started =
+    state === "launching" ||
+    state === "racing" ||
+    state === "launch_failed" ||
+    state === "tearing_down" ||
+    state === "done";
   const rows = started ? [...preflight, ...launch] : preflight;
 
   return (
@@ -198,6 +205,10 @@ function subtitle(state: ReadyState, preflight: StepView[], blockers: StepView[]
       return "The game is up. Applying the saved window geometry to it comes next.";
     case "launch_failed":
       return "The checks passed but the game did not start.";
+    case "tearing_down":
+      return "The game has closed. Putting everything back.";
+    case "done":
+      return "Everything this session changed has been put back.";
   }
 }
 
@@ -211,6 +222,8 @@ const VERDICT: Record<ReadyState, string> = {
   launching: "Launching",
   racing: "Racing",
   launch_failed: "Launch failed",
+  tearing_down: "Tidying up",
+  done: "Done",
 };
 
 /** Status is never carried by colour alone: glyph, colour and word, always. */

@@ -93,6 +93,44 @@ pub fn build_steps(profile: &Profile) -> Vec<StepSpec> {
         utility_ids.push((utility.label.clone(), step_id));
     }
 
+    // Game settings, written from the rig. Only when the profile actually names
+    // an adapter — a step that reports "no adapter" on every launch is a step
+    // people stop reading.
+    if !profile.game.adapter_id.is_empty() {
+        let writable = id();
+        steps.push(StepSpec {
+            id: writable,
+            label: "Game settings are writable".into(),
+            phase: Phase::Preflight,
+            depends_on: Vec::new(),
+            action: StepAction::CheckConfigWritable,
+            gate: ReadinessGate::Immediate,
+            timeout_ms: 5_000,
+            severity: Severity::Warning,
+            fix: Some(crate::FixAction::Retry),
+            min_visible_ms: 350,
+        });
+        steps.push(StepSpec {
+            id: id(),
+            label: "Write your rig into the game".into(),
+            phase: Phase::Preflight,
+            // Pointless to attempt if the file could not be written, and the
+            // failure would be the same one reported twice.
+            depends_on: vec![writable],
+            action: StepAction::ApplyAdapter {
+                adapter_id: profile.game.adapter_id.clone(),
+            },
+            gate: ReadinessGate::Immediate,
+            timeout_ms: 15_000,
+            // A warning: the settings may already be right from last time, and
+            // refusing to race because a config write failed would be worse
+            // than racing with last session's numbers.
+            severity: Severity::Warning,
+            fix: Some(crate::FixAction::Retry),
+            min_visible_ms: 350,
+        });
+    }
+
     // The game itself. The action does the checking — the gate is immediate
     // because there is nothing to wait *for*: a game either is installed or is
     // not, and polling would not change the answer.
@@ -174,6 +212,65 @@ pub fn build_steps(profile: &Profile) -> Vec<StepSpec> {
             // absurd.
             severity: Severity::Warning,
             fix: Some(crate::FixAction::Retry),
+            min_visible_ms: 350,
+        });
+    }
+
+    steps.extend(teardown_steps(profile, &mut id));
+    steps
+}
+
+/// What to undo when the session ends.
+///
+/// Never scheduled with the rest — `Scheduler` refuses to run a teardown step
+/// alongside a launch one — because teardown runs when the *game exits*, which
+/// may be an hour later, or when the user cancels. Building the steps here
+/// anyway means the plan is complete and inspectable before anything starts,
+/// rather than assembled in a hurry at the point of failure.
+fn teardown_steps(profile: &Profile, id: &mut impl FnMut() -> StepId) -> Vec<StepSpec> {
+    let mut steps = Vec::new();
+
+    if profile.teardown.restore_configs {
+        steps.push(StepSpec {
+            id: id(),
+            label: "Put your game settings back".into(),
+            phase: Phase::Teardown,
+            depends_on: Vec::new(),
+            action: StepAction::RestoreConfigs,
+            gate: ReadinessGate::Immediate,
+            timeout_ms: 15_000,
+            severity: Severity::Warning,
+            fix: Some(crate::FixAction::Retry),
+            min_visible_ms: 350,
+        });
+    }
+
+    if profile.teardown.restore_display {
+        steps.push(StepSpec {
+            id: id(),
+            label: "Put your displays back".into(),
+            phase: Phase::Teardown,
+            depends_on: Vec::new(),
+            action: StepAction::RestoreDisplay,
+            gate: ReadinessGate::Immediate,
+            timeout_ms: 30_000,
+            severity: Severity::Warning,
+            fix: Some(crate::FixAction::Retry),
+            min_visible_ms: 350,
+        });
+    }
+
+    if profile.teardown.close_utilities {
+        steps.push(StepSpec {
+            id: id(),
+            label: "Close the utilities".into(),
+            phase: Phase::Teardown,
+            depends_on: Vec::new(),
+            action: StepAction::CloseUtilities,
+            gate: ReadinessGate::Immediate,
+            timeout_ms: 15_000,
+            severity: Severity::Warning,
+            fix: None,
             min_visible_ms: 350,
         });
     }
@@ -485,6 +582,71 @@ mod tests {
         // The game is already running by then; a few pixels out is not a reason
         // to call the launch a failure.
         assert_eq!(place.severity, Severity::Warning);
+        assert!(Scheduler::new(steps).is_ok());
+    }
+
+    #[test]
+    fn teardown_is_planned_but_never_runnable_alongside_the_session() {
+        // The plan is complete and inspectable before anything starts, rather
+        // than assembled in a hurry at the point of failure — but the scheduler
+        // must never run it next to a launch step.
+        let p = profile();
+        let steps = build_steps(&p);
+        let teardown: Vec<_> = steps
+            .iter()
+            .filter(|s| s.phase == Phase::Teardown)
+            .collect();
+        // The default policy restores configs and the display, and leaves
+        // utilities alone.
+        assert_eq!(teardown.len(), 2);
+
+        let scheduler = Scheduler::new(steps.clone()).unwrap();
+        for id in scheduler.runnable() {
+            let step = steps.iter().find(|s| s.id == id).unwrap();
+            assert_ne!(step.phase, Phase::Teardown, "{}", step.label);
+        }
+    }
+
+    #[test]
+    fn the_teardown_policy_decides_what_is_planned() {
+        let mut p = profile();
+        p.teardown = TeardownPolicy {
+            restore_display: false,
+            restore_configs: false,
+            close_utilities: true,
+            keep_utilities_on_cancel: true,
+        };
+        let steps = build_steps(&p);
+        let actions: Vec<_> = steps
+            .iter()
+            .filter(|s| s.phase == Phase::Teardown)
+            .map(|s| s.action.clone())
+            .collect();
+        assert_eq!(actions, vec![StepAction::CloseUtilities]);
+    }
+
+    #[test]
+    fn game_settings_are_only_written_when_an_adapter_is_named() {
+        // A step reporting "no adapter" on every launch is a step people stop
+        // reading.
+        let mut p = profile();
+        assert!(!build_steps(&p)
+            .iter()
+            .any(|s| matches!(s.action, StepAction::ApplyAdapter { .. })));
+
+        p.game.adapter_id = "assetto_corsa".into();
+        let steps = build_steps(&p);
+        let writable = steps
+            .iter()
+            .find(|s| matches!(s.action, StepAction::CheckConfigWritable))
+            .unwrap();
+        let write = steps
+            .iter()
+            .find(|s| matches!(s.action, StepAction::ApplyAdapter { .. }))
+            .unwrap();
+        // Pointless to attempt the write if the file could not be written, and
+        // the failure would be the same one reported twice.
+        assert_eq!(write.depends_on, vec![writable.id]);
         assert!(Scheduler::new(steps).is_ok());
     }
 

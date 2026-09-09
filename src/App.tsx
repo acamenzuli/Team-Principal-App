@@ -6,6 +6,7 @@ import { applyTheme } from "./design/theme";
 import { Peripherals } from "./devices/Peripherals";
 import { Games } from "./games/Games";
 import { FirstRun } from "./onboarding/FirstRun";
+import { Recovery } from "./onboarding/Recovery";
 import { ScreenSetup } from "./screen/ScreenSetup";
 import { Settings } from "./settings/Settings";
 import { WindowControl } from "./windowctl/WindowControl";
@@ -54,7 +55,12 @@ export function App() {
   if (error) {
     return (
       <div className="app">
-        {/* Shown over the app rather than instead of it, so it reads as a guide
+        {/* Before anything else, including the wizard: an unfinished session has
+          left this machine in a state the user did not choose, and that is more
+          urgent than an introduction. */}
+      <Recovery />
+
+      {/* Shown over the app rather than instead of it, so it reads as a guide
           through this product rather than a wall in front of it. */}
       {prefs && !prefs.onboarded && (
         <FirstRun
@@ -126,6 +132,11 @@ export function App() {
           {info ? `v${info.version} · M${info.milestone}` : "…"}
         </span>
       </header>
+
+      {/* Before anything else, including the wizard: an unfinished session has
+          left this machine in a state the user did not choose, and that is more
+          urgent than an introduction. */}
+      <Recovery />
 
       {/* Shown over the app rather than instead of it, so it reads as a guide
           through this product rather than a wall in front of it. */}

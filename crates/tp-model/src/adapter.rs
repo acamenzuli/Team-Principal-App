@@ -241,6 +241,50 @@ pub fn catalog() -> Vec<AdapterInfo> {
     vec![iracing_info(), assetto_corsa_info()]
 }
 
+/// Which adapter, if any, handles a game with this name.
+///
+/// **Exact match against an explicit alias list, never a substring.** This was
+/// substring matching first, and a test caught what that does: "Assetto Corsa
+/// Competizione" contains "Assetto Corsa", so the fuzzy version would have
+/// written Assetto Corsa's `video.ini` keys into a completely different game
+/// with a completely different config format.
+///
+/// Guessing which game an adapter applies to is exactly as dangerous as
+/// guessing a key name, and gets the same answer: don't. A title nobody has
+/// listed gets no adapter, which is a visible gap rather than a silent wrong
+/// write.
+pub fn for_game(name: &str) -> Option<AdapterInfo> {
+    let wanted = normalise(name);
+    catalog()
+        .into_iter()
+        .find(|a| aliases(&a.id).iter().any(|alias| *alias == wanted))
+}
+
+/// Every name an install of this game is known to go by, normalised.
+///
+/// Installs are named inconsistently — "Assetto Corsa" from Steam's manifest,
+/// "assettocorsa" from the folder, "iRacing Simulator" from the registry — so
+/// the list is explicit rather than clever.
+fn aliases(adapter_id: &str) -> &'static [&'static str] {
+    match adapter_id {
+        "iracing" => &["iracing", "iracingsimulator", "iracingcom"],
+        "assetto_corsa" => &["assettocorsa"],
+        _ => &[],
+    }
+}
+
+/// Lowercase, letters and digits only.
+///
+/// "Assetto Corsa", "assettocorsa" and "ASSETTO CORSA Competizione" have to
+/// compare usefully, and the difference that matters between the first and the
+/// last is a whole word rather than punctuation.
+fn normalise(name: &str) -> String {
+    name.chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .flat_map(|c| c.to_lowercase())
+        .collect()
+}
+
 pub fn plan(
     adapter_id: &str,
     rig: &RigModel,
@@ -819,6 +863,34 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn a_game_is_matched_to_its_adapter_however_its_install_is_named() {
+        assert_eq!(
+            for_game("Assetto Corsa").map(|a| a.id),
+            Some("assetto_corsa".into())
+        );
+        assert_eq!(
+            for_game("assettocorsa").map(|a| a.id),
+            Some("assetto_corsa".into())
+        );
+        assert_eq!(for_game("iRacing").map(|a| a.id), Some("iracing".into()));
+        assert_eq!(
+            for_game("iRacing Simulator").map(|a| a.id),
+            Some("iracing".into())
+        );
+    }
+
+    #[test]
+    fn a_different_game_with_a_similar_name_is_not_claimed() {
+        // The reason matching is exact. Competizione and EVO are different
+        // games with different config formats, and both contain "Assetto
+        // Corsa" — a substring match would have written one game's keys into
+        // another, which is worse than having no adapter at all.
+        assert_eq!(for_game("Assetto Corsa Competizione").map(|a| a.id), None);
+        assert_eq!(for_game("Assetto Corsa EVO").map(|a| a.id), None);
+        assert!(for_game("Dirt Rally 2.0").is_none());
     }
 
     #[test]

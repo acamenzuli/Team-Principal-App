@@ -225,3 +225,16 @@
 .btn--override {
   color: var(--warn);
 }
+
+.pf__gate--tearing_down {
+  border-left-color: var(--run);
+}
+.pf__gate--done {
+  border-left-color: var(--pass);
+}
+.pf__gate--tearing_down .pf__verdict {
+  color: var(--run);
+}
+.pf__gate--done .pf__verdict {
+  color: var(--pass);
+}

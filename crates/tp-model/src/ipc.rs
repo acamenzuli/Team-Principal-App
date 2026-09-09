@@ -361,3 +361,16 @@ pub struct ProfileCard {
     pub install_path: Option<String>,
     pub platform: String,
 }
+
+/// A session that did not finish, for the recovery prompt.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct PendingSession {
+    pub profile_name: String,
+    pub started_at: String,
+    /// Whether there is anything to put back. False means the session was
+    /// interrupted before it changed a thing, which is worth saying rather than
+    /// offering a recovery that would do nothing.
+    pub has_config_backup: bool,
+}

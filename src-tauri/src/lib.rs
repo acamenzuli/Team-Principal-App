@@ -21,6 +21,7 @@ pub mod peripherals;
 pub mod profiles;
 pub mod providers;
 pub mod rig;
+pub mod session;
 pub mod settings;
 pub mod snapshots;
 pub mod window;
@@ -181,6 +182,9 @@ pub fn run() {
             ipc::discover_games,
             ipc::start_preflight,
             ipc::cancel_preflight,
+            ipc::pending_session,
+            ipc::recover_session,
+            ipc::dismiss_pending_session,
             ipc::retry_step,
             ipc::skip_step,
             ipc::launch_game,
