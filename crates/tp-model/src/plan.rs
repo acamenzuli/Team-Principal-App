@@ -133,8 +133,9 @@ pub fn build_steps(profile: &Profile) -> Vec<StepSpec> {
         });
     }
 
+    let launch_id = id();
     steps.push(StepSpec {
-        id: id(),
+        id: launch_id,
         label: format!("Launch {}", profile.name),
         phase: Phase::Launch,
         depends_on: Vec::new(),
@@ -152,6 +153,30 @@ pub fn build_steps(profile: &Profile) -> Vec<StepSpec> {
         fix: Some(crate::FixAction::Retry),
         min_visible_ms: 350,
     });
+
+    // Placing the window, when the profile has a rectangle that was proven by
+    // hand and the switch is on. Depends on the launch step: there is no window
+    // to place until the game has started.
+    if profile.window_plan.auto_apply {
+        steps.push(StepSpec {
+            id: id(),
+            label: "Place the game window".into(),
+            phase: Phase::Launch,
+            depends_on: vec![launch_id],
+            action: StepAction::ApplyWindowGeometry,
+            gate: ReadinessGate::Immediate,
+            // Long, because this waits for the window to exist. A sim showing a
+            // splash screen and compiling shaders can take most of a minute
+            // before it opens the window that matters.
+            timeout_ms: profile.window_plan.target.timeout_ms.max(60_000),
+            // A warning, not fatal: the game is running by this point, and
+            // refusing to race because a window is a few pixels out would be
+            // absurd.
+            severity: Severity::Warning,
+            fix: Some(crate::FixAction::Retry),
+            min_visible_ms: 350,
+        });
+    }
 
     steps
 }
@@ -199,6 +224,8 @@ mod tests {
                 launch: LaunchMethod::Steam {
                     app_id: "244210".into(),
                 },
+                platform: Platform::Steam,
+                art_path: None,
             },
             rig: RigBinding {
                 rig_id: uuid::Uuid::nil(),
@@ -221,6 +248,7 @@ mod tests {
                 always_on_top: false,
                 hide_taskbar: false,
                 watchdog: WatchdogPolicy::default(),
+                auto_apply: false,
             },
             peripherals: Vec::new(),
             utilities: Vec::new(),
@@ -430,6 +458,34 @@ mod tests {
             }
             assert!(step.fix.is_some(), "{} has no fix action", step.label);
         }
+    }
+
+    #[test]
+    fn window_placement_is_only_planned_when_the_switch_is_on() {
+        // And it waits for the launch, because there is no window to place
+        // until the game has started.
+        let mut p = profile();
+        assert!(!build_steps(&p)
+            .iter()
+            .any(|s| matches!(s.action, StepAction::ApplyWindowGeometry)));
+
+        p.window_plan.auto_apply = true;
+        let steps = build_steps(&p);
+        let launch = steps
+            .iter()
+            .find(|s| matches!(s.action, StepAction::LaunchGame))
+            .unwrap();
+        let place = steps
+            .iter()
+            .find(|s| matches!(s.action, StepAction::ApplyWindowGeometry))
+            .unwrap();
+
+        assert_eq!(place.depends_on, vec![launch.id]);
+        assert_eq!(place.phase, Phase::Launch);
+        // The game is already running by then; a few pixels out is not a reason
+        // to call the launch a failure.
+        assert_eq!(place.severity, Severity::Warning);
+        assert!(Scheduler::new(steps).is_ok());
     }
 
     #[test]

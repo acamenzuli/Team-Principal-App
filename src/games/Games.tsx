@@ -3,42 +3,38 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Section } from "../dashboard/primitives";
 import {
   asIpcError,
-  createProfile,
-  discoverGames,
-  listProfiles,
-  type InstalledGameInfo,
-  type Profile,
+  gameLibrary,
+  setAutoApply,
+  type ProfileCard,
 } from "../ipc";
 import { Preflight } from "./Preflight";
 import { ProfileEditor } from "./ProfileEditor";
 import "./games.css";
 
 /**
- * Installed games, found rather than typed, each with the profile that says how
- * to race it.
+ * The library: every game found, and every profile ever made.
  *
- * Games are read from Steam's own library index and Epic's manifests. A game
- * whose folder has gone — an interrupted uninstall leaves the manifest behind —
- * is not listed, because a launch that fails for no visible reason is worse
- * than a missing row.
+ * Three rules this screen exists to hold:
  *
- * A game has no profile until one is made. That is deliberate: the profile is
- * where "these peripherals must be connected, start SimHub first" lives, and a
- * profile invented on the user's behalf would check things nobody asked for.
+ * * **A profile appears by itself.** Anything installed gets one on the first
+ *   scan, so there is no create step between finding a game and configuring it.
+ * * **A profile outlives its install.** Uninstall a game and its card stays,
+ *   marked not installed, with everything you set still in it. Losing a tuned
+ *   profile because a drive was unplugged would be indefensible.
+ * * **Automatic placement is off until it has worked once.** The switch replays
+ *   a rectangle you have already watched land, never a fresh calculation — an
+ *   automatic placement that is wrong happens every launch and is not obvious
+ *   what did it.
  */
 export function Games() {
-  const [games, setGames] = useState<InstalledGameInfo[] | null>(null);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [cards, setCards] = useState<ProfileCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [racing, setRacing] = useState<Profile | null>(null);
-  const [editing, setEditing] = useState<Profile | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [racing, setRacing] = useState<ProfileCard | null>(null);
+  const [editing, setEditing] = useState<ProfileCard | null>(null);
 
   const load = useCallback(async () => {
     try {
-      const [found, saved] = await Promise.all([discoverGames(), listProfiles()]);
-      setGames(found);
-      setProfiles(saved);
+      setCards(await gameLibrary());
       setError(null);
     } catch (e) {
       setError(asIpcError(e).message);
@@ -49,128 +45,72 @@ export function Games() {
     void load();
   }, [load]);
 
-  // A profile belongs to the game it names. Matching by name rather than by
-  // install path means a game that moves keeps its profile.
-  const byName = useMemo(() => {
-    const map = new Map<string, Profile>();
-    for (const p of profiles) map.set(p.name.toLowerCase(), p);
-    return map;
-  }, [profiles]);
+  // Installed first, then alphabetical. What you can race now is what you came
+  // to this screen for.
+  const sorted = useMemo(
+    () =>
+      [...(cards ?? [])].sort(
+        (a, b) =>
+          Number(b.installed) - Number(a.installed) ||
+          a.profile.name.localeCompare(b.profile.name),
+      ),
+    [cards],
+  );
 
-  async function makeProfile(game: InstalledGameInfo) {
-    setBusy(game.name);
+  const installed = sorted.filter((c) => c.installed).length;
+
+  async function toggleAuto(card: ProfileCard, enabled: boolean) {
     try {
-      const created = await createProfile({
-        name: game.name,
-        launchUri: game.launchUri,
-        installPath: game.installPath,
-      });
-      setProfiles((prev) => [...prev, created]);
-      setEditing(created);
+      await setAutoApply(card.profile.id, enabled);
+      await load();
       setError(null);
     } catch (e) {
       setError(asIpcError(e).message);
-    } finally {
-      setBusy(null);
     }
   }
-
-  // Profiles whose game is not installed on this machine. Shown rather than
-  // hidden: a profile that vanished silently after a drive was unplugged would
-  // look like the app lost it.
-  const homeless = profiles.filter((p) => !games?.some((g) => g.name === p.name));
 
   return (
     <div className="devices">
       <Section
-        title="Installed games"
-        note={games === null ? "searching" : `${games.length} found`}
+        title="Games"
+        note={cards === null ? "searching" : `${installed} of ${sorted.length} installed`}
       >
         {error && <p className="warn warn--hard">{error}</p>}
 
-        {games?.length === 0 && !error && (
+        {cards !== null && sorted.length === 0 && (
           <p className="note">
-            Nothing found. This reads Steam's library index and Epic's manifests — if your sims are
-            installed through another launcher, they will arrive with profile support.
+            Nothing found yet. This reads Steam's library index and Epic's manifests — if your sims
+            are installed through another launcher, add them by hand and the profile works the same.
           </p>
         )}
 
-        {games && games.length > 0 && (
-          <table className="grid">
-            <thead>
-              <tr>
-                <th>Game</th>
-                <th>Launcher</th>
-                <th>Profile</th>
-                <th>Installed at</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {games.map((g) => {
-                const profile = byName.get(g.name.toLowerCase());
-                return (
-                  <tr key={g.installPath}>
-                    <td>
-                      {g.name}
-                      {g.hasAdapter && <span className="tag">adapter</span>}
-                    </td>
-                    <td>{g.launcher === "steam" ? "Steam" : "Epic"}</td>
-                    <td>{profile ? <ProfileSummary profile={profile} /> : <span className="note">none yet</span>}</td>
-                    <td className="num">{g.installPath}</td>
-                    <td className="games__actions">
-                      {profile ? (
-                        <>
-                          <button className="btn" onClick={() => setRacing(profile)}>
-                            Let's race
-                          </button>
-                          <button className="btn btn--quiet" onClick={() => setEditing(profile)}>
-                            Edit
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          className="btn btn--quiet"
-                          disabled={busy === g.name}
-                          onClick={() => void makeProfile(g)}
-                        >
-                          {busy === g.name ? "Creating…" : "Create profile"}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-
-        {homeless.length > 0 && (
-          <p className="note note--pending">
-            {homeless.map((p) => p.name).join(", ")}{" "}
-            {homeless.length === 1 ? "has a profile" : "have profiles"} but was not found on this
-            machine. The profile is kept — reinstall the game and it picks up where it left off.
-          </p>
-        )}
+        <div className="lib">
+          {sorted.map((card) => (
+            <GameCard
+              key={card.profile.id}
+              card={card}
+              onRace={() => setRacing(card)}
+              onEdit={() => setEditing(card)}
+              onToggleAuto={(v) => void toggleAuto(card, v)}
+            />
+          ))}
+        </div>
 
         <div className="devices__actions">
           <button className="btn btn--quiet" onClick={() => void load()}>
-            Search again
+            Scan again
           </button>
         </div>
       </Section>
 
       {editing && (
         <ProfileEditor
-          key={editing.id}
-          profile={editing}
-          onSaved={(saved) => {
-            setProfiles((prev) => prev.map((p) => (p.id === saved.id ? saved : p)));
-            setEditing(saved);
-          }}
-          onDeleted={(id) => {
-            setProfiles((prev) => prev.filter((p) => p.id !== id));
+          key={editing.profile.id}
+          profile={editing.profile}
+          onSaved={() => void load()}
+          onDeleted={() => {
             setEditing(null);
+            void load();
           }}
           onClose={() => setEditing(null)}
         />
@@ -178,9 +118,9 @@ export function Games() {
 
       {racing && (
         <Preflight
-          key={racing.id}
-          profileId={racing.id}
-          name={racing.name}
+          key={racing.profile.id}
+          profileId={racing.profile.id}
+          name={racing.profile.name}
           onClose={() => setRacing(null)}
         />
       )}
@@ -188,15 +128,102 @@ export function Games() {
   );
 }
 
+function GameCard({
+  card,
+  onRace,
+  onEdit,
+  onToggleAuto,
+}: {
+  card: ProfileCard;
+  onRace: () => void;
+  onEdit: () => void;
+  onToggleAuto: (enabled: boolean) => void;
+}) {
+  const { profile, installed, art, installPath, platform } = card;
+  const saved = profile.windowPlan.rect.kind === "explicit";
+
+  return (
+    <article className={`card${installed ? "" : " card--gone"}`}>
+      <div className="card__art">
+        {art ? (
+          <img src={art} alt="" />
+        ) : (
+          /* An honest blank rather than a wrong picture. Epic does not cache
+             its store art anywhere stable, and this app does not fetch it. */
+          <span className="card__monogram" aria-hidden="true">
+            {monogram(profile.name)}
+          </span>
+        )}
+        {!installed && <span className="card__gone">NOT INSTALLED</span>}
+      </div>
+
+      <div className="card__body">
+        <h3 className="card__name">{profile.name}</h3>
+
+        <dl className="card__facts">
+          <dt>From</dt>
+          <dd>{platform}</dd>
+          <dt>Folder</dt>
+          <dd className="num card__path" title={installPath ?? undefined}>
+            {installPath ?? "not on this machine"}
+          </dd>
+          <dt>Checks</dt>
+          <dd>{summarise(card)}</dd>
+        </dl>
+
+        {/* The switch. Disabled until a rectangle has actually been proven,
+            with the reason in the label rather than a silent grey control. */}
+        <label className={`card__auto${saved ? "" : " card__auto--locked"}`}>
+          <input
+            type="checkbox"
+            checked={profile.windowPlan.autoApply}
+            disabled={!saved}
+            onChange={(e) => onToggleAuto(e.target.checked)}
+          />
+          <span className="toggle__track" aria-hidden="true">
+            <span className="toggle__knob" />
+          </span>
+          <span>
+            {saved
+              ? "Place the window automatically"
+              : "Place the window once on the Windows tab, then this switch turns on"}
+          </span>
+        </label>
+
+        <div className="card__actions">
+          <button className="btn" disabled={!installed} onClick={onRace}>
+            Let's race
+          </button>
+          <button className="btn btn--quiet" onClick={onEdit}>
+            Edit profile
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 /** What this profile will actually check, in one line. */
-function ProfileSummary({ profile }: { profile: Profile }) {
+function summarise({ profile }: ProfileCard): string {
   const required = profile.peripherals.filter((p) => p.necessity === "required").length;
   const optional = profile.peripherals.length - required;
   const parts: string[] = [];
   if (required) parts.push(`${required} required`);
   if (optional) parts.push(`${optional} optional`);
   if (profile.utilities.length) {
-    parts.push(`${profile.utilities.length} ${profile.utilities.length === 1 ? "utility" : "utilities"}`);
+    parts.push(
+      `${profile.utilities.length} ${profile.utilities.length === 1 ? "utility" : "utilities"}`,
+    );
   }
-  return <span className="note">{parts.length ? parts.join(", ") : "nothing checked yet"}</span>;
+  return parts.length ? parts.join(", ") : "nothing yet";
+}
+
+/** Initials, for a game with no cover art. */
+function monogram(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter((w) => /[a-z0-9]/i.test(w))
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
 }

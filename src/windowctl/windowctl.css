@@ -39,3 +39,21 @@
 .wc__result strong {
   color: var(--ink);
 }
+
+.wc__remember {
+  margin-top: var(--s5);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--rule);
+}
+
+.wc__remember-title {
+  margin: 0 0 var(--s2);
+  font-size: var(--size-row);
+  font-weight: 600;
+}
+
+.wc__remember .wc__row {
+  align-items: center;
+  gap: var(--s3);
+  margin-top: var(--s3);
+}

@@ -1,8 +1,131 @@
-.games__actions {
+/* ------------------------------------------------------------ the library */
+
+.lib {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: var(--s4);
+  margin-top: var(--s4);
+}
+
+.card {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: var(--s4);
+  padding: var(--s4);
+  background: var(--data-bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+/* Present, legible, and visibly not racing. Never hidden — a profile that
+   vanished with its game would look like the app lost it. */
+.card--gone {
+  border-style: dashed;
+}
+
+.card--gone .card__art {
+  opacity: 0.4;
+}
+
+.card__art {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--ground-deep);
+  border-radius: var(--radius-sm);
+}
+
+.card__art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card__monogram {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  letter-spacing: 0.05em;
+}
+
+.card__gone {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 2px;
+  text-align: center;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  background: var(--ground);
+  color: var(--ink-dim);
+}
+
+.card__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.card__name {
+  margin: 0;
+  font-size: var(--size-row);
+  font-weight: 600;
+}
+
+.card__facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px var(--s3);
+  margin: 0;
+  font-size: var(--size-sm);
+}
+
+.card__facts dt {
+  color: var(--ink-faint);
+}
+
+.card__facts dd {
+  margin: 0;
+  color: var(--ink-dim);
+  min-width: 0;
+}
+
+.card__path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card__auto {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-size: var(--size-sm);
+  cursor: pointer;
+}
+
+.card__auto input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* The reason it is off is in the label, not in a grey control with no
+   explanation. */
+.card__auto--locked {
+  color: var(--ink-faint);
+  cursor: default;
+}
+
+.card__actions {
   display: flex;
   gap: var(--s2);
-  justify-content: flex-end;
-  white-space: nowrap;
+  margin-top: auto;
 }
 
 /* ------------------------------------------------------------ the editor */
@@ -156,4 +279,24 @@
   border-top: 1px solid var(--rule);
   display: flex;
   justify-content: flex-end;
+}
+
+/* The switch reuses the settings toggle's parts, so it looks and behaves like
+   every other switch in the app rather than becoming a second dialect. */
+.card__auto .toggle__track {
+  flex: none;
+}
+
+.card__auto input:checked + .toggle__track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.card__auto input:checked + .toggle__track .toggle__knob {
+  transform: translateX(20px);
+  background: var(--accent-ink);
+}
+
+.card__auto input:disabled + .toggle__track {
+  opacity: 0.5;
 }

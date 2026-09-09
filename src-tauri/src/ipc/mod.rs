@@ -614,7 +614,168 @@ pub fn create_profile(
     } else {
         tp_model::LaunchMethod::Uri { uri: launch_uri }
     };
-    crate::profiles::save(&crate::profiles::starter(&name, launch, install_path))
+    crate::profiles::save(&crate::profiles::starter(
+        &name,
+        launch,
+        install_path,
+        tp_model::Platform::Other,
+        None,
+    ))
+}
+
+/// Every profile, with what is true of it on this machine right now.
+///
+/// This is the Games tab. It scans for installed games, makes a profile for any
+/// that does not have one, and returns the lot — installed and not.
+///
+/// **A profile outlives its install.** Uninstalling a game does not delete what
+/// you configured for it: the card stays, marked not installed, and everything
+/// in it is still there when the game comes back. Losing a tuned profile
+/// because a drive was unplugged would be indefensible.
+#[tauri::command]
+pub fn game_library() -> AppResult<Vec<tp_model::ProfileCard>> {
+    let found = crate::launcher::discover();
+    let mut profiles = crate::profiles::list();
+
+    for game in &found {
+        let already = profiles.iter().any(|p| matches_game(p, game));
+        if already {
+            // Refresh what can change under a profile: the game can move
+            // between drives, and Steam's art cache fills in later.
+            if let Some(existing) = profiles.iter_mut().find(|p| matches_game(p, game)) {
+                let path = game.install_path.display().to_string();
+                let art = crate::art::find(&game.source).map(|p| p.display().to_string());
+                if existing.game.install_path.as_deref() != Some(path.as_str())
+                    || (existing.game.art_path.is_none() && art.is_some())
+                {
+                    existing.game.install_path = Some(path);
+                    if art.is_some() {
+                        existing.game.art_path = art;
+                    }
+                    let _ = crate::profiles::save(existing);
+                }
+            }
+            continue;
+        }
+
+        // No profile yet: make one, so every installed game is ready to
+        // configure without a separate "create" step.
+        let (launch, platform) = match &game.source {
+            crate::launcher::GameSource::Steam { app_id } => (
+                tp_model::LaunchMethod::Steam {
+                    app_id: app_id.clone(),
+                },
+                tp_model::Platform::Steam,
+            ),
+            crate::launcher::GameSource::Epic { app_name } => (
+                tp_model::LaunchMethod::Epic {
+                    app_name: app_name.clone(),
+                },
+                tp_model::Platform::Epic,
+            ),
+        };
+        let profile = crate::profiles::starter(
+            &game.name,
+            launch,
+            Some(game.install_path.display().to_string()),
+            platform,
+            crate::art::find(&game.source).map(|p| p.display().to_string()),
+        );
+        match crate::profiles::save(&profile) {
+            Ok(saved) => profiles.push(saved),
+            Err(e) => tracing::warn!(game = %game.name, error = %e, "could not create a profile"),
+        }
+    }
+
+    Ok(profiles.into_iter().map(|p| card(p, &found)).collect())
+}
+
+/// Match a saved profile to a discovered game.
+///
+/// By launch identity first — a Steam app id is exact and survives a rename or
+/// a move to another drive. By name only as a fallback, for profiles made
+/// before the id was known.
+fn matches_game(profile: &tp_model::Profile, game: &crate::launcher::InstalledGame) -> bool {
+    match (&profile.game.launch, &game.source) {
+        (
+            tp_model::LaunchMethod::Steam { app_id: a },
+            crate::launcher::GameSource::Steam { app_id: b },
+        ) => a == b,
+        (
+            tp_model::LaunchMethod::Epic { app_name: a },
+            crate::launcher::GameSource::Epic { app_name: b },
+        ) => a == b,
+        _ => profile.name.eq_ignore_ascii_case(&game.name),
+    }
+}
+
+fn card(
+    profile: tp_model::Profile,
+    found: &[crate::launcher::InstalledGame],
+) -> tp_model::ProfileCard {
+    let installed = found.iter().any(|g| matches_game(&profile, g));
+    let art = profile
+        .game
+        .art_path
+        .as_deref()
+        .map(std::path::Path::new)
+        .filter(|p| p.is_file())
+        .and_then(crate::art::as_data_uri);
+
+    tp_model::ProfileCard {
+        installed,
+        art,
+        // Only claim a folder that is actually there. A path shown for a game
+        // that has been uninstalled reads as "it is still here", which is the
+        // one thing the card must not say.
+        install_path: profile
+            .game
+            .install_path
+            .clone()
+            .filter(|p| std::path::Path::new(p).is_dir()),
+        platform: profile.game.platform.label().to_string(),
+        profile,
+    }
+}
+
+/// Remember a window rectangle on a profile, so it can be re-applied.
+///
+/// This is the half of "set it once" that makes the toggle meaningful: the
+/// geometry saved here is a rectangle that has been *seen working*, read back
+/// off a real window, rather than one computed and hoped for.
+#[tauri::command]
+pub fn remember_window(
+    id: Uuid,
+    rect: tp_model::PixelRect,
+    means: tp_model::RectMeans,
+    exe_name: Option<String>,
+) -> AppResult<tp_model::Profile> {
+    let mut profile = crate::profiles::load(id)?;
+    profile.window_plan.rect = tp_model::RectSource::Explicit { rect };
+    profile.window_plan.rect_means = means;
+    if exe_name.is_some() {
+        profile.window_plan.target.exe_name = exe_name;
+    }
+    crate::profiles::save(&profile)
+}
+
+/// Turn automatic placement on or off for a profile.
+///
+/// Kept as its own command rather than a whole-profile save, so the toggle
+/// cannot carry along whatever else the editor happened to have in memory.
+#[tauri::command]
+pub fn set_auto_apply(id: Uuid, enabled: bool) -> AppResult<tp_model::Profile> {
+    let mut profile = crate::profiles::load(id)?;
+    if enabled && matches!(profile.window_plan.rect, tp_model::RectSource::FromGeometry) {
+        return Err(AppError::Config(
+            "Place the window once first. Automatic placement re-applies a \
+             rectangle you have already seen work — there is nothing saved to \
+             re-apply yet."
+                .into(),
+        ));
+    }
+    profile.window_plan.auto_apply = enabled;
+    crate::profiles::save(&profile)
 }
 
 // ----------------------------------------------------------- display control

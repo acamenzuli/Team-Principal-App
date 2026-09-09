@@ -41,7 +41,9 @@ import type { FixAction } from "./bindings/FixAction";
 import type { InstalledGameInfo } from "./bindings/InstalledGameInfo";
 import type { Necessity } from "./bindings/Necessity";
 import type { PeripheralRequirement } from "./bindings/PeripheralRequirement";
+import type { Platform } from "./bindings/Platform";
 import type { Profile } from "./bindings/Profile";
+import type { ProfileCard } from "./bindings/ProfileCard";
 import type { ReadinessGate } from "./bindings/ReadinessGate";
 import type { Severity } from "./bindings/Severity";
 import type { StepStatus } from "./bindings/StepStatus";
@@ -102,7 +104,9 @@ export type {
   IpcError,
   Necessity,
   PeripheralRequirement,
+  Platform,
   Profile,
+  ProfileCard,
   ReadinessGate,
   ReadyState,
   Severity,
@@ -175,6 +179,33 @@ export const launchGame = (force: boolean) => invoke<void>("launch_game", { forc
 // ----------------------------------------------------------------- profiles
 
 export const listProfiles = () => invoke<Profile[]>("list_profiles");
+
+/**
+ * The Games tab: every profile, with what is true of it on this machine now.
+ *
+ * Scans for installed games and makes a profile for any that lacks one, so
+ * there is no separate "create" step. A profile outlives its install — an
+ * uninstalled game keeps its card, marked not installed, with everything you
+ * configured still in it.
+ */
+export const gameLibrary = () => invoke<ProfileCard[]>("game_library");
+
+/**
+ * Save a window rectangle onto a profile.
+ *
+ * The rectangle is one you have watched work, read back off a real window —
+ * which is what makes automatic placement a replay rather than a gamble.
+ */
+export const rememberWindow = (args: {
+  id: string;
+  rect: PixelRect;
+  means: RectMeans;
+  exeName: string | null;
+}) => invoke<Profile>("remember_window", args);
+
+/** Turn automatic window placement on or off for one profile. */
+export const setAutoApply = (id: string, enabled: boolean) =>
+  invoke<Profile>("set_auto_apply", { id, enabled });
 
 export const saveProfile = (profile: Profile) => invoke<Profile>("save_profile", { profile });
 

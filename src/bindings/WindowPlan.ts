@@ -11,4 +11,13 @@ export type WindowPlan = { target: WindowTarget, rect: RectSource,
  * width, and a few pixels of horizontal error puts the horizon seam in the
  * wrong place on every screen of a triple.
  */
-rectMeans: RectMeans, borderless: boolean, alwaysOnTop: boolean, hideTaskbar: boolean, watchdog: WatchdogPolicy, };
+rectMeans: RectMeans, borderless: boolean, alwaysOnTop: boolean, hideTaskbar: boolean, watchdog: WatchdogPolicy, 
+/**
+ * Place the window automatically when the game starts.
+ *
+ * Off until the geometry has actually been proven once by hand, because
+ * an automatic placement that is wrong is far more annoying than no
+ * automatic placement: it happens every launch and it is not obvious what
+ * did it.
+ */
+autoApply: boolean, };

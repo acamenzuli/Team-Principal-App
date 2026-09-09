@@ -618,7 +618,94 @@ fn perform(action: &StepAction, profile: &Profile, job: &JobObject) -> (ActionTa
             "display changes arrive in milestone 9, behind the confirm-or-revert flow".into(),
             true,
         ),
-        StepAction::ApplyWindowGeometry => (ActionTaken::NoActionNeeded, String::new(), false),
+        // Re-apply a rectangle that was proven by hand. Everything here is the
+        // milestone 6 machinery; what is new is that nobody had to press
+        // anything.
+        StepAction::ApplyWindowGeometry => place_window(profile),
+    }
+}
+
+/// Find the game's window and put it where the profile says.
+///
+/// The rectangle is one the user already watched work — `RectSource::Explicit`
+/// is only ever written by "remember this window", never computed here. That is
+/// the whole point of the switch: automatic placement replays a known-good
+/// result rather than gambling on a fresh calculation while the user is trying
+/// to start a race.
+///
+/// Verified by read-back like every other Win32 result. UIPI means a game
+/// running elevated silently ignores the move, and a row claiming success over
+/// a window that did not move would be exactly the dishonesty this app is built
+/// to avoid.
+fn place_window(profile: &Profile) -> (ActionTaken, String, bool) {
+    let tp_model::RectSource::Explicit { rect } = profile.window_plan.rect else {
+        return (
+            ActionTaken::NotAttempted,
+            "no saved window position — place it once by hand on the Windows tab \
+             and press Remember"
+                .into(),
+            true,
+        );
+    };
+
+    // Waiting for the window is the slow part: a sim can spend most of a minute
+    // on a splash screen before the window that matters exists.
+    let deadline = Instant::now() + Duration::from_millis(profile.window_plan.target.timeout_ms);
+    let found = match crate::window::find::find_target(&profile.window_plan.target, None, deadline)
+    {
+        Ok(found) => found,
+        Err(e) => return (ActionTaken::NotAttempted, e.to_string(), true),
+    };
+
+    match crate::window::apply::apply_geometry(
+        found.window.hwnd,
+        rect,
+        profile.window_plan.rect_means,
+        profile.window_plan.borderless,
+        profile.window_plan.always_on_top,
+    ) {
+        Ok(applied) => {
+            // The read-back rule. SetWindowPos returning success means the
+            // request was accepted, not that the window moved — UIPI makes an
+            // elevated game ignore it silently, which is the normal case rather
+            // than an edge one.
+            let landed = match profile.window_plan.rect_means {
+                tp_model::RectMeans::ClientArea => applied.actual.client,
+                tp_model::RectMeans::OuterWindow => applied.actual.outer,
+            };
+            // A pixel or two of tolerance: some games nudge their own window as
+            // the render device comes up, and failing the step over that would
+            // make the row cry wolf on every launch.
+            if tp_model::has_drifted(landed, rect, 2) {
+                (
+                    ActionTaken::NotAttempted,
+                    format!(
+                        "asked for {},{} {}x{} and got {},{} {}x{} — if the game \
+                         runs as administrator, Windows blocks this silently and \
+                         Team Principal has to be run the same way",
+                        rect.x,
+                        rect.y,
+                        rect.width,
+                        rect.height,
+                        landed.x,
+                        landed.y,
+                        landed.width,
+                        landed.height
+                    ),
+                    true,
+                )
+            } else {
+                (
+                    ActionTaken::Started,
+                    format!(
+                        "placed at {},{} {}x{}",
+                        rect.x, rect.y, rect.width, rect.height
+                    ),
+                    false,
+                )
+            }
+        }
+        Err(e) => (ActionTaken::NotAttempted, e.to_string(), true),
     }
 }
 

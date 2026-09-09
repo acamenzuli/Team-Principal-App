@@ -7,8 +7,8 @@
 use std::path::PathBuf;
 
 use tp_model::{
-    GameRef, LaunchMethod, Profile, RectMeans, RectSource, RigBinding, SessionMode, TeardownPolicy,
-    WatchdogPolicy, WindowPlan, WindowTarget, PROFILE_SCHEMA_VERSION,
+    GameRef, LaunchMethod, Platform, Profile, RectMeans, RectSource, RigBinding, SessionMode,
+    TeardownPolicy, WatchdogPolicy, WindowPlan, WindowTarget, PROFILE_SCHEMA_VERSION,
 };
 use uuid::Uuid;
 
@@ -80,7 +80,13 @@ pub fn delete(id: Uuid) -> AppResult<()> {
 ///
 /// Deliberately empty of utilities and peripherals rather than guessing: a
 /// preflight that checks things nobody asked for is one people learn to ignore.
-pub fn starter(name: &str, launch: LaunchMethod, install_path: Option<String>) -> Profile {
+pub fn starter(
+    name: &str,
+    launch: LaunchMethod,
+    install_path: Option<String>,
+    platform: Platform,
+    art_path: Option<String>,
+) -> Profile {
     let now = crate::now_iso8601();
     Profile {
         schema_version: PROFILE_SCHEMA_VERSION,
@@ -90,6 +96,8 @@ pub fn starter(name: &str, launch: LaunchMethod, install_path: Option<String>) -
             adapter_id: String::new(),
             install_path,
             launch,
+            platform,
+            art_path,
         },
         rig: RigBinding {
             rig_id: Uuid::nil(),
@@ -112,6 +120,8 @@ pub fn starter(name: &str, launch: LaunchMethod, install_path: Option<String>) -
             always_on_top: false,
             hide_taskbar: false,
             watchdog: WatchdogPolicy::default(),
+            // Off until the geometry has been proven once by hand.
+            auto_apply: false,
         },
         peripherals: Vec::new(),
         utilities: Vec::new(),

@@ -8,6 +8,7 @@
 //! two implementations — the real Win32 one and a mock driven by JSON fixtures.
 
 pub mod adapters;
+pub mod art;
 pub mod backup;
 pub mod display;
 pub mod error;
@@ -185,6 +186,9 @@ pub fn run() {
             ipc::save_profile,
             ipc::delete_profile,
             ipc::create_profile,
+            ipc::game_library,
+            ipc::remember_window,
+            ipc::set_auto_apply,
             ipc::list_windows,
             ipc::place_window,
             ipc::stop_watching_window,

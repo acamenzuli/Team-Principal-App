@@ -3,11 +3,14 @@ import { useCallback, useEffect, useState } from "react";
 import { Section } from "../dashboard/primitives";
 import {
   asIpcError,
+  gameLibrary,
   listWindows,
   placeWindow,
+  rememberWindow,
   stopWatchingWindow,
   type OpenWindow,
   type PixelRect,
+  type ProfileCard,
   type WindowResult,
 } from "../ipc";
 import "./windowctl.css";
@@ -29,6 +32,9 @@ export function WindowControl() {
   const [watch, setWatch] = useState(true);
   const [result, setResult] = useState<WindowResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [profiles, setProfiles] = useState<ProfileCard[]>([]);
+  const [remembering, setRemembering] = useState("");
+  const [remembered, setRemembered] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -42,7 +48,35 @@ export function WindowControl() {
 
   useEffect(() => {
     void refresh();
+    gameLibrary()
+      .then(setProfiles)
+      .catch(() => setProfiles([]));
   }, [refresh]);
+
+  /**
+   * Save this rectangle onto a profile, so the launch can replay it.
+   *
+   * Deliberately saves what was *read back*, not what was typed. If the game
+   * rounded the size to something it liked better, the saved rectangle is the
+   * one that actually happened — otherwise every automatic placement would
+   * re-run a request the game already refused once.
+   */
+  const remember = async () => {
+    const card = profiles.find((c) => c.profile.id === remembering);
+    if (!card || !result) return;
+    try {
+      await rememberWindow({
+        id: card.profile.id,
+        rect: result.actualOuter,
+        means: "outer_window",
+        exeName: null,
+      });
+      setRemembered(card.profile.name);
+      setError(null);
+    } catch (e) {
+      setError(asIpcError(e).message);
+    }
+  };
 
   const apply = async () => {
     if (!selected) return;
@@ -164,10 +198,46 @@ export function WindowControl() {
           the CI artifacts — it opens a window and then resets its own geometry on a timer, which is
           what sims do when their render device initialises.
         </p>
+        {/* The other half of the automatic-placement switch. What gets saved
+            is the rectangle that was read back, so the switch replays a result
+            rather than repeating a request. */}
+        {result && profiles.length > 0 && (
+          <div className="wc__remember">
+            <p className="wc__remember-title">Happy with where it landed?</p>
+            <p className="note">
+              Save this rectangle onto a game's profile and the switch on its card will re-apply it
+              every launch. What gets saved is what was read back above, not what was typed.
+            </p>
+            <div className="wc__row">
+              <select
+                className="text-input"
+                value={remembering}
+                onChange={(e) => setRemembering(e.target.value)}
+              >
+                <option value="">Choose a game…</option>
+                {profiles.map((c) => (
+                  <option key={c.profile.id} value={c.profile.id}>
+                    {c.profile.name}
+                    {c.installed ? "" : " (not installed)"}
+                  </option>
+                ))}
+              </select>
+              <button className="btn" disabled={!remembering} onClick={() => void remember()}>
+                Remember for this game
+              </button>
+            </div>
+            {remembered && (
+              <p className="note">
+                Saved to {remembered}. Turn on “Place the window automatically” on its card in
+                Games.
+              </p>
+            )}
+          </div>
+        )}
+
         <p className="hint">
           Placing a window on a named rig screen — rather than by typing a rectangle — needs the
-          link from a rig screen to its monitor's pixel rectangle, and arrives with launch
-          orchestration in the next milestone.
+          link from a rig screen to its monitor's pixel rectangle, and is still to come.
         </p>
       </Section>
     </div>

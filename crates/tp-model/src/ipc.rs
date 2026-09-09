@@ -339,3 +339,25 @@ pub struct InstalledGameInfo {
     /// milestone 10, so this is honest rather than aspirational.
     pub has_adapter: bool,
 }
+
+/// A profile plus what is true about it *right now*.
+///
+/// Kept separate from `Profile` because installed-ness is not a property of the
+/// profile — it is a property of this machine at this moment, and writing it
+/// into the saved file would mean a profile that lies after an uninstall.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileCard {
+    pub profile: crate::Profile,
+    /// Whether the game is on this machine now.
+    pub installed: bool,
+    /// Cover art as a data URI, or null when there is none to show.
+    ///
+    /// Inlined rather than served over a URL: it keeps the asset protocol out
+    /// of the app's attack surface entirely, and the images are small.
+    pub art: Option<String>,
+    /// Where it lives, for the card. `None` once the folder has gone.
+    pub install_path: Option<String>,
+    pub platform: String,
+}

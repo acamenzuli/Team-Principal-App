@@ -43,6 +43,39 @@ pub struct GameRef {
     pub adapter_id: String,
     pub install_path: Option<String>,
     pub launch: LaunchMethod,
+    /// Which launcher this came from, kept as its own field rather than read
+    /// back out of `launch`. A profile outlives the install it was made from,
+    /// and "you had this on Steam" is still true after the game is gone.
+    #[serde(default)]
+    pub platform: Platform,
+    /// Cover art on disk, found once and remembered.
+    ///
+    /// A path rather than the image, so a profile stays a small readable JSON
+    /// file. Steam already has the artwork cached locally — no download, no
+    /// third-party service, nothing that stops working offline.
+    #[serde(default)]
+    pub art_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum Platform {
+    Steam,
+    Epic,
+    /// Added by hand, or a launcher this build does not know.
+    #[default]
+    Other,
+}
+
+impl Platform {
+    pub fn label(self) -> &'static str {
+        match self {
+            Platform::Steam => "Steam",
+            Platform::Epic => "Epic",
+            Platform::Other => "Other",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -104,6 +137,14 @@ pub struct WindowPlan {
     pub always_on_top: bool,
     pub hide_taskbar: bool,
     pub watchdog: WatchdogPolicy,
+    /// Place the window automatically when the game starts.
+    ///
+    /// Off until the geometry has actually been proven once by hand, because
+    /// an automatic placement that is wrong is far more annoying than no
+    /// automatic placement: it happens every launch and it is not obvious what
+    /// did it.
+    #[serde(default)]
+    pub auto_apply: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
