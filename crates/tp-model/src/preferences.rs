@@ -382,3 +382,60 @@ mod tests {
         );
     }
 }
+
+// ------------------------------------------------------------------ licensing
+
+/// What the app is entitled to do.
+///
+/// No vendor is named anywhere in this project: a merchant-of-record handles
+/// the money and a licence service handles the keys, and neither is chosen. The
+/// types here define the shape of the question so there is exactly one place to
+/// answer it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum Tier {
+    /// Everything that only reads: enumerate the rig, solve the geometry, show
+    /// the numbers. Deliberately generous — someone evaluating this needs to
+    /// see their own rig measured before they will believe it.
+    #[default]
+    Unlicensed,
+    /// The full product.
+    Licensed,
+}
+
+/// What the UI is told about licensing, and the whole of it.
+///
+/// No key, no token, no endpoint, no machine id. A licence check whose inputs
+/// the UI can see is one anyone can read out of the installer, because `src/`
+/// ships as readable JavaScript.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct LicenceState {
+    pub tier: Tier,
+    /// The last four characters of the key. Enough for a person to tell two
+    /// licences apart, useless to anyone who copies it.
+    pub reference: Option<String>,
+    /// When the cached entitlement stops being trusted. `None` for a perpetual
+    /// licence already verified.
+    pub valid_until: Option<String>,
+    /// Running on a cached answer because the service was unreachable.
+    /// Surfaced rather than hidden: someone whose licence check is silently
+    /// failing should find out before the day it stops working.
+    pub offline: bool,
+    /// Written for a person, not a log.
+    pub message: Option<String>,
+}
+
+impl Default for LicenceState {
+    fn default() -> Self {
+        Self {
+            tier: Tier::Unlicensed,
+            reference: None,
+            valid_until: None,
+            offline: false,
+            message: None,
+        }
+    }
+}

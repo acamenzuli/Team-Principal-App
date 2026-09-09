@@ -10,10 +10,12 @@
 pub mod adapters;
 pub mod art;
 pub mod backup;
+pub mod diagnostics;
 pub mod display;
 pub mod error;
 pub mod ipc;
 pub mod launcher;
+pub mod licence;
 pub mod logging;
 pub mod peripherals;
 pub mod profiles;
@@ -210,6 +212,11 @@ pub fn run() {
             ipc::get_preferences,
             ipc::save_preferences,
             ipc::accent_presets,
+            ipc::create_diagnostics,
+            ipc::reveal_file,
+            ipc::licence_state,
+            ipc::activate_licence,
+            ipc::deactivate_licence,
             ipc::list_rigs,
             ipc::current_rig,
             ipc::save_rig,

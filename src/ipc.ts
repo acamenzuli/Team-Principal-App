@@ -37,6 +37,8 @@ import type { DesktopLayoutInfo } from "./bindings/DesktopLayoutInfo";
 import type { DetectedDevice } from "./bindings/DetectedDevice";
 import type { GlassLevel } from "./bindings/GlassLevel";
 import type { InputFrame } from "./bindings/InputFrame";
+import type { LicenceState } from "./bindings/LicenceState";
+import type { Tier } from "./bindings/Tier";
 import type { FixAction } from "./bindings/FixAction";
 import type { InstalledGameInfo } from "./bindings/InstalledGameInfo";
 import type { Necessity } from "./bindings/Necessity";
@@ -101,6 +103,8 @@ export type {
   GlassLevel,
   InputFrame,
   InstalledGameInfo,
+  LicenceState,
+  Tier,
   IpcError,
   Necessity,
   PeripheralRequirement,
@@ -351,6 +355,34 @@ export const savePreferences = (preferences: Preferences) =>
   invoke<LoadedPreferences>("save_preferences", { preferences });
 
 export const accentPresets = () => invoke<AccentPreset[]>("accent_presets");
+
+// --------------------------------------------------------------- diagnostics
+
+/**
+ * Build a diagnostics bundle. Resolves to where it landed.
+ *
+ * The bundle carries its own README listing everything in it and what was
+ * redacted — a bundle people are afraid of is one nobody sends.
+ */
+export const createDiagnostics = () => invoke<string>("create_diagnostics");
+
+/** Show a file in Explorer. Restricted in Rust to the app's own data folder. */
+export const revealFile = (path: string) => invoke<void>("reveal_file", { path });
+
+// ----------------------------------------------------------------- licensing
+
+/**
+ * The current entitlement, and the whole of what the frontend is told.
+ *
+ * No key, no token, no endpoint, no machine id — this bundle ships as readable
+ * JavaScript, so anything the UI can see, anyone can read.
+ */
+export const licenceState = () => invoke<LicenceState>("licence_state");
+
+export const activateLicence = (key: string) =>
+  invoke<LicenceState>("activate_licence", { key });
+
+export const deactivateLicence = () => invoke<LicenceState>("deactivate_licence");
 
 // ------------------------------------------------------------------- the rig
 

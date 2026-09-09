@@ -4,8 +4,11 @@ A Windows 11 sim racing launcher and display manager. One button turns "I want t
 race" into a verified rig: peripherals checked, utilities started, display
 configured, game config written, window placed — then torn back down on exit.
 
-Status: **milestone 1 — skeleton.** The app builds, installs and runs. Real
-monitor detection arrives in milestone 2.
+Status: **milestones 1–10 built, none hardware-tested.** Everything below is
+implemented and its pure logic is covered by tests that run on every push. The
+Win32 half — display changes, window placement, HID, the panic hotkey — compiles
+and type-checks but has not yet been run against real hardware. That is the next
+step, not a finished one.
 
 ## Getting the app
 
@@ -51,7 +54,33 @@ tools sim racers already run every day — and neither gives an anti-cheat
 system cause to flag the app.
 
 Every file the app writes is backed up first, and every change is previewed as a
-diff before it is applied.
+diff before it is applied. The app never creates a settings key a game does not
+already have, so a key name that is wrong for your version of a game produces a
+message rather than a silent no-op.
+
+## What it does
+
+| Area | |
+| --- | --- |
+| **Screen Setup** | Describe the rig once. Panel sizes from EDID where the monitor reports them honestly, measured by hand where it does not. Curvature is chord-and-sagitta, not a marketing radius. |
+| **Displays** | What is attached, what it is doing, and how to change it — behind a preview, a read-back check, a fifteen-second confirm-or-revert countdown, and a panic hotkey. |
+| **Peripherals** | HID and DirectInput enumeration, hotplug by OS event rather than polling, and a live axis and button monitor. DirectInput slot drift is detected, because it silently destroys game bindings. |
+| **Games** | Every installed sim gets a profile automatically. Profiles outlive the install: uninstall a game and the card stays with everything you configured. |
+| **Let's race** | A visible preflight that checks peripherals and starts utilities in parallel, heals itself when you plug something back in, and holds the launch behind a deliberate second press. |
+| **Game Settings** | Your rig's measurements written into each sim's own config file, previewed as a diff, backed up first. |
+| **Diagnostics** | One button, one zip, with a README inside listing exactly what it contains and what was redacted. |
+
+## Licensing
+
+There is no licence check in this build, and the Licence panel in Settings says
+so rather than showing a reassuring tick over nothing.
+
+The seam is in `src-tauri/src/licence.rs`: one trait, three methods, one
+`provider()` function to change. No vendor is named anywhere in the codebase,
+and no billing is implemented — a merchant-of-record will handle the money.
+Nothing sensitive reaches the frontend, because `src/` ships as readable
+JavaScript inside the installer: the UI is told a tier, a four-character
+reference and a message, and never a key, a token, an endpoint or a machine id.
 
 ## Documents
 
@@ -61,4 +90,8 @@ diff before it is applied.
 | [0002-repo-structure.md](docs/design/0002-repo-structure.md) | Crate and module layout |
 | [0003-rig-model.md](docs/design/0003-rig-model.md) | **The rig model schema and the geometry it drives** |
 | [0004-profile-schema.md](docs/design/0004-profile-schema.md) | Profile, step graph, storage, migrations |
-| [0005-open-questions.md](docs/design/0005-open-questions.md) | What I need from you before milestone 1 |
+| [0005-open-questions.md](docs/design/0005-open-questions.md) | What I still need from you |
+| [0006-visual-language.md](docs/design/0006-visual-language.md) | The glass design system |
+| [0007-display-enumeration.md](docs/design/0007-display-enumeration.md) | CCD, EDID and dead regions |
+| [0008-display-control.md](docs/design/0008-display-control.md) | **Why changing the desktop is survivable** |
+| [adapters/README.md](docs/adapters/README.md) | **The adapter verification protocol** |

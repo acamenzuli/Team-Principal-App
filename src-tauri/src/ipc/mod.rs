@@ -1056,3 +1056,65 @@ pub fn list_backups() -> Vec<tp_model::BackupInfo> {
 pub fn restore_backup(id: String) -> AppResult<Vec<String>> {
     crate::backup::restore(&id)
 }
+
+// --------------------------------------------------------------- diagnostics
+
+/// Build a diagnostics bundle and return where it landed.
+///
+/// One file containing what is needed to work out what happened on a machine
+/// nobody debugging it can see. It carries a README listing everything in it
+/// and what was redacted, because asking somebody to email a black box about
+/// their own machine is not reasonable — and a bundle people are afraid of is
+/// one nobody sends.
+#[tauri::command]
+pub fn create_diagnostics(providers: State<'_, Providers>) -> AppResult<String> {
+    Ok(crate::diagnostics::build(&providers)?.display().to_string())
+}
+
+/// Show a file in Explorer, selected.
+///
+/// The bundle is only useful once the user can find it, and reading a path off
+/// a screen and typing it into Explorer is a step too many at the exact moment
+/// somebody is already annoyed.
+#[tauri::command]
+pub fn reveal_file(app: tauri::AppHandle, path: String) -> AppResult<()> {
+    use tauri_plugin_opener::OpenerExt;
+
+    let target = std::path::PathBuf::from(&path);
+    // Only ever inside the app's own data directory. This takes a path from the
+    // frontend, and a shell-open of an arbitrary string is a way to run
+    // anything at all.
+    if !target.starts_with(crate::logging::app_data_dir()) {
+        return Err(AppError::Config(
+            "that file is not one of Team Principal's own".into(),
+        ));
+    }
+
+    app.opener()
+        .reveal_item_in_dir(&target)
+        .map_err(|e| AppError::Config(format!("could not open the folder: {e}")))
+}
+
+// ----------------------------------------------------------------- licensing
+
+/// The current entitlement, and the whole of what the UI is told.
+#[tauri::command]
+pub fn licence_state() -> tp_model::LicenceState {
+    crate::licence::provider().state()
+}
+
+/// Redeem a key. The key itself never comes back out.
+#[tauri::command]
+pub fn activate_licence(key: String) -> AppResult<tp_model::LicenceState> {
+    crate::licence::provider()
+        .activate(&key)
+        .map_err(AppError::Config)
+}
+
+/// Release this machine's seat.
+#[tauri::command]
+pub fn deactivate_licence() -> AppResult<tp_model::LicenceState> {
+    crate::licence::provider()
+        .deactivate()
+        .map_err(AppError::Config)
+}

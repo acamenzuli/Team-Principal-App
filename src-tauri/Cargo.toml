@@ -30,6 +30,7 @@ time = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "time"] }
 tracing-appender = "0.2"
+zip = { version = "5.0.1", default-features = false, features = ["deflate"] }
 
 # Win32. Only compiled on Windows; every call site is behind a provider trait
 # so the rest of the app is testable without it.

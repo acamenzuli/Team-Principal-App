@@ -3,9 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import {
   accentPresets as fetchAccentPresets,
   asIpcError,
+  createDiagnostics,
+  licenceState as fetchLicenceState,
+  revealFile,
   type AccentPreset,
   type GlassLevel,
   type LengthUnit,
+  type LicenceState,
   type Preferences,
 } from "../ipc";
 import "./settings.css";
@@ -194,12 +198,109 @@ export function Settings({
         </Row>
       </Group>
 
+      <Diagnostics />
+
+      <Licence />
+
       {error && (
         <p className="settings__error">
           <span aria-hidden="true">■</span> {error}
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * The support bundle.
+ *
+ * The one screen in this app whose job is to make a bad day recoverable. It
+ * says what goes in the file *before* the file is made, because a bundle
+ * somebody is unsure about is a bundle they do not send — and then nobody can
+ * help them.
+ */
+function Diagnostics() {
+  const [path, setPath] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  async function build() {
+    setBusy(true);
+    try {
+      setPath(await createDiagnostics());
+      setProblem(null);
+    } catch (e) {
+      setProblem(asIpcError(e).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Group title="Diagnostics" note="one file, for when something goes wrong">
+      <p className="note">
+        Collects the app's logs and everything it has detected — monitors, peripherals, your rig,
+        your profiles — into a single zip you can send. Your Windows account name is replaced
+        throughout, and your game config files are not included. The zip contains a plain-text
+        README listing exactly what is in it.
+      </p>
+
+      <div className="settings__actions">
+        <button className="btn" disabled={busy} onClick={() => void build()}>
+          {busy ? "Collecting…" : "Create a diagnostics bundle"}
+        </button>
+        {path && (
+          <button className="btn btn--quiet" onClick={() => void revealFile(path)}>
+            Show me the file
+          </button>
+        )}
+      </div>
+
+      {path && <p className="note num settings__path">{path}</p>}
+      {problem && (
+        <p className="settings__error">
+          <span aria-hidden="true">■</span> {problem}
+        </p>
+      )}
+    </Group>
+  );
+}
+
+/**
+ * Licensing.
+ *
+ * There is no licence check in this build and the panel says so rather than
+ * showing a reassuring green tick over nothing. When a vendor is chosen, one
+ * file in Rust changes and this panel starts telling the truth about a real
+ * entitlement without any of it passing through the frontend.
+ */
+function Licence() {
+  const [state, setState] = useState<LicenceState | null>(null);
+
+  useEffect(() => {
+    fetchLicenceState()
+      .then(setState)
+      .catch(() => setState(null));
+  }, []);
+
+  if (!state) return null;
+
+  return (
+    <Group title="Licence" note={state.tier === "licensed" ? "active" : "unlicensed"}>
+      {state.message && <p className="note">{state.message}</p>}
+      {state.reference && (
+        <p className="note num">
+          Key {state.reference}
+          {state.validUntil ? ` · valid until ${state.validUntil}` : " · perpetual"}
+        </p>
+      )}
+      {state.offline && (
+        <p className="note note--fail">
+          Running on a cached licence — the service could not be reached. Everything still works;
+          this is here so it is not a surprise later.
+        </p>
+      )}
+    </Group>
   );
 }
 

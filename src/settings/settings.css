@@ -287,3 +287,15 @@
   font-size: var(--size-base);
   max-width: 70ch;
 }
+
+.settings__actions {
+  display: flex;
+  gap: var(--s3);
+  margin-top: var(--s3);
+}
+
+.settings__path {
+  margin-top: var(--s3);
+  font-size: var(--size-sm);
+  word-break: break-all;
+}
