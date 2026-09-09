@@ -1,97 +1,238 @@
 # Team Principal
 
-A Windows 11 sim racing launcher and display manager. One button turns "I want to
-race" into a verified rig: peripherals checked, utilities started, display
-configured, game config written, window placed — then torn back down on exit.
+**One button between you and a race.**
 
-Status: **milestones 1–10 built, none hardware-tested.** Everything below is
-implemented and its pure logic is covered by tests that run on every push. The
-Win32 half — display changes, window placement, HID, the panic hotkey — compiles
-and type-checks but has not yet been run against real hardware. That is the next
-step, not a finished one.
+A Windows app for sim racers with more than one screen. You describe your rig
+once — how big the screens are, how they're angled, how far away you sit — and
+every game gets set up from that. No more typing the same numbers into six
+different sims and hoping.
 
-## Getting the app
+[![CI](https://github.com/acamenzuli/Team-Principal-App/actions/workflows/ci.yml/badge.svg)](https://github.com/acamenzuli/Team-Principal-App/actions/workflows/ci.yml)
 
-Every push builds a signed-later Windows installer. To get it without
-installing a toolchain:
+---
 
-1. Open the [Actions tab](https://github.com/acamenzuli/Team-Principal-App/actions)
-2. Click the newest run
-3. Scroll to **Artifacts** and download **team-principal-installer**
-4. Unzip and run the setup `.exe`
+## The idea
 
-Windows SmartScreen will warn on first launch — the installer is not code-signed
-yet. Click **More info → Run anyway**. Code signing (Azure Trusted Signing) is a
-required pre-launch cost, noted in `docs/design/0001-stack.md`.
+Setting up triple screens is the same job over and over. Every sim asks for the
+same facts in a different way — one wants millimetres, one wants a field of
+view, one wants an angle — and you work them out again for each game.
 
-`team-principal-portable` is the same app as a single `.exe` with no installer.
-`tp-fakegame` is the test harness for the window watchdog, not part of the product.
+Team Principal asks once.
 
-To build it yourself, see `docs/DEV-SETUP.md`.
+Measure your screens and your seating position, and the app works out what every
+game needs from that. Move your seat five centimetres and you change **one
+number**, not twelve settings across six games.
 
-## What makes it different
+---
 
-You describe your physical rig once — panel sizes, bezels, angles, seating
-distance — in Screen Setup. Every game's resolution, window rectangle, FOV,
-triple-screen projection and bezel compensation is *derived* from that physical
-model rather than typed in per title. Move your seat 5 cm and one number changes.
+## Getting it
 
-## Safety and anti-cheat stance
+Every change automatically builds a Windows installer.
 
-This application will **never**:
+1. Go to the [Actions tab](https://github.com/acamenzuli/Team-Principal-App/actions)
+2. Click the newest run with a green tick
+3. Scroll down to **Artifacts**
+4. Download **team-principal-installer**, unzip it, run the setup file
 
-- inject code into a game process
-- read or write game process memory
-- hook the render pipeline, or load into a game's address space by any means
-- ship, bundle, or shell out to third-party binaries (MultiMonitorTool, SRWE,
-  nircmd, or similar)
+Windows will show a blue "Windows protected your PC" warning the first time.
+That's because the app isn't code-signed yet — click **More info**, then **Run
+anyway**. This goes away once a signing certificate is bought.
 
-It manipulates windows only through documented Win32 user-mode APIs
-(`SetWindowLongPtrW`, `SetWindowPos`) applied from outside the process, and edits
-game settings only by rewriting the game's own configuration files on disk while
-the game is not running. Both techniques are long-established — they are what the
-tools sim racers already run every day — and neither gives an anti-cheat
-system cause to flag the app.
+There's also **team-principal-portable**: the same app as a single file with no
+installer. And `tp-fakegame`, which is a test tool, not part of the product.
 
-Every file the app writes is backed up first, and every change is previewed as a
-diff before it is applied. The app never creates a settings key a game does not
-already have, so a key name that is wrong for your version of a game produces a
-message rather than a silent no-op.
+---
 
 ## What it does
 
-| Area | |
+### Home
+Opens on what you actually want to know: is my rig as I left it, what can I
+race, and is anything wrong. Anything that would spoil a session — a screen that
+never got measured, nothing plugged in, a wheel that's moved position — is
+listed with a button that takes you to it.
+
+### Screen Setup
+Where you describe the rig. The app reads what it can from the monitors
+themselves; anything they don't report honestly, you measure with a tape. It
+handles curved screens properly, and shows you the numbers changing as you type.
+
+### Displays
+What's plugged in and what it's doing. You can change resolutions and rearrange
+screens from here — and if a change goes wrong, **it puts itself back after
+fifteen seconds unless you confirm it.** There's also a panic key
+(Ctrl+Alt+Shift+R) that undoes a display change even if you can't see anything.
+
+### Peripherals
+Every wheel, pedal set and button box, live. Unplug something and watch it go
+red; plug it back in and it goes green on its own.
+
+It also spots when Windows quietly reshuffles your controller order — which is
+what silently breaks your bindings in games and is almost impossible to notice
+until you're on track.
+
+### Games
+Every sim you have installed gets a profile automatically. Steam and Epic are
+found on their own; anything else you can add by hand.
+
+**Profiles outlive the game.** Uninstall something and its card stays, marked
+NOT INSTALLED, with everything you set up still in it. Reinstall and it picks up
+where it left off.
+
+**Already set your triples up with SRWE or Resize Raccoon?** Run the game how
+you like it, then press **Copy current layout**. The app reads the window and
+remembers it — position, size, borderless, the lot — and puts it back there
+every time you launch from then on.
+
+### Let's race
+A checklist that runs before the game starts. It checks your peripherals are
+connected and starts whatever utilities you use, all at once rather than one
+after another.
+
+If something's wrong, it says so — and **fixes itself when you fix it.** Plug
+the pedals back in and the red row turns green on its own. No button to hunt
+for.
+
+Launching is a second, deliberate press. The app never starts a game because a
+checklist finished.
+
+When you're done racing, it puts everything back: game settings restored,
+utilities closed.
+
+### Game Settings
+Writes your rig's measurements into each sim's own settings file.
+
+Before it writes anything, it shows you exactly what will change and why —
+**every number says where it came from.** Every file is backed up first, and
+there's a one-click "put it back" for any change it ever made.
+
+---
+
+## Which games
+
+The app **launches, places windows for, and checks peripherals for any game at
+all.** That part isn't per-title.
+
+Writing settings *into* a game needs knowing what that game calls them, and
+that's where games differ. So there are three levels, shown on a badge:
+
+| Badge | Means |
 | --- | --- |
-| **Screen Setup** | Describe the rig once. Panel sizes from EDID where the monitor reports them honestly, measured by hand where it does not. Curvature is chord-and-sagitta, not a marketing radius. |
-| **Displays** | What is attached, what it is doing, and how to change it — behind a preview, a read-back check, a fifteen-second confirm-or-revert countdown, and a panic hotkey. |
-| **Peripherals** | HID and DirectInput enumeration, hotplug by OS event rather than polling, and a live axis and button monitor. DirectInput slot drift is detected, because it silently destroys game bindings. |
-| **Games** | Every installed sim gets a profile automatically. Profiles outlive the install: uninstall a game and the card stays with everything you configured. |
-| **Let's race** | A visible preflight that checks peripherals and starts utilities in parallel, heals itself when you plug something back in, and holds the launch behind a deliberate second press. |
-| **Game Settings** | Your rig's measurements written into each sim's own config file, previewed as a diff, backed up first. |
-| **Diagnostics** | One button, one zip, with a README inside listing exactly what it contains and what was redacted. |
+| **● VERIFIED** | Settings read from a real file of that game. Written with confidence. |
+| **▲ CORROBORATED** | Agreed across several independent sources. Written, carefully. |
+| **○ NEEDS A FILE** | The game is recognised and its settings file is found — but nobody's confirmed what the settings are *called* yet, so the app won't touch it. |
 
-## Licensing
+Currently listed: iRacing, Assetto Corsa, Assetto Corsa Competizione, Assetto
+Corsa EVO, Assetto Corsa Rally, rFactor 2, Le Mans Ultimate, Automobilista 2,
+RaceRoom, DiRT Rally 2.0, BeamNG.drive.
 
-There is no licence check in this build, and the Licence panel in Settings says
-so rather than showing a reassuring tick over nothing.
+**Turning a ○ into a ● takes one file.** Press **Inspect this game's config** and
+the app lists what's in your settings file — the *names* only, no values, nothing
+personal. Send that in and the game becomes fully supported.
 
-The seam is in `src-tauri/src/licence.rs`: one trait, three methods, one
-`provider()` function to change. No vendor is named anywhere in the codebase,
-and no billing is implemented — a merchant-of-record will handle the money.
-Nothing sensitive reaches the frontend, because `src/` ships as readable
-JavaScript inside the installer: the UI is told a tier, a four-character
-reference and a message, and never a key, a token, an endpoint or a machine id.
+This is deliberate. Guessing what a setting is called produces an app that says
+"done" and changed nothing, or worse, changes the wrong thing. Every claim in
+`docs/adapters/` records where it came from and what's still unconfirmed.
 
-## Documents
+---
 
-| Doc | Contents |
+## It won't get you banned
+
+This app will **never**:
+
+- inject anything into a game
+- read or write a game's memory
+- hook the graphics pipeline
+- bundle or run other people's tools
+
+It moves windows using the same normal Windows calls any app uses, from the
+outside, and changes game settings by editing the game's own settings files
+while the game isn't running. Both are what sim racers already do by hand every
+day. Neither gives an anti-cheat system anything to object to.
+
+**And it never invents a setting.** If a game doesn't already have a setting,
+the app won't create one — you get a message naming it instead of a change that
+silently does nothing.
+
+---
+
+## Updates
+
+The app checks for a new version each time it starts. What happens next is your
+choice, in Settings:
+
+- **Tell me** — a strip at the top of the window, and nothing happens until you
+  press the button. *(the default)*
+- **Install it** — downloads and installs on its own, then restarts.
+- **Do nothing** — no checking at all.
+
+Automatic updates won't interrupt a race. If a session is running, the update
+waits.
+
+**Your settings are never touched.** Rigs, profiles, backups and preferences
+live separately from the program, so updating — or even reinstalling — keeps
+everything.
+
+---
+
+## Other things
+
+- **Start with Windows**, minimised and out of the way. Or always minimised, or
+  neither. Both switches are in Settings.
+- **Make it yours** — team name, logo, and an accent colour that runs through
+  the whole app.
+- **Diagnostics** — one button makes a single file with everything needed to
+  work out what went wrong. It contains a plain-English list of exactly what's
+  in it, and your Windows username is removed throughout. Your game settings
+  files are not included.
+
+---
+
+## Where things are
+
+Everything the app saves lives in `%APPDATA%\Team Principal`:
+
+```
+rigs\          your screen measurements
+profiles\      per-game setup
+snapshots\     display layouts, saved before any change
+backups\       copies of every game file it has ever edited
+logs\          what happened, and when
+```
+
+Nothing is written anywhere else, and nothing leaves your machine.
+
+---
+
+## Honest status
+
+**Everything described above is built. None of it has been run on real hardware
+yet.**
+
+The parts that can be tested without a rig — the maths, the file editing, the
+planning — are covered by 327 tests that run on every change. The parts that
+touch Windows itself — moving windows, changing displays, reading wheels — are
+written and check out, but have never met an actual monitor or wheel.
+
+That's the next step, and it's why the version number starts with a zero.
+
+---
+
+## For developers
+
+| Doc | What's in it |
 | --- | --- |
+| [DEV-SETUP.md](docs/DEV-SETUP.md) | Building it yourself |
+| [RELEASING.md](docs/RELEASING.md) | Signing keys, certificates, cutting a release |
+| [0003-rig-model.md](docs/design/0003-rig-model.md) | **The rig model, and the geometry it drives** |
+| [0008-display-control.md](docs/design/0008-display-control.md) | Why changing the desktop is survivable |
+| [adapters/README.md](docs/adapters/README.md) | How a game gets supported, and the rules for it |
 | [0001-stack.md](docs/design/0001-stack.md) | Tauri vs Electron, DPI, elevation, signing |
 | [0002-repo-structure.md](docs/design/0002-repo-structure.md) | Crate and module layout |
-| [0003-rig-model.md](docs/design/0003-rig-model.md) | **The rig model schema and the geometry it drives** |
-| [0004-profile-schema.md](docs/design/0004-profile-schema.md) | Profile, step graph, storage, migrations |
-| [0005-open-questions.md](docs/design/0005-open-questions.md) | What I still need from you |
-| [0006-visual-language.md](docs/design/0006-visual-language.md) | The glass design system |
-| [0007-display-enumeration.md](docs/design/0007-display-enumeration.md) | CCD, EDID and dead regions |
-| [0008-display-control.md](docs/design/0008-display-control.md) | **Why changing the desktop is survivable** |
-| [adapters/README.md](docs/adapters/README.md) | **The adapter verification protocol** |
+| [0004-profile-schema.md](docs/design/0004-profile-schema.md) | Profiles, the launch graph, storage |
+| [0005-open-questions.md](docs/design/0005-open-questions.md) | What's still outstanding |
+| [0006-visual-language.md](docs/design/0006-visual-language.md) | The design system |
+| [0007-display-enumeration.md](docs/design/0007-display-enumeration.md) | How screens are detected |
+
+Built with [Tauri](https://tauri.app), React and Rust. Windows 11.
+
+© Alex Camenzuli
