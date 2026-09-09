@@ -209,7 +209,7 @@ Nothing is written anywhere else, and nothing leaves your machine.
 yet.**
 
 The parts that can be tested without a rig — the maths, the file editing, the
-planning — are covered by 327 tests that run on every change. The parts that
+planning — are covered by 396 tests that run on every change. The parts that
 touch Windows itself — moving windows, changing displays, reading wheels — are
 written and check out, but have never met an actual monitor or wheel.
 
