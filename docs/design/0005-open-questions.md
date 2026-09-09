@@ -1,4 +1,4 @@
-# 0005 — What I need from you before milestone 1
+# 0005 — What I still need from you
 
 Everything here blocks either the rig schema or the adapter ordering. The
 PowerShell snippets are for *you*, run once, to gather data — the app itself
@@ -163,7 +163,65 @@ spend verification effort on it.
 
 ---
 
-## Milestone 1 is unblocked
+## Superseded — see the summary at the end
 
 H3 is answered. Everything else gates milestones 3–5. Sign off on the schemas in
 0003 and 0004 and I can build the skeleton while you are measuring.
+
+
+---
+
+# What is actually outstanding
+
+*Updated after milestone 11. Everything above is the original list; most of it
+turned out not to block building, because the app was designed to ask the user
+rather than to have the answers baked in. These four are what remain, in the
+order they matter.*
+
+## 1. How SimHub signals it is ready
+
+**Blocking the thing the utility system exists for.** `UtilitySpec.ready_when`
+takes a real condition — a process, a TCP port, a named mutex or event, a file
+appearing — and that condition is what replaces the fixed `sleep 5` every other
+launcher relies on. Any one of these answers it:
+
+* Does it open a TCP port when it is ready? Which one?
+* Does it write a file — a lock, a log line, a cache — at the point it becomes
+  usable?
+* Is `SimHubWPF.exe` existing actually good enough, or is there a gap between
+  the process appearing and the dashboards working?
+
+Without this the profile editor falls back to a fixed wait, which the UI
+correctly labels as a guess.
+
+## 2. VID/PIDs for your six peripherals
+
+Not needed to *use* the app — the profile editor lists whatever is plugged in
+and you tick what a game requires. Needed to seed the device catalog with proper
+names, so a new user does not see six rows of "HID-compliant game controller".
+
+The Peripherals tab shows them, or a diagnostics bundle contains them.
+
+## 3. One real triple-screen `video.ini`
+
+From your Assetto Corsa install, with the in-game triple-screen app's values
+already set. It answers both open questions at once — whether AC's triple values
+live in that file at all, and what they are called — and takes that adapter from
+`Corroborated` to `Verified`. See `docs/adapters/assetto-corsa.md`.
+
+## 4. Two decisions only you can make
+
+* **A code-signing certificate.** Until there is one, SmartScreen warns on every
+  install. Azure Trusted Signing is the usual route for a one-person shop.
+* **Where updates are hosted.** The updater needs somewhere to serve a manifest
+  from and a keypair to sign releases with. The seam is unbuilt on purpose:
+  guessing a host would be worse than leaving it.
+
+## Deliberately still not built
+
+* **ACC's adapter.** Unreal keeps `LastUserConfirmed*` copies of the resolution
+  and reverts to them under conditions this project has not confirmed.
+* **Display changes inside a launch.** The machinery works from the Displays
+  tab. Putting a confirm-or-revert countdown on a screen that is in the middle
+  of changing, during a preflight, is a design question rather than a coding
+  one.
