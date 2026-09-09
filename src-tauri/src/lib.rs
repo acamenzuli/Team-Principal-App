@@ -1,11 +1,13 @@
 //! Team Principal — sim racing launcher and display manager.
 //!
-//! Milestone 1: skeleton. Tauri v2 + React, DPI manifest, structured logging,
-//! typed IPC, provider seams with fixture-driven mocks, CI.
-//!
 //! Architecture note: the frontend never touches Win32. It calls the commands
-//! in [`ipc`], which go through the traits in [`providers`], which have exactly
-//! two implementations — the real Win32 one and a mock driven by JSON fixtures.
+//! in [`ipc`], which go through the display and peripheral traits in
+//! [`providers`] — each with exactly two implementations, the real Win32 one
+//! and a mock driven by JSON fixtures — or, for the things a trait never
+//! usefully abstracted, straight into [`window`], [`display`] and [`launcher`].
+//!
+//! Everything that can be tested off Windows lives in `tp-model`, `tp-geometry`
+//! or `tp-edid`. What is left here is the platform call itself.
 
 pub mod adapters;
 pub mod art;
@@ -29,7 +31,7 @@ pub mod window;
 
 /// Which milestone this build represents. Shown in the UI and in diagnostics so
 /// a bug report says what was actually built, not what was planned.
-pub const MILESTONE: u8 = 10;
+pub const MILESTONE: u8 = 11;
 
 #[cfg(windows)]
 pub use providers::win::dpi::Awareness;
@@ -187,6 +189,43 @@ pub fn run() {
             app.manage(Startup {
                 minimised: start_minimised,
             });
+
+            // The backstop for a hidden main window.
+            //
+            // `ready` reveals it, and `ready` is called from the frontend. If
+            // the frontend never mounts — a module that throws at import time,
+            // a WebView2 that fails to start — it is never called, and the user
+            // is left with a splash screen and no application behind it. No
+            // amount of clicking recovers from that.
+            //
+            // So the window appears after fifteen seconds whatever happens. A
+            // broken app the user can see and report beats an invisible one,
+            // and on a normal start `ready` has fired long before this.
+            let handle = app.handle().clone();
+            std::thread::Builder::new()
+                .name("window-backstop".into())
+                .spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(15));
+                    use tauri::Manager;
+                    let Some(main) = handle.get_webview_window("main") else {
+                        return;
+                    };
+                    // Already visible is the normal case: ready() got there
+                    // first and there is nothing to do.
+                    if main.is_visible().unwrap_or(true) {
+                        return;
+                    }
+                    tracing::error!(
+                        "the interface did not report itself ready within fifteen \
+                         seconds; showing the window anyway"
+                    );
+                    let _ = main.show();
+                    if let Some(splash) = handle.get_webview_window("splash") {
+                        let _ = splash.close();
+                    }
+                })
+                .ok();
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
