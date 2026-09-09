@@ -78,7 +78,7 @@ cargo check --workspace --target x86_64-pc-windows-msvc --all-targets
 
 ## Milestones
 
-Stop at the end of each for hardware testing. Current: **10 complete**.
+Stop at the end of each for hardware testing. Current: **11 built, none hardware-tested**.
 
 1. ✅ Skeleton — Tauri, DPI manifest, logging, typed IPC, mock providers, CI
 2. ✅ Display enumeration — CCD, EDID from the registry, dead regions
@@ -95,4 +95,6 @@ Stop at the end of each for hardware testing. Current: **10 complete**.
    one commit, read-back, confirm-or-revert countdown, panic hotkey, snapshots
 10. ✅ Adapters wave one — comment-preserving INI editor, backup store with
     one-click restore, preview-before-apply diff, iRacing and Assetto Corsa
-11. Polish and packaging
+11. ✅ Polish and packaging — first-run wizard, diagnostics bundle, licensing
+    seam, README. Code signing and the updater remain; both need decisions
+    only the owner can make (a certificate, and a place to host updates).

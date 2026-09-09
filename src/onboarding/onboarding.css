@@ -1,0 +1,128 @@
+/* A sheet over the app rather than a separate route: the tabs stay visible
+   behind it, so it reads as a guide through this app rather than a wall in
+   front of it. */
+.ob {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s5);
+  background: color-mix(in srgb, var(--ground) 72%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.ob__panel {
+  width: min(620px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: var(--s6);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sheet);
+}
+
+.ob__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s4);
+}
+
+.ob__title {
+  margin: 0;
+  font-size: var(--size-display);
+  line-height: 1.1;
+}
+
+.ob__dots {
+  display: flex;
+  gap: var(--s2);
+  flex: none;
+}
+
+.ob__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rule-strong);
+  transition: background 160ms ease;
+}
+
+.ob__dot--on {
+  background: var(--accent);
+}
+
+.ob__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: var(--s5) 0;
+  font-size: var(--size-base);
+  color: var(--ink-dim);
+}
+
+.ob__body p {
+  margin: 0 0 var(--s3);
+}
+
+.ob__body strong {
+  color: var(--ink);
+}
+
+.ob__list {
+  list-style: none;
+  margin: var(--s3) 0;
+  padding: 0;
+  background: var(--data-bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+}
+
+.ob__list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: var(--s3) var(--s4);
+}
+
+.ob__list li + li {
+  border-top: 1px solid var(--rule);
+}
+
+.ob__list .num {
+  color: var(--ink-faint);
+  font-size: var(--size-sm);
+  text-align: right;
+}
+
+.ob__field {
+  margin: var(--s4) 0;
+  max-width: 280px;
+}
+
+.ob__readout {
+  padding: var(--s3) var(--s4);
+  background: var(--data-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.ob__next {
+  margin: var(--s3) 0;
+  padding-left: var(--s5);
+}
+
+.ob__next li {
+  margin-bottom: var(--s2);
+}
+
+.ob__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding-top: var(--s4);
+  border-top: 1px solid var(--rule);
+}

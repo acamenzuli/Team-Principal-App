@@ -5,6 +5,7 @@ import { Dashboard } from "./dashboard/Dashboard";
 import { applyTheme } from "./design/theme";
 import { Peripherals } from "./devices/Peripherals";
 import { Games } from "./games/Games";
+import { FirstRun } from "./onboarding/FirstRun";
 import { ScreenSetup } from "./screen/ScreenSetup";
 import { Settings } from "./settings/Settings";
 import { WindowControl } from "./windowctl/WindowControl";
@@ -53,7 +54,16 @@ export function App() {
   if (error) {
     return (
       <div className="app">
-        <main className="app__body">
+        {/* Shown over the app rather than instead of it, so it reads as a guide
+          through this product rather than a wall in front of it. */}
+      {prefs && !prefs.onboarded && (
+        <FirstRun
+          unit={prefs.units}
+          onDone={() => void updatePrefs({ ...prefs, onboarded: true })}
+        />
+      )}
+
+      <main className="app__body">
           <p className="app__error">
             <strong>Team Principal could not start.</strong> {error}
           </p>
@@ -116,6 +126,15 @@ export function App() {
           {info ? `v${info.version} · M${info.milestone}` : "…"}
         </span>
       </header>
+
+      {/* Shown over the app rather than instead of it, so it reads as a guide
+          through this product rather than a wall in front of it. */}
+      {prefs && !prefs.onboarded && (
+        <FirstRun
+          unit={prefs.units}
+          onDone={() => void updatePrefs({ ...prefs, onboarded: true })}
+        />
+      )}
 
       <main className="app__body">
         {prefsProblem && (

@@ -8,4 +8,13 @@ export type Preferences = { schemaVersion: number,
  * Display unit for lengths. A UI preference only — the model is always
  * millimetres.
  */
-units: LengthUnit, appearance: Appearance, team: TeamBranding, };
+units: LengthUnit, appearance: Appearance, team: TeamBranding, 
+/**
+ * Whether the first-run wizard has been completed.
+ *
+ * `#[serde(default)]` so an existing preferences file loads as
+ * not-yet-onboarded rather than failing to parse — which would lose every
+ * other setting in it. The wizard is cheap to dismiss and impossible to
+ * recover from a corrupt file.
+ */
+onboarded: boolean, };

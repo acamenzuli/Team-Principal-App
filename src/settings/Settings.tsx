@@ -198,6 +198,21 @@ export function Settings({
         </Row>
       </Group>
 
+      <Group title="First-time setup" note={prefs.onboarded ? "done" : "not finished"}>
+        <p className="note">
+          The guided walk-through: what was detected, and the one measurement nothing on this
+          machine can work out for itself.
+        </p>
+        <div className="settings__actions">
+          <button
+            className="btn btn--quiet"
+            onClick={() => void update({ ...prefs, onboarded: false })}
+          >
+            Run it again
+          </button>
+        </div>
+      </Group>
+
       <Diagnostics />
 
       <Licence />

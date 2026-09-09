@@ -24,6 +24,14 @@ pub struct Preferences {
     pub units: LengthUnit,
     pub appearance: Appearance,
     pub team: TeamBranding,
+    /// Whether the first-run wizard has been completed.
+    ///
+    /// `#[serde(default)]` so an existing preferences file loads as
+    /// not-yet-onboarded rather than failing to parse — which would lose every
+    /// other setting in it. The wizard is cheap to dismiss and impossible to
+    /// recover from a corrupt file.
+    #[serde(default)]
+    pub onboarded: bool,
 }
 
 impl Default for Preferences {
@@ -33,6 +41,7 @@ impl Default for Preferences {
             units: LengthUnit::Mm,
             appearance: Appearance::default(),
             team: TeamBranding::default(),
+            onboarded: false,
         }
     }
 }
