@@ -225,8 +225,9 @@ fn run_phase(context: &Context, scheduler: &mut Scheduler, phase: Phase) {
             let cancel = context.cancel.clone();
             let devices = context.devices.clone();
             let profile = context.profile.clone();
+            let app = context.app.clone();
             std::thread::spawn(move || {
-                let _ = tx.send(run_step(step, profile, job, cancel, devices));
+                let _ = tx.send(run_step(step, profile, job, cancel, devices, app));
             });
         }
 
@@ -477,9 +478,10 @@ fn run_step(
     job: Arc<JobObject>,
     cancel: Arc<AtomicBool>,
     devices: DeviceSource,
+    app: AppHandle,
 ) -> Completion {
     let started = Instant::now();
-    let (action, mut detail, mut failed) = perform(&step.action, &profile, &job);
+    let (action, mut detail, mut failed) = perform(&step.action, &profile, &job, &app);
 
     // Then wait for readiness. This is where a hardcoded sleep would go in a
     // lesser launcher; here it is a real condition with a real timeout.
@@ -530,7 +532,12 @@ fn run_step(
 }
 
 /// Do whatever the step is, and report *what actually happened*.
-fn perform(action: &StepAction, profile: &Profile, job: &JobObject) -> (ActionTaken, String, bool) {
+fn perform(
+    action: &StepAction,
+    profile: &Profile,
+    job: &JobObject,
+    app: &AppHandle,
+) -> (ActionTaken, String, bool) {
     match action {
         // The distinction that makes the honesty rule mechanical: a utility
         // that was already up reports AlreadyRunning, and the UI derives its
@@ -670,7 +677,7 @@ fn perform(action: &StepAction, profile: &Profile, job: &JobObject) -> (ActionTa
         // Re-apply a rectangle that was proven by hand. Everything here is the
         // milestone 6 machinery; what is new is that nobody had to press
         // anything.
-        StepAction::ApplyWindowGeometry => place_window(profile),
+        StepAction::ApplyWindowGeometry => place_window(app, profile),
     }
 }
 
@@ -733,7 +740,8 @@ fn run_teardown(context: &Context, scheduler: &mut Scheduler) {
         });
 
         let started = Instant::now();
-        let (action, detail, failed) = perform(&step.action, &context.profile, &context.job);
+        let (action, detail, failed) =
+            perform(&step.action, &context.profile, &context.job, &context.app);
         let status = if failed {
             StepStatus::Failed
         } else {
@@ -747,6 +755,9 @@ fn run_teardown(context: &Context, scheduler: &mut Scheduler) {
             v.elapsed_ms = Some(started.elapsed().as_millis() as f64);
         });
     }
+
+    // The game has gone, so there is no window left to hold.
+    stop_watchdog(context);
 
     // Only now: the marker is what tells a later start that something is still
     // outstanding, so clearing it before the work is done would lose exactly
@@ -886,7 +897,7 @@ fn adapter_plan_for(profile: &Profile) -> Option<tp_model::AdapterPlan> {
 /// running elevated silently ignores the move, and a row claiming success over
 /// a window that did not move would be exactly the dishonesty this app is built
 /// to avoid.
-fn place_window(profile: &Profile) -> (ActionTaken, String, bool) {
+fn place_window(app: &AppHandle, profile: &Profile) -> (ActionTaken, String, bool) {
     let tp_model::RectSource::Explicit { rect } = profile.window_plan.rect else {
         return (
             ActionTaken::NotAttempted,
@@ -944,10 +955,16 @@ fn place_window(profile: &Profile) -> (ActionTaken, String, bool) {
                     true,
                 )
             } else {
+                // Then keep it there. Most sims reset their own window when the
+                // render device initialises, a few seconds after it first
+                // appears — so a single successful placement is not the same as
+                // a window that stays put, and stopping here is why this looked
+                // like it did nothing on exactly the titles that need it most.
+                start_watchdog(app, found.window.hwnd, rect, profile);
                 (
                     ActionTaken::Started,
                     format!(
-                        "placed at {},{} {}x{}",
+                        "placed at {},{} {}x{}, and holding it there",
                         rect.x, rect.y, rect.width, rect.height
                     ),
                     false,
@@ -956,6 +973,50 @@ fn place_window(profile: &Profile) -> (ActionTaken, String, bool) {
         }
         Err(e) => (ActionTaken::NotAttempted, e.to_string(), true),
     }
+}
+
+fn stop_watchdog(context: &Context) {
+    use tauri::Manager;
+
+    let state = context
+        .app
+        .state::<crate::window::watchdog::ActiveWatchdog>();
+    // `let else` rather than `if let`: an if-let would keep the lock's
+    // temporary alive past the end of the statement that borrowed the state.
+    let Ok(mut guard) = state.0.lock() else {
+        return;
+    };
+    // Dropping the handle stops the thread.
+    *guard = None;
+}
+
+/// Keep the window where it was put, for as long as the profile says.
+///
+/// The policy is the profile's: re-apply a few times over the first seconds,
+/// then correct drift on an interval, then stop once it has been stable for a
+/// while. Held in the app's watchdog slot so cancelling or tearing down stops
+/// it, and so two runs cannot end up fighting over one window.
+fn start_watchdog(app: &AppHandle, hwnd: u64, rect: tp_model::PixelRect, profile: &Profile) {
+    use tauri::Manager;
+
+    let policy = profile.window_plan.watchdog;
+    if policy.reapply_count == 0 && policy.drift_check_interval_ms.is_none() {
+        return;
+    }
+
+    let state = app.state::<crate::window::watchdog::ActiveWatchdog>();
+    let Ok(mut guard) = state.0.lock() else {
+        return;
+    };
+    // Replacing stops the previous one: two threads putting the same window in
+    // two places would be worse than neither.
+    *guard = Some(crate::window::Watchdog::start(
+        hwnd,
+        rect,
+        profile.window_plan.rect_means,
+        profile.window_plan.borderless,
+        policy,
+    ));
 }
 
 /// Start the game.
@@ -985,6 +1046,7 @@ fn launch(method: &LaunchMethod) -> AppResult<Started> {
 
 fn teardown(context: &Context) {
     tracing::info!("launch cancelled; tearing down what was started");
+    stop_watchdog(context);
     context.job.terminate_all();
     publish_state(&context.app, ReadyState::Blocked);
 }
