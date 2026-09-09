@@ -108,6 +108,12 @@ publishes a **draft** release with the installer, the signature and
 `latest.json`. Draft on purpose: it is the last point at which a release can be
 reconsidered without anybody having downloaded it.
 
+Two settings are switched on by that workflow rather than committed —
+`createUpdaterArtifacts`, and the public key itself. Both make a build *require*
+the private key, and the ordinary CI build has no key and must not have one: it
+produces the installer people download for testing on every push. Committing
+either would break that build, which is exactly what happened the first time.
+
 Check the draft, then publish it. The moment you do, every running copy of the
 app finds it on its next start.
 

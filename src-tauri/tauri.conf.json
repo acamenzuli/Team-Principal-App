@@ -59,8 +59,7 @@
           "English"
         ]
       }
-    },
-    "createUpdaterArtifacts": true
+    }
   },
   "mainBinaryName": "TeamPrincipal",
   "plugins": {

@@ -33,27 +33,39 @@ jobs:
       #
       # Substituted here rather than committed so that rotating the key is a
       # secret change rather than a code change.
-      - name: Set the updater public key
-        if: env.TAURI_SIGNING_PUBLIC_KEY != ''
+      # Both of these are release-only, and deliberately not committed.
+      #
+      # createUpdaterArtifacts makes the build produce a signed update alongside
+      # the installer — which means it *requires* the private key. Committing it
+      # would break the ordinary CI build, which has no key and must not have
+      # one; that build produces the installer people download for testing.
+      - name: Turn on updater artifacts and set the public key
         env:
           TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
         shell: pwsh
         run: |
-          $config = Get-Content src-tauri/tauri.conf.json -Raw
-          $config = $config -replace '"pubkey": "UNCONFIGURED"', ('"pubkey": "' + $env:TAURI_SIGNING_PUBLIC_KEY + '"')
-          Set-Content src-tauri/tauri.conf.json $config
+          if (-not $env:TAURI_SIGNING_PUBLIC_KEY) {
+            Write-Error "No TAURI_SIGNING_PUBLIC_KEY secret. See docs/RELEASING.md."
+            exit 1
+          }
+          $config = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          $config.plugins.updater.pubkey = $env:TAURI_SIGNING_PUBLIC_KEY
+          $config.bundle | Add-Member -NotePropertyName createUpdaterArtifacts -NotePropertyValue $true -Force
+          $config | ConvertTo-Json -Depth 20 | Set-Content src-tauri/tauri.conf.json
 
       # Refuse to publish an unsigned release rather than publish one nobody
       # can verify. A customer who installs an unsigned build can never be
       # updated to a signed one — the key is compiled in — so this failing
       # loudly now is far cheaper than discovering it later.
       - name: Refuse to release without a signing key
-        if: env.TAURI_SIGNING_PRIVATE_KEY == ''
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        shell: pwsh
         run: |
-          echo "::error::No TAURI_SIGNING_PRIVATE_KEY secret. See docs/RELEASING.md."
-          exit 1
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
+            Write-Error "No TAURI_SIGNING_PRIVATE_KEY secret. See docs/RELEASING.md."
+            exit 1
+          }
 
       - name: Build, sign and publish
         uses: tauri-apps/tauri-action@v0
