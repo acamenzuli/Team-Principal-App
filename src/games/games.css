@@ -300,3 +300,90 @@
 .card__auto input:disabled + .toggle__track {
   opacity: 0.5;
 }
+
+/* ------------------------------------------- copying a running game's layout */
+
+.cap {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s5);
+  background: color-mix(in srgb, var(--ground) 72%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.cap__panel {
+  width: min(520px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  padding: var(--s5);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sheet);
+  color: var(--ink-dim);
+}
+
+.cap__title {
+  margin: 0 0 var(--s3);
+  font-size: var(--size-readout);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.cap__panel p {
+  margin: 0 0 var(--s3);
+}
+
+.cap__panel strong {
+  color: var(--ink);
+}
+
+.cap__list {
+  list-style: none;
+  margin: var(--s3) 0;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--data-bg);
+}
+
+.cap__list li + li {
+  border-top: 1px solid var(--rule);
+}
+
+.cap__pick {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s4);
+  width: 100%;
+  padding: var(--s3) var(--s4);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cap__pick:hover {
+  background: var(--ground-raised);
+}
+
+.cap__pick .num {
+  color: var(--ink-faint);
+  font-size: var(--size-sm);
+}
+
+.cap__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--s4);
+}
+
+/* Three buttons now, so they wrap rather than squeeze. */
+.card__actions {
+  flex-wrap: wrap;
+}

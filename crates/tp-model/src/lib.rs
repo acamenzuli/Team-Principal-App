@@ -61,7 +61,8 @@ pub use topology::{
 };
 pub use units::*;
 pub use window::{
-    borderless_ex_style, borderless_style, client_from_outer, has_drifted, is_borderless,
-    outer_from_client, pick_target, title_matches, FrameInsets, WindowCandidate, WindowMatch,
+    borderless_ex_style, borderless_style, capture, client_from_outer, has_drifted, is_borderless,
+    outer_from_client, pick_capture, pick_target, title_matches, CaptureChoice, CapturedLayout,
+    FrameInsets, WindowCandidate, WindowMatch,
 };
 pub use xml::{Xml, XmlError};

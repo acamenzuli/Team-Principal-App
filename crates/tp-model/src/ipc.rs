@@ -374,3 +374,28 @@ pub struct PendingSession {
     /// offering a recovery that would do nothing.
     pub has_config_backup: bool,
 }
+
+/// The result of asking to copy a running game's screen setup.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase",
+    tag = "kind"
+)]
+pub enum CaptureResult {
+    /// Copied, and saved onto the profile.
+    Captured {
+        layout: crate::CapturedLayout,
+        /// Boxed: a Profile is far larger than the other variants, and an enum
+        /// is as big as its biggest member wherever it is passed.
+        profile: Box<crate::Profile>,
+    },
+    /// More than one window could be the game. Picking wrong would save
+    /// somebody else's geometry onto this profile, so the user chooses.
+    Choose { windows: Vec<OpenWindow> },
+    /// The profile names an executable that is not running.
+    NotRunning { exe: String },
+    /// No window on this machine looks like a game.
+    NothingFound,
+}

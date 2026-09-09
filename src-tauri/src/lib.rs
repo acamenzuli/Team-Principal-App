@@ -194,6 +194,7 @@ pub fn run() {
             ipc::create_profile,
             ipc::game_library,
             ipc::remember_window,
+            ipc::capture_window,
             ipc::set_auto_apply,
             ipc::list_windows,
             ipc::place_window,

@@ -37,6 +37,7 @@ pub const WS_EX_WINDOWEDGE: u32 = 0x0000_0100;
 pub const WS_EX_CLIENTEDGE: u32 = 0x0000_0200;
 pub const WS_EX_STATICEDGE: u32 = 0x0002_0000;
 pub const WS_EX_NOREDIRECTIONBITMAP: u32 = 0x0020_0000;
+pub const WS_EX_TOPMOST: u32 = 0x0000_0008;
 
 /// One top-level window, as enumeration found it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -266,6 +267,265 @@ pub fn has_drifted(actual: PixelRect, target: PixelRect, tolerance: i32) -> bool
         || (actual.y - target.y).abs() > tolerance
         || (actual.width as i32 - target.width as i32).abs() > tolerance
         || (actual.height as i32 - target.height as i32).abs() > tolerance
+}
+
+#[cfg(test)]
+mod capture_tests {
+    use super::*;
+
+    fn screens() -> Vec<(String, PixelRect)> {
+        vec![
+            (
+                "Left".into(),
+                PixelRect {
+                    x: -1920,
+                    y: 0,
+                    width: 1920,
+                    height: 1080,
+                },
+            ),
+            (
+                "Centre".into(),
+                PixelRect {
+                    x: 0,
+                    y: 0,
+                    width: 1920,
+                    height: 1080,
+                },
+            ),
+            (
+                "Right".into(),
+                PixelRect {
+                    x: 1920,
+                    y: 0,
+                    width: 1920,
+                    height: 1080,
+                },
+            ),
+        ]
+    }
+
+    fn window(rect: PixelRect, style: u32, ex_style: u32) -> WindowCandidate {
+        WindowCandidate {
+            hwnd: 1,
+            pid: 100,
+            exe_name: Some("acs.exe".into()),
+            class_name: "AC".into(),
+            title: "Assetto Corsa".into(),
+            rect,
+            style: style | WS_VISIBLE,
+            ex_style,
+            visible: true,
+        }
+    }
+
+    /// The case this whole feature exists for: a game already set up across
+    /// three screens by SRWE or Resize Raccoon.
+    #[test]
+    fn a_window_spanning_a_triple_is_captured_whole() {
+        let triple = PixelRect {
+            x: -1920,
+            y: 0,
+            width: 5760,
+            height: 1080,
+        };
+        let found = capture(&window(triple, WS_POPUP, 0), &screens());
+
+        assert_eq!(found.rect, triple);
+        assert!(found.borderless, "SRWE leaves it frameless");
+        assert_eq!(found.covers, vec!["Left", "Centre", "Right"]);
+        assert!(found.covers_exactly);
+        // The valuable part for a Steam title: a protocol launch names no
+        // executable, so without this the launcher has nothing to match on.
+        assert_eq!(found.exe_name.as_deref(), Some("acs.exe"));
+    }
+
+    #[test]
+    fn a_window_on_one_screen_says_so() {
+        let centre = PixelRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let found = capture(&window(centre, WS_POPUP, 0), &screens());
+        assert_eq!(found.covers, vec!["Centre"]);
+        assert!(found.covers_exactly);
+    }
+
+    #[test]
+    fn a_window_that_only_half_covers_a_screen_is_not_exact() {
+        // Worth telling the user: it will still be saved and replayed, but it
+        // is not the clean span they probably think they set up.
+        let ragged = PixelRect {
+            x: 0,
+            y: 0,
+            width: 2500,
+            height: 1080,
+        };
+        let found = capture(&window(ragged, WS_POPUP, 0), &screens());
+        assert_eq!(found.covers, vec!["Centre", "Right"]);
+        assert!(!found.covers_exactly);
+    }
+
+    #[test]
+    fn a_framed_window_is_reported_as_framed() {
+        let centre = PixelRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let found = capture(&window(centre, WS_CAPTION | WS_THICKFRAME, 0), &screens());
+        assert!(!found.borderless);
+    }
+
+    #[test]
+    fn always_on_top_is_read_from_the_style_not_guessed() {
+        let centre = PixelRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let found = capture(&window(centre, WS_POPUP, WS_EX_TOPMOST), &screens());
+        assert!(found.always_on_top);
+    }
+
+    #[test]
+    fn the_executable_the_profile_names_is_the_one_picked() {
+        let big = PixelRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let mut other = window(big, WS_POPUP, 0);
+        other.exe_name = Some("simhub.exe".into());
+        other.hwnd = 2;
+
+        let all = vec![other, window(big, WS_POPUP, 0)];
+        match pick_capture(&all, Some("acs.exe"), (640, 480)) {
+            CaptureChoice::One(c) => assert_eq!(c.hwnd, 1),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn the_largest_window_of_the_right_executable_wins() {
+        // A sim often has a launcher or tool panel from the same executable.
+        // The render window is the big one.
+        let small = window(
+            PixelRect {
+                x: 0,
+                y: 0,
+                width: 800,
+                height: 600,
+            },
+            WS_POPUP,
+            0,
+        );
+        let mut large = window(
+            PixelRect {
+                x: -1920,
+                y: 0,
+                width: 5760,
+                height: 1080,
+            },
+            WS_POPUP,
+            0,
+        );
+        large.hwnd = 9;
+
+        match pick_capture(&[small, large], Some("acs.exe"), (640, 480)) {
+            CaptureChoice::One(c) => assert_eq!(c.hwnd, 9),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_named_executable_that_is_not_running_says_exactly_that() {
+        // Far more useful than silently offering a list of unrelated windows.
+        let other = {
+            let mut w = window(
+                PixelRect {
+                    x: 0,
+                    y: 0,
+                    width: 1920,
+                    height: 1080,
+                },
+                WS_POPUP,
+                0,
+            );
+            w.exe_name = Some("notepad.exe".into());
+            w
+        };
+        assert_eq!(
+            pick_capture(&[other], Some("acs.exe"), (640, 480)),
+            CaptureChoice::NotRunning("acs.exe".into())
+        );
+    }
+
+    #[test]
+    fn with_no_hint_and_several_candidates_it_asks_rather_than_guesses() {
+        // Picking wrong saves somebody else's window geometry onto the game's
+        // profile, which is worse than one extra click.
+        let a = window(
+            PixelRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            WS_POPUP,
+            0,
+        );
+        let mut b = a.clone();
+        b.hwnd = 2;
+        match pick_capture(&[a, b], None, (640, 480)) {
+            CaptureChoice::Several(list) => assert_eq!(list.len(), 2),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn with_no_hint_and_one_candidate_it_just_takes_it() {
+        let only = window(
+            PixelRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            WS_POPUP,
+            0,
+        );
+        assert!(matches!(
+            pick_capture(&[only], None, (640, 480)),
+            CaptureChoice::One(_)
+        ));
+    }
+
+    #[test]
+    fn splash_screens_are_never_offered() {
+        // The size filter that already guards the launch matcher guards this
+        // too — capturing a splash screen's geometry would be a rectangle that
+        // never appears again.
+        let splash = window(
+            PixelRect {
+                x: 0,
+                y: 0,
+                width: 400,
+                height: 300,
+            },
+            WS_POPUP,
+            0,
+        );
+        assert_eq!(
+            pick_capture(&[splash], None, (640, 480)),
+            CaptureChoice::Nothing
+        );
+    }
 }
 
 #[cfg(test)]
@@ -530,4 +790,140 @@ mod tests {
             "a sim resetting its own window is drift"
         );
     }
+}
+
+// -------------------------------------------------------- capturing a window
+
+/// A window's current geometry, learned rather than configured.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct CapturedLayout {
+    /// The outer window rectangle, exactly as it is now.
+    pub rect: PixelRect,
+    pub borderless: bool,
+    pub always_on_top: bool,
+    /// Learned from the running process. This is the valuable part for a Steam
+    /// or Epic title: a protocol launch names no executable, so without this
+    /// the launcher has nothing to watch for or to match a window against.
+    pub exe_name: Option<String>,
+    pub class_name: String,
+    pub title: String,
+    /// The screens this window overlaps, by friendly name.
+    pub covers: Vec<String>,
+    /// True when the window exactly covers the screens it touches, with nothing
+    /// hanging off an edge and no screen only partly used.
+    pub covers_exactly: bool,
+}
+
+/// Read a window's geometry, and work out which screens it sits on.
+///
+/// `monitors` is `(friendly name, bounds)` — taking it as pairs rather than
+/// `MonitorInfo` keeps this testable with three lines of setup.
+pub fn capture(candidate: &WindowCandidate, monitors: &[(String, PixelRect)]) -> CapturedLayout {
+    let rect = candidate.rect;
+
+    let covered: Vec<&(String, PixelRect)> = monitors
+        .iter()
+        .filter(|(_, bounds)| overlaps(rect, *bounds))
+        .collect();
+
+    // "Exactly" means the union of the screens it touches *is* the window: no
+    // spill onto the desktop beyond them, and no screen left half-used. That is
+    // what a correctly set-up triple looks like, and saying so is more useful
+    // than listing three names and leaving the user to check.
+    let covers_exactly = match union(covered.iter().map(|(_, b)| *b)) {
+        Some(union) => union == rect,
+        None => false,
+    };
+
+    CapturedLayout {
+        rect,
+        // Read from the style bits rather than asked. Somebody who has already
+        // set a game up with SRWE or Resize Raccoon has a window that is
+        // *proven* frameless, and asking them to say so again is asking them to
+        // repeat something the machine can already see.
+        borderless: is_borderless(candidate.style, candidate.ex_style),
+        always_on_top: candidate.ex_style & WS_EX_TOPMOST != 0,
+        exe_name: candidate.exe_name.clone(),
+        class_name: candidate.class_name.clone(),
+        title: candidate.title.clone(),
+        covers: covered.iter().map(|(name, _)| name.clone()).collect(),
+        covers_exactly,
+    }
+}
+
+fn overlaps(a: PixelRect, b: PixelRect) -> bool {
+    a.x < b.right() && b.x < a.right() && a.y < b.bottom() && b.y < a.bottom()
+}
+
+fn union(rects: impl Iterator<Item = PixelRect>) -> Option<PixelRect> {
+    let mut it = rects.peekable();
+    it.peek()?;
+    let (mut x1, mut y1, mut x2, mut y2) = (i32::MAX, i32::MAX, i32::MIN, i32::MIN);
+    for r in it {
+        x1 = x1.min(r.x);
+        y1 = y1.min(r.y);
+        x2 = x2.max(r.right());
+        y2 = y2.max(r.bottom());
+    }
+    Some(PixelRect {
+        x: x1,
+        y: y1,
+        width: (x2 - x1) as u32,
+        height: (y2 - y1) as u32,
+    })
+}
+
+/// Which window to capture from, given what the profile knows.
+///
+/// With an executable name, the answer is exact. Without one — a Steam title
+/// whose profile has never been through a launch — the honest answer is often
+/// "more than one of these could be it", and the caller asks.
+pub fn pick_capture<'a>(
+    candidates: &'a [WindowCandidate],
+    exe_hint: Option<&str>,
+    min_size: (u32, u32),
+) -> CaptureChoice<'a> {
+    let plausible: Vec<&WindowCandidate> = candidates
+        .iter()
+        .filter(|c| c.is_plausible_game_window(min_size))
+        .collect();
+
+    if let Some(exe) = exe_hint {
+        let matched: Vec<&WindowCandidate> = plausible
+            .iter()
+            .copied()
+            .filter(|c| {
+                c.exe_name
+                    .as_deref()
+                    .is_some_and(|n| n.eq_ignore_ascii_case(exe))
+            })
+            .collect();
+        // Several windows from the same executable: take the largest, which is
+        // the render window rather than a launcher or a tool panel.
+        if let Some(best) = matched.iter().copied().max_by_key(|c| c.area()) {
+            return CaptureChoice::One(best);
+        }
+        // The profile names an executable and it is not running. Saying that is
+        // far more useful than silently offering a list of other windows.
+        return CaptureChoice::NotRunning(exe.to_string());
+    }
+
+    match plausible.len() {
+        0 => CaptureChoice::Nothing,
+        1 => CaptureChoice::One(plausible[0]),
+        _ => CaptureChoice::Several(plausible),
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum CaptureChoice<'a> {
+    One(&'a WindowCandidate),
+    /// More than one could be the game. Ask rather than guess — picking wrong
+    /// saves somebody else's window geometry onto their game profile.
+    Several(Vec<&'a WindowCandidate>),
+    /// The profile names an executable that is not running.
+    NotRunning(String),
+    Nothing,
 }

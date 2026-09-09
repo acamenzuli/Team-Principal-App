@@ -18,6 +18,8 @@ import type { ConfigInspection } from "./bindings/ConfigInspection";
 import type { AppliedAdapterInfo } from "./bindings/AppliedAdapterInfo";
 import type { AvailableModes } from "./bindings/AvailableModes";
 import type { BackupInfo } from "./bindings/BackupInfo";
+import type { CaptureResult } from "./bindings/CaptureResult";
+import type { CapturedLayout } from "./bindings/CapturedLayout";
 import type { Confidence } from "./bindings/Confidence";
 import type { FileDiff } from "./bindings/FileDiff";
 import type { MissingKey } from "./bindings/MissingKey";
@@ -82,6 +84,8 @@ export type {
   ConfigInspection,
   AppliedAdapterInfo,
   BackupInfo,
+  CaptureResult,
+  CapturedLayout,
   Confidence,
   FileDiff,
   MissingKey,
@@ -227,6 +231,19 @@ export const rememberWindow = (args: {
   means: RectMeans;
   exeName: string | null;
 }) => invoke<Profile>("remember_window", args);
+
+/**
+ * Copy a running game's screen setup onto its profile.
+ *
+ * For rigs that are already set up — with SRWE, Resize Raccoon or by hand.
+ * Reads the window's rectangle, whether it is frameless and always-on-top, and
+ * the executable it belongs to; saves all of it and switches automatic
+ * placement on, because the rectangle is working on screen at that moment.
+ *
+ * Pass `hwnd` only to answer a `choose` result.
+ */
+export const captureWindow = (id: string, hwnd?: string) =>
+  invoke<CaptureResult>("capture_window", { id, hwnd: hwnd ?? null });
 
 /** Turn automatic window placement on or off for one profile. */
 export const setAutoApply = (id: string, enabled: boolean) =>

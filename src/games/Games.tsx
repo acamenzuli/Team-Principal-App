@@ -3,8 +3,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Section } from "../dashboard/primitives";
 import {
   asIpcError,
+  captureWindow,
   gameLibrary,
   setAutoApply,
+  type CaptureResult,
+  type OpenWindow,
   type ProfileCard,
 } from "../ipc";
 import { Preflight } from "./Preflight";
@@ -31,6 +34,8 @@ export function Games() {
   const [error, setError] = useState<string | null>(null);
   const [racing, setRacing] = useState<ProfileCard | null>(null);
   const [editing, setEditing] = useState<ProfileCard | null>(null);
+  const [captured, setCaptured] = useState<CaptureResult | null>(null);
+  const [capturingFor, setCapturingFor] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -58,6 +63,27 @@ export function Games() {
   );
 
   const installed = sorted.filter((c) => c.installed).length;
+
+  /**
+   * Copy a running game's screen setup.
+   *
+   * The rig is very likely already set up — with SRWE, Resize Raccoon or by
+   * hand — and that setup took real effort. Reading the window beats asking
+   * somebody to describe, in numbers, something they can already see.
+   */
+  async function copyLayout(card: ProfileCard, hwnd?: string) {
+    setCapturingFor(card.profile.id);
+    try {
+      const result = await captureWindow(card.profile.id, hwnd);
+      setCaptured(result);
+      if (result.kind === "captured") await load();
+      setError(null);
+    } catch (e) {
+      setError(asIpcError(e).message);
+    } finally {
+      setCapturingFor(null);
+    }
+  }
 
   async function toggleAuto(card: ProfileCard, enabled: boolean) {
     try {
@@ -92,6 +118,8 @@ export function Games() {
               onRace={() => setRacing(card)}
               onEdit={() => setEditing(card)}
               onToggleAuto={(v) => void toggleAuto(card, v)}
+              onCopyLayout={() => void copyLayout(card)}
+              capturing={capturingFor === card.profile.id}
             />
           ))}
         </div>
@@ -102,6 +130,17 @@ export function Games() {
           </button>
         </div>
       </Section>
+
+      {captured && (
+        <CaptureOutcome
+          result={captured}
+          onChoose={(hwnd) => {
+            const card = sorted.find((c) => c.profile.id === capturingFor);
+            if (card) void copyLayout(card, hwnd);
+          }}
+          onClose={() => setCaptured(null)}
+        />
+      )}
 
       {editing && (
         <ProfileEditor
@@ -133,11 +172,15 @@ function GameCard({
   onRace,
   onEdit,
   onToggleAuto,
+  onCopyLayout,
+  capturing,
 }: {
   card: ProfileCard;
   onRace: () => void;
   onEdit: () => void;
   onToggleAuto: (enabled: boolean) => void;
+  onCopyLayout: () => void;
+  capturing: boolean;
 }) {
   const { profile, installed, art, installPath, platform } = card;
   const saved = profile.windowPlan.rect.kind === "explicit";
@@ -186,7 +229,7 @@ function GameCard({
           <span>
             {saved
               ? "Place the window automatically"
-              : "Place the window once on the Windows tab, then this switch turns on"}
+              : "Run the game how you like it, press Copy current layout, and this switches itself on"}
           </span>
         </label>
 
@@ -194,12 +237,126 @@ function GameCard({
           <button className="btn" disabled={!installed} onClick={onRace}>
             Let's race
           </button>
+          {/* For a rig that is already set up. Reading the window beats asking
+              somebody to type out numbers they can already see on screen. */}
+          <button
+            className="btn btn--quiet"
+            disabled={capturing}
+            title="Run the game in the layout you want, then press this"
+            onClick={onCopyLayout}
+          >
+            {capturing ? "Reading…" : "Copy current layout"}
+          </button>
           <button className="btn btn--quiet" onClick={onEdit}>
-            Edit profile
+            Edit
           </button>
         </div>
       </div>
     </article>
+  );
+}
+
+/**
+ * What copying the layout produced.
+ *
+ * Four outcomes, and each says something different. Reporting "could not find
+ * the game" as a generic failure would send somebody looking for a bug in the
+ * app when the answer is that the game is not running.
+ */
+function CaptureOutcome({
+  result,
+  onChoose,
+  onClose,
+}: {
+  result: CaptureResult;
+  onChoose: (hwnd: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="cap">
+      <div className="cap__panel glass">
+        {result.kind === "captured" && (
+          <>
+            <h3 className="cap__title">Copied</h3>
+            <p>
+              <strong className="num">
+                {result.layout.rect.width} × {result.layout.rect.height}
+              </strong>{" "}
+              at <span className="num">{result.layout.rect.x},{result.layout.rect.y}</span>,{" "}
+              {result.layout.borderless ? "borderless" : "with its frame"}
+              {result.layout.alwaysOnTop && ", always on top"}.
+            </p>
+            {result.layout.covers.length > 0 && (
+              <p className="note">
+                {result.layout.coversExactly
+                  ? `Covers ${result.layout.covers.join(", ")} exactly.`
+                  : `Overlaps ${result.layout.covers.join(", ")}, but does not line up with them — it will still be saved and replayed as it is.`}
+              </p>
+            )}
+            {result.layout.exeName && (
+              <p className="note">
+                Learned that it runs as <span className="num">{result.layout.exeName}</span>, which
+                is what lets a launch find this window at all — a Steam or Epic profile has no way
+                to know that on its own.
+              </p>
+            )}
+            <p className="note">
+              Automatic placement is now on for this game. Every launch puts the window back here.
+            </p>
+          </>
+        )}
+
+        {result.kind === "choose" && (
+          <>
+            <h3 className="cap__title">Which one is the game?</h3>
+            <p className="note">
+              More than one window could be it. Picking wrong would save the wrong geometry onto
+              this profile, so this asks rather than guesses.
+            </p>
+            <ul className="cap__list">
+              {result.windows.map((w: OpenWindow) => (
+                <li key={w.candidate.hwnd}>
+                  <button className="cap__pick" onClick={() => onChoose(String(w.candidate.hwnd))}>
+                    <span>{w.candidate.title || "(untitled)"}</span>
+                    <span className="num">
+                      {w.candidate.exeName ?? "unknown"} · {w.candidate.rect.width}×
+                      {w.candidate.rect.height}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {result.kind === "not_running" && (
+          <>
+            <h3 className="cap__title">Not running</h3>
+            <p>
+              This profile expects <span className="num">{result.exe}</span>, and nothing by that
+              name is running. Start the game, get it looking how you want, then press Copy current
+              layout again.
+            </p>
+          </>
+        )}
+
+        {result.kind === "nothing_found" && (
+          <>
+            <h3 className="cap__title">No game window found</h3>
+            <p>
+              Nothing open looks like a game window. Start the game first — a splash screen is
+              deliberately ignored, so wait until you are actually on track.
+            </p>
+          </>
+        )}
+
+        <div className="cap__actions">
+          <button className="btn" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

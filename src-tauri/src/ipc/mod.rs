@@ -772,6 +772,117 @@ pub fn remember_window(
     crate::profiles::save(&profile)
 }
 
+/// Copy a running game's screen setup onto its profile.
+///
+/// The point of this is that a great many rigs are *already* set up — with
+/// SRWE, Resize Raccoon, or by hand — and that setup took real effort. Asking
+/// somebody to describe a window they can already see, in numbers, is asking
+/// them to do the work twice.
+///
+/// So this reads the window: its rectangle, whether it is frameless, whether it
+/// is always on top, and — the part that matters most — **the executable it
+/// belongs to**. A Steam or Epic profile names no executable, because a
+/// protocol launch hands off to the launcher and the game arrives as a
+/// grandchild. Learning it here is what lets every future launch find that
+/// window at all.
+///
+/// Automatic placement is switched on by the same call, because the rectangle
+/// being saved is one that is on screen and working at this moment. That is a
+/// stronger warrant than any rectangle the app could compute.
+#[tauri::command]
+pub fn capture_window(
+    providers: State<'_, Providers>,
+    id: Uuid,
+    hwnd: Option<String>,
+) -> AppResult<tp_model::CaptureResult> {
+    let mut profile = crate::profiles::load(id)?;
+    let candidates = crate::window::enumerate_windows();
+    let min = profile.window_plan.target.min_size;
+
+    // An explicit choice from the picker wins over any matching.
+    let chosen = match &hwnd {
+        Some(handle) => {
+            let handle: u64 = handle
+                .parse()
+                .map_err(|_| AppError::Config(format!("{handle:?} is not a window handle")))?;
+            match candidates.iter().find(|c| c.hwnd == handle) {
+                Some(found) => found.clone(),
+                None => {
+                    return Err(AppError::Config(
+                        "that window has closed since the list was drawn".into(),
+                    ))
+                }
+            }
+        }
+        None => {
+            let hint = profile
+                .window_plan
+                .target
+                .exe_name
+                .clone()
+                .or_else(|| tp_model::expected_exe(&profile));
+
+            match tp_model::pick_capture(&candidates, hint.as_deref(), min) {
+                tp_model::CaptureChoice::One(found) => found.clone(),
+                tp_model::CaptureChoice::Several(list) => {
+                    return Ok(tp_model::CaptureResult::Choose {
+                        windows: list
+                            .into_iter()
+                            .map(|c| tp_model::OpenWindow {
+                                plausible: true,
+                                candidate: c.clone(),
+                            })
+                            .collect(),
+                    })
+                }
+                tp_model::CaptureChoice::NotRunning(exe) => {
+                    return Ok(tp_model::CaptureResult::NotRunning { exe })
+                }
+                tp_model::CaptureChoice::Nothing => {
+                    return Ok(tp_model::CaptureResult::NothingFound)
+                }
+            }
+        }
+    };
+
+    let screens: Vec<(String, tp_model::PixelRect)> = providers
+        .display
+        .enumerate()?
+        .into_iter()
+        .map(|m| (m.friendly_name, m.bounds))
+        .collect();
+    let layout = tp_model::capture(&chosen, &screens);
+
+    profile.window_plan.rect = tp_model::RectSource::Explicit { rect: layout.rect };
+    // The captured rectangle is the *outer* window, because that is what an
+    // enumeration reports and what SRWE moved. Recording it as the client area
+    // would be wrong by exactly the frame width.
+    profile.window_plan.rect_means = tp_model::RectMeans::OuterWindow;
+    profile.window_plan.borderless = layout.borderless;
+    profile.window_plan.always_on_top = layout.always_on_top;
+    if layout.exe_name.is_some() {
+        profile.window_plan.target.exe_name = layout.exe_name.clone();
+    }
+    if !layout.class_name.is_empty() {
+        profile.window_plan.target.window_class = Some(layout.class_name.clone());
+    }
+    // On, because this rectangle is working on screen right now. Nothing the
+    // app could compute has that warrant.
+    profile.window_plan.auto_apply = true;
+
+    let profile = crate::profiles::save(&profile)?;
+    tracing::info!(
+        game = %profile.name,
+        rect = ?layout.rect,
+        exe = ?layout.exe_name,
+        "copied a running game's screen setup"
+    );
+    Ok(tp_model::CaptureResult::Captured {
+        layout,
+        profile: Box::new(profile),
+    })
+}
+
 /// Turn automatic placement on or off for a profile.
 ///
 /// Kept as its own command rather than a whole-profile save, so the toggle
