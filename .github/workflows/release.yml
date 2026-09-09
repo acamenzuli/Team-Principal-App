@@ -1,0 +1,73 @@
+name: Release
+
+# Tag a version and this builds, signs and publishes it. Nothing else does —
+# a release that can happen by accident is one that happens at the wrong time.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # The public half of the updater keypair. Compiled into the binary, and
+      # what every future update is checked against — so a build made without
+      # it can never be updated by one made with it, and vice versa.
+      #
+      # Substituted here rather than committed so that rotating the key is a
+      # secret change rather than a code change.
+      - name: Set the updater public key
+        if: env.TAURI_SIGNING_PUBLIC_KEY != ''
+        env:
+          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+        shell: pwsh
+        run: |
+          $config = Get-Content src-tauri/tauri.conf.json -Raw
+          $config = $config -replace '"pubkey": "UNCONFIGURED"', ('"pubkey": "' + $env:TAURI_SIGNING_PUBLIC_KEY + '"')
+          Set-Content src-tauri/tauri.conf.json $config
+
+      # Refuse to publish an unsigned release rather than publish one nobody
+      # can verify. A customer who installs an unsigned build can never be
+      # updated to a signed one — the key is compiled in — so this failing
+      # loudly now is far cheaper than discovering it later.
+      - name: Refuse to release without a signing key
+        if: env.TAURI_SIGNING_PRIVATE_KEY == ''
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          echo "::error::No TAURI_SIGNING_PRIVATE_KEY secret. See docs/RELEASING.md."
+          exit 1
+
+      - name: Build, sign and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Team Principal ${{ github.ref_name }}
+          releaseBody: |
+            Installs over the top and keeps everything: rigs, profiles,
+            peripherals, snapshots and backups all live in
+            `%APPDATA%\Team Principal` and are not touched.
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: true

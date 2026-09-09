@@ -27,6 +27,7 @@ pub mod session;
 pub mod settings;
 pub mod snapshots;
 pub mod startup;
+pub mod updates;
 pub mod window;
 
 /// Which milestone this build represents. Shown in the UI and in diagnostics so
@@ -150,6 +151,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(providers)
         .setup(move |app| {
             use tauri::Manager;
@@ -233,6 +235,8 @@ pub fn run() {
             ipc::ready,
             ipc::startup_state,
             ipc::set_run_at_startup,
+            ipc::check_for_update,
+            ipc::install_update,
             ipc::list_monitors,
             ipc::list_devices,
             ipc::refresh_devices,

@@ -4,6 +4,10 @@
  * ts-rs generates the payload *types* but knows nothing about command names, so
  * a renamed command would otherwise compile cleanly on both sides and fail only
  * when a user clicks the thing. This closes that gap.
+ *
+ * `pub async fn` is matched as well as `pub fn`. It was not, once, and the
+ * first async command added was invisible to this check — a guard with a blind
+ * spot is worse than no guard, because it is trusted.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -18,7 +22,7 @@ function walk(dir) {
 const rustCommands = new Set();
 for (const file of walk("src-tauri/src").filter((f) => f.endsWith(".rs"))) {
   const src = readFileSync(file, "utf8");
-  for (const m of src.matchAll(/#\[tauri::command\]\s*(?:#\[[^\]]*\]\s*)*pub fn (\w+)/g)) {
+  for (const m of src.matchAll(/#\[tauri::command\]\s*(?:#\[[^\]]*\]\s*)*pub (?:async )?fn (\w+)/g)) {
     rustCommands.add(m[1]);
   }
 }

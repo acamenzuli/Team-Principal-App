@@ -2,6 +2,7 @@
 import type { Appearance } from "./Appearance";
 import type { LengthUnit } from "./LengthUnit";
 import type { TeamBranding } from "./TeamBranding";
+import type { UpdatePolicy } from "./UpdatePolicy";
 
 export type Preferences = { schemaVersion: number, 
 /**
@@ -21,6 +22,10 @@ runAtStartup: boolean,
  * Start minimised even when opened by hand.
  */
 startMinimised: boolean, 
+/**
+ * What to do when a new version is available.
+ */
+updates: UpdatePolicy, 
 /**
  * Whether the first-run wizard has been completed.
  *

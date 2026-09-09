@@ -34,6 +34,9 @@ pub struct Preferences {
     /// Start minimised even when opened by hand.
     #[serde(default)]
     pub start_minimised: bool,
+    /// What to do when a new version is available.
+    #[serde(default)]
+    pub updates: UpdatePolicy,
     /// Whether the first-run wizard has been completed.
     ///
     /// `#[serde(default)]` so an existing preferences file loads as
@@ -53,6 +56,7 @@ impl Default for Preferences {
             team: TeamBranding::default(),
             run_at_startup: false,
             start_minimised: false,
+            updates: UpdatePolicy::default(),
             onboarded: false,
         }
     }
@@ -472,4 +476,40 @@ pub struct StartupState {
     /// nothing. Surfaced rather than silently repaired: quietly rewriting a
     /// registry value the user did not ask about is not this app's business.
     pub stale: bool,
+}
+
+// -------------------------------------------------------------------- updates
+
+/// What to do when a new version is available.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum UpdatePolicy {
+    /// Download and install it without asking, then restart.
+    Automatic,
+    /// Say one is available and wait to be told. The default: this app can be
+    /// mid-session with a game running, and an update that restarts the
+    /// launcher without asking would be unforgivable there.
+    #[default]
+    Ask,
+    /// Never check at all.
+    Never,
+}
+
+/// What a check found.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateInfo {
+    pub available: bool,
+    pub current_version: String,
+    /// `None` when nothing newer was found.
+    pub new_version: Option<String>,
+    /// The release notes, as written on the release.
+    pub notes: Option<String>,
+    pub published_at: Option<String>,
+    /// False when this build has no update endpoint configured — a private
+    /// build, or one made before the signing key existed. Reported rather than
+    /// shown as "up to date", which would be a claim nothing checked.
+    pub configured: bool,
 }

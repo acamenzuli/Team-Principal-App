@@ -1330,3 +1330,24 @@ pub fn set_run_at_startup(enabled: bool) -> AppResult<tp_model::StartupState> {
     crate::startup::set(enabled)?;
     Ok(startup_state())
 }
+
+// ------------------------------------------------------------------- updates
+
+/// Ask whether a newer version exists. Downloads nothing.
+///
+/// A build with no signing key configured reports that, rather than checking
+/// nothing and saying "up to date" — which would be a claim nothing made.
+#[tauri::command]
+pub async fn check_for_update(app: tauri::AppHandle) -> AppResult<tp_model::UpdateInfo> {
+    crate::updates::check(&app).await
+}
+
+/// Download, verify, install and restart.
+///
+/// The signature is checked against the public key compiled into this binary
+/// before a byte of the new version runs. Refused outright while a session is
+/// in flight.
+#[tauri::command]
+pub async fn install_update(app: tauri::AppHandle) -> AppResult<()> {
+    crate::updates::install(&app).await
+}

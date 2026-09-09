@@ -65,6 +65,8 @@ import type { RigModel } from "./bindings/RigModel";
 import type { RigSolutionInfo } from "./bindings/RigSolutionInfo";
 import type { RigWarningInfo } from "./bindings/RigWarningInfo";
 import type { StartupState } from "./bindings/StartupState";
+import type { UpdateInfo } from "./bindings/UpdateInfo";
+import type { UpdatePolicy } from "./bindings/UpdatePolicy";
 import type { ScreenRole } from "./bindings/ScreenRole";
 import type { ScreenSolutionInfo } from "./bindings/ScreenSolutionInfo";
 import type { ScreenSpec } from "./bindings/ScreenSpec";
@@ -144,6 +146,8 @@ export type {
   ScreenSpec,
   SessionMode,
   StartupState,
+  UpdateInfo,
+  UpdatePolicy,
 };
 
 export const appInfo = () => invoke<AppInfo>("app_info");
@@ -163,6 +167,24 @@ export const startupState = () => invoke<StartupState>("startup_state");
 
 export const setRunAtStartup = (enabled: boolean) =>
   invoke<StartupState>("set_run_at_startup", { enabled });
+
+// -------------------------------------------------------------------- updates
+
+/**
+ * Ask whether a newer version exists. Downloads nothing.
+ *
+ * A build with no signing key configured says so rather than checking nothing
+ * and reporting "up to date".
+ */
+export const checkForUpdate = () => invoke<UpdateInfo>("check_for_update");
+
+/**
+ * Download, verify, install, restart.
+ *
+ * The signature is checked against the key compiled into the running binary
+ * before any of the new version runs. Refused while a session is in flight.
+ */
+export const installUpdate = () => invoke<void>("install_update");
 
 export const listMonitors = () => invoke<MonitorInfo[]>("list_monitors");
 

@@ -59,7 +59,19 @@
           "English"
         ]
       }
-    }
+    },
+    "createUpdaterArtifacts": true
   },
-  "mainBinaryName": "TeamPrincipal"
+  "mainBinaryName": "TeamPrincipal",
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/acamenzuli/Team-Principal-App/releases/latest/download/latest.json"
+      ],
+      "pubkey": "UNCONFIGURED",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
 }

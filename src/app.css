@@ -149,3 +149,29 @@
 .badge--fail {
   color: var(--fail);
 }
+
+/* A strip, not a dialog. Nobody opened this app to read about a new version of
+   it, and a modal would stand between them and the button they came for. */
+.app__update {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3) var(--s5);
+  background: var(--accent-wash);
+  border-bottom: 1px solid var(--accent-edge);
+  font-size: var(--size-sm);
+  color: var(--ink-dim);
+  flex: 0 0 auto;
+}
+
+.app__update > span:first-child {
+  color: var(--accent);
+}
+
+.app__update > span:nth-child(2) {
+  flex: 1;
+}
+
+.app__update strong {
+  color: var(--ink);
+}

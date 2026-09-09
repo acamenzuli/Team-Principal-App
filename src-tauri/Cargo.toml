@@ -31,6 +31,14 @@ tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "time"] }
 tracing-appender = "0.2"
 zip = { version = "5.0.1", default-features = false, features = ["deflate"] }
+# native-tls rather than the default rustls: on Windows that is SChannel, the
+# operating system's own TLS. It uses the Windows trust store — so a corporate
+# root, or one Windows Update has revoked, is honoured without this app keeping
+# its own opinion about certificate authorities. It also keeps `ring` out of the
+# tree, which needs a C compiler and breaks the Linux cross-check CI runs.
+tauri-plugin-updater = { version = "2.11.0", default-features = false, features = [
+    "native-tls",
+] }
 
 # Win32. Only compiled on Windows; every call site is behind a provider trait
 # so the rest of the app is testable without it.

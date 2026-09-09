@@ -14,11 +14,14 @@ import { WindowControl } from "./windowctl/WindowControl";
 import {
   appInfo,
   asIpcError,
+  checkForUpdate,
   getPreferences,
+  installUpdate,
   ready,
   savePreferences,
   type AppInfo,
   type Preferences,
+  type UpdateInfo,
 } from "./ipc";
 import "./app.css";
 
@@ -30,6 +33,7 @@ export function App() {
   const [prefsProblem, setPrefsProblem] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>("home");
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
 
   useEffect(() => {
     // Both before the window is shown, so the first frame is the themed app
@@ -47,6 +51,31 @@ export function App() {
       // error is invisible and the app looks hung.
       .finally(() => void ready());
   }, []);
+
+  /**
+   * Check on every start, unless told not to.
+   *
+   * After `ready`, never before: a check that blocked the window appearing
+   * would turn a slow network into an app that looks hung. And the result only
+   * ever becomes a banner — an update that installed itself while somebody was
+   * walking to their rig is the behaviour this deliberately does not have.
+   */
+  useEffect(() => {
+    if (!prefs || prefs.updates === "never") return;
+    let live = true;
+    checkForUpdate()
+      .then((found) => {
+        if (!live || !found.available) return;
+        setUpdate(found);
+        if (prefs.updates === "automatic") void installUpdate().catch(() => {});
+      })
+      // Offline is the normal case for a rig in a garage, and it is not worth
+      // an error on the one screen somebody opened to go racing.
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [prefs]);
 
   // Every settings change writes through to disk and re-themes immediately, so
   // the control and its effect are never out of step and there is no Save
@@ -72,6 +101,24 @@ export function App() {
           unit={prefs.units}
           onDone={() => void updatePrefs({ ...prefs, onboarded: true })}
         />
+      )}
+
+      {/* A strip rather than a dialog. Nobody opened this app to read about a
+          new version of it, and a modal would stand between them and the
+          button they came for. */}
+      {update?.available && (
+        <div className="app__update">
+          <span aria-hidden="true">●</span>
+          <span>
+            Version <strong className="num">{update.newVersion}</strong> is available.
+          </span>
+          <button className="btn btn--tiny" onClick={() => void installUpdate()}>
+            Install and restart
+          </button>
+          <button className="btn btn--tiny btn--quiet" onClick={() => setUpdate(null)}>
+            Later
+          </button>
+        </div>
       )}
 
       <main className="app__body">
@@ -153,6 +200,24 @@ export function App() {
           unit={prefs.units}
           onDone={() => void updatePrefs({ ...prefs, onboarded: true })}
         />
+      )}
+
+      {/* A strip rather than a dialog. Nobody opened this app to read about a
+          new version of it, and a modal would stand between them and the
+          button they came for. */}
+      {update?.available && (
+        <div className="app__update">
+          <span aria-hidden="true">●</span>
+          <span>
+            Version <strong className="num">{update.newVersion}</strong> is available.
+          </span>
+          <button className="btn btn--tiny" onClick={() => void installUpdate()}>
+            Install and restart
+          </button>
+          <button className="btn btn--tiny btn--quiet" onClick={() => setUpdate(null)}>
+            Later
+          </button>
+        </div>
       )}
 
       <main className="app__body">

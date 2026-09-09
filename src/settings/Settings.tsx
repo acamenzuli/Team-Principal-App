@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import {
   accentPresets as fetchAccentPresets,
   asIpcError,
+  checkForUpdate,
   createDiagnostics,
+  installUpdate,
   licenceState as fetchLicenceState,
   revealFile,
   setRunAtStartup,
@@ -14,6 +16,8 @@ import {
   type LicenceState,
   type Preferences,
   type StartupState,
+  type UpdateInfo,
+  type UpdatePolicy,
 } from "../ipc";
 import "./settings.css";
 
@@ -203,6 +207,8 @@ export function Settings({
 
       <Startup prefs={prefs} onChange={update} />
 
+      <Updates prefs={prefs} onChange={update} />
+
       <Group title="First-time setup" note={prefs.onboarded ? "done" : "not finished"}>
         <p className="note">
           The guided walk-through: what was detected, and the one measurement nothing on this
@@ -228,6 +234,83 @@ export function Settings({
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Updates.
+ *
+ * Ask is the default rather than Automatic, and deliberately. This app can be
+ * mid-session with a game running and utilities started, and an update that
+ * restarts the launcher without being asked would tear that down. Automatic is
+ * there because plenty of people would rather never think about it — but it is
+ * a choice somebody makes, not one made for them.
+ */
+function Updates({
+  prefs,
+  onChange,
+}: {
+  prefs: Preferences;
+  onChange: (next: Preferences) => Promise<void>;
+}) {
+  const [found, setFound] = useState<UpdateInfo | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  async function check() {
+    setBusy(true);
+    try {
+      setFound(await checkForUpdate());
+      setProblem(null);
+    } catch (e) {
+      setProblem(asIpcError(e).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Group title="Updates" note={`v${found?.currentVersion ?? ""}`}>
+      <Row label="When a new version is available">
+        <Segmented<UpdatePolicy>
+          value={prefs.updates}
+          options={[
+            ["ask", "Tell me", "install it when you say so"],
+            ["automatic", "Install it", "and restart, unless a race is running"],
+            ["never", "Do nothing", "no checking at all"],
+          ]}
+          onChange={(updates) => void onChange({ ...prefs, updates })}
+        />
+      </Row>
+
+      <div className="settings__actions">
+        <button className="btn btn--quiet" disabled={busy} onClick={() => void check()}>
+          {busy ? "Checking…" : "Check now"}
+        </button>
+        {found?.available && (
+          <button className="btn" disabled={busy} onClick={() => void installUpdate()}>
+            Install {found.newVersion} and restart
+          </button>
+        )}
+      </div>
+
+      {found && !found.configured && (
+        <p className="note note--fail">
+          This build has no update signing key, so it cannot check. That is a property of how it
+          was built rather than something to fix here — see docs/RELEASING.md.
+        </p>
+      )}
+      {found?.configured && !found.available && (
+        <p className="note">Up to date.</p>
+      )}
+      {found?.notes && <p className="note">{found.notes}</p>}
+
+      {problem && (
+        <p className="settings__error">
+          <span aria-hidden="true">■</span> {problem}
+        </p>
+      )}
+    </Group>
   );
 }
 
