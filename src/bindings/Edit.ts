@@ -3,7 +3,15 @@
 /**
  * One setting an adapter wants to write, and why.
  */
-export type Edit = { section: string, key: string, value: string, 
+export type Edit = { 
+/**
+ * INI section. Empty for XML, where the element name is the whole address.
+ */
+section: string, key: string, 
+/**
+ * XML attribute, when the value is an attribute rather than element text.
+ */
+attribute: string | null, value: string, 
 /**
  * The reason, in the user's terms: "your centre screen is 597 mm of
  * visible glass". Shown beside the change in the diff.

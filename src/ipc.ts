@@ -14,6 +14,7 @@ import type { AccentPreset } from "./bindings/AccentPreset";
 import type { AppInfo } from "./bindings/AppInfo";
 import type { AdapterInfo } from "./bindings/AdapterInfo";
 import type { AdapterPreview } from "./bindings/AdapterPreview";
+import type { ConfigInspection } from "./bindings/ConfigInspection";
 import type { AppliedAdapterInfo } from "./bindings/AppliedAdapterInfo";
 import type { AvailableModes } from "./bindings/AvailableModes";
 import type { BackupInfo } from "./bindings/BackupInfo";
@@ -78,6 +79,7 @@ export type {
   AdapterInfo,
   AdapterPreview,
   AppInfo,
+  ConfigInspection,
   AppliedAdapterInfo,
   BackupInfo,
   Confidence,
@@ -310,6 +312,16 @@ export const previewAdapter = (args: {
   rig: RigModel;
   session: SessionMode;
 }) => invoke<AdapterPreview>("preview_adapter", args);
+
+/**
+ * What a title's config files actually contain — names only, never values.
+ *
+ * How a recognised-but-unconfirmed title becomes a real adapter: read the
+ * structure here, send it in, and it becomes a catalog entry backed by a real
+ * file rather than a forum post.
+ */
+export const inspectAdapter = (adapterId: string) =>
+  invoke<ConfigInspection[]>("inspect_adapter", { adapterId });
 
 /** Back up, then write. Resolves to the backup id, so this write alone can be undone. */
 export const applyAdapter = (args: { adapterId: string; rig: RigModel; session: SessionMode }) =>

@@ -4,6 +4,7 @@ import { Section } from "../dashboard/primitives";
 import {
   applyAdapter,
   asIpcError,
+  inspectAdapter,
   currentRig,
   listAdapters,
   listBackups,
@@ -12,6 +13,7 @@ import {
   type AdapterInfo,
   type AdapterPreview,
   type BackupInfo,
+  type ConfigInspection,
   type FileDiff,
   type RigModel,
   type SessionMode,
@@ -46,6 +48,7 @@ export function Adapters() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [applied, setApplied] = useState<string | null>(null);
+  const [inspection, setInspection] = useState<ConfigInspection[] | null>(null);
 
   const loadBackups = useCallback(async () => {
     try {
@@ -70,6 +73,7 @@ export function Adapters() {
     if (!chosen || !rig) return;
     let live = true;
     setPreview(null);
+    setInspection(null);
     previewAdapter({ adapterId: chosen, rig, session })
       .then((p) => live && setPreview(p))
       .catch((e) => live && setError(asIpcError(e).message));
@@ -131,7 +135,7 @@ export function Adapters() {
               <button className="ad__pick" onClick={() => setChosen(chosen === a.id ? null : a.id)}>
                 <span className="ad__title">
                   {a.title}
-                  <ConfidenceBadge confidence={a.confidence} />
+                  <ConfidenceBadge adapter={a} />
                 </span>
                 <span className="ad__scope">{a.scope}</span>
               </button>
@@ -165,10 +169,31 @@ export function Adapters() {
               )}
 
               <div className="ad__actions">
-                <button className="btn" disabled={!willChange || busy} onClick={() => void write()}>
-                  {busy ? "Writing…" : willChange ? "Back up and write" : "Nothing to change"}
-                </button>
+                {/* A title nobody has confirmed gets Inspect instead of Write.
+                    The point of the button is to turn it into one that can. */}
+                {adapters.find((a) => a.id === chosen)?.writesSettings ? (
+                  <button
+                    className="btn"
+                    disabled={!willChange || busy}
+                    onClick={() => void write()}
+                  >
+                    {busy ? "Writing…" : willChange ? "Back up and write" : "Nothing to change"}
+                  </button>
+                ) : (
+                  <button
+                    className="btn"
+                    onClick={() =>
+                      void inspectAdapter(chosen)
+                        .then(setInspection)
+                        .catch((e) => setError(asIpcError(e).message))
+                    }
+                  >
+                    Inspect this game's config
+                  </button>
+                )}
               </div>
+
+              {inspection && <Inspection found={inspection} />}
             </>
           )}
         </Section>
@@ -264,6 +289,44 @@ function FileBlock({ diff }: { diff: FileDiff }) {
   );
 }
 
+/**
+ * What a game's config file actually contains.
+ *
+ * Names only — no values. This is the thing to copy and send: it is what turns
+ * a recognised title into a written one, and it contains nothing about the
+ * user's own settings, so there is nothing to weigh up before sharing it.
+ */
+function Inspection({ found }: { found: ConfigInspection[] }) {
+  const text = found
+    .map((f) =>
+      f.exists
+        ? [
+            f.path,
+            ...f.groups.map((g) => (g.name ? `[${g.name}]\n  ${g.keys.join("\n  ")}` : g.keys.join("\n  "))),
+          ].join("\n")
+        : `${f.path}\n  (not there — run the game once so it writes its settings)`,
+    )
+    .join("\n\n");
+
+  return (
+    <div className="ad__inspection">
+      <p className="note">
+        Every setting name in this game's config, and no values. Send this and the game becomes a
+        real adapter — no guessing at key names from forum posts.
+      </p>
+      <textarea className="ad__dump num" readOnly rows={14} value={text} />
+      <div className="ad__actions">
+        <button
+          className="btn btn--quiet"
+          onClick={() => void navigator.clipboard?.writeText(text)}
+        >
+          Copy
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Which screens a title uses. The adapter's numbers differ completely. */
 const SESSIONS: [SessionMode, string][] = [
   [{ kind: "full_span", fit: "letterbox" }, "All screens"],
@@ -275,8 +338,17 @@ const SESSIONS: [SessionMode, string][] = [
  *
  * Never colour alone: word plus glyph, like every other status in this app.
  */
-function ConfidenceBadge({ confidence }: { confidence: AdapterInfo["confidence"] }) {
-  return confidence === "verified" ? (
+function ConfidenceBadge({ adapter }: { adapter: AdapterInfo }) {
+  // Three states, not two. "Recognised but unconfirmed" is the honest middle
+  // one, and it is where most of the catalog starts.
+  if (!adapter.writesSettings) {
+    return (
+      <span className="tag" title="Recognised, but nobody has confirmed what its settings are called">
+        ○ NEEDS A FILE
+      </span>
+    );
+  }
+  return adapter.confidence === "verified" ? (
     <span className="tag" title="Key names read from a real file of that game, or its own docs">
       ● VERIFIED
     </span>

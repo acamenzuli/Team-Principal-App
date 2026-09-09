@@ -1,0 +1,230 @@
+[
+  {
+    "id": "iracing",
+    "title": "iRacing",
+    "aliases": ["iracing", "iracingsimulator", "iracingcom"],
+    "confidence": "verified",
+    "scope": "Writes the triple-screen geometry in renderer.ini — how many screens, their physical widths in millimetres, and the side angle. Leaves every graphics quality setting alone.",
+    "source": "Key names and units read from a real renderer.ini carrying the game's own inline comments. See docs/adapters/iracing.md.",
+    "files": [
+      {
+        "pathTemplate": "{documents}\\iRacing\\renderer.ini",
+        "format": "ini",
+        "writes": [
+          {
+            "section": "MonitorSetup",
+            "key": "NumMonitors",
+            "attribute": null,
+            "value": { "kind": "screen_count" },
+            "because": "{} screens in this session"
+          },
+          {
+            "section": "MonitorSetup",
+            "key": "ScreenWidth",
+            "attribute": null,
+            "value": { "kind": "screen_width", "unit": "mm", "decimals": 0 },
+            "because": "{} mm of visible glass on your centre screen"
+          },
+          {
+            "section": "MonitorSetup",
+            "key": "MonitorWidth",
+            "attribute": null,
+            "value": { "kind": "monitor_width", "unit": "mm", "decimals": 0 },
+            "because": "{} mm including the bezels and any mounting gap"
+          },
+          {
+            "section": "MonitorSetup",
+            "key": "ScreenAngles",
+            "attribute": null,
+            "value": { "kind": "side_angle", "decimals": 0 },
+            "because": "your side screens are turned in {}°",
+            "tripleOnly": true
+          },
+          {
+            "section": "MonitorSetup",
+            "key": "RenderViewPerMonitor",
+            "attribute": null,
+            "value": { "kind": "literal", "value": "1" },
+            "because": "a separate view per screen is what makes the side screens correct rather than stretched",
+            "tripleOnly": true
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assetto_corsa",
+    "title": "Assetto Corsa",
+    "aliases": ["assettocorsa"],
+    "confidence": "corroborated",
+    "scope": "Writes the render resolution and windowed mode. Its triple-screen geometry lives in an in-game app rather than this file, and is not written.",
+    "source": "[VIDEO] WIDTH, HEIGHT and FULLSCREEN corroborated across several independent sources; not yet read from a shipped file. See docs/adapters/assetto-corsa.md.",
+    "notes": ["Assetto Corsa's triple-screen geometry lives in its in-game app, not in this file, and Team Principal does not write it. Your rig's numbers are on the Screen Setup tab to copy across."],
+    "files": [
+      {
+        "pathTemplate": "{documents}\\Assetto Corsa\\cfg\\video.ini",
+        "format": "ini",
+        "writes": [
+          {
+            "section": "VIDEO",
+            "key": "WIDTH",
+            "attribute": null,
+            "value": { "kind": "pixel_width" },
+            "because": "{} px across this session's screens"
+          },
+          {
+            "section": "VIDEO",
+            "key": "HEIGHT",
+            "attribute": null,
+            "value": { "kind": "pixel_height" },
+            "because": "{} px tall"
+          },
+          {
+            "section": "VIDEO",
+            "key": "FULLSCREEN",
+            "attribute": null,
+            "value": { "kind": "literal", "value": "0" },
+            "because": "borderless windowed, so the window can be placed and alt-tab stays instant"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "rfactor2",
+    "title": "rFactor 2",
+    "aliases": ["rfactor2", "rfactor"],
+    "confidence": "corroborated",
+    "scope": "Writes the triple-screen view parameters — screen size, eye distance, side angle and bezel gap, all in metres — into Config_DX11.ini.",
+    "source": "ViewParams / LeftView / RightView tuple shape and units corroborated across independent triple-screen guides; not read from a shipped file. See docs/adapters/rfactor2.md.",
+    "notes": ["Its ViewParams take physical metres and degrees — the same measurements your rig model already holds. One confirmed Config_DX11.ini turns this into a full adapter."],
+    "files": [
+      {
+        "pathTemplate": "{documents}\\..\\rFactor2\\UserData\\Config_DX11.ini",
+        "format": "ini",
+        "writes": []
+      }
+    ]
+  },
+  {
+    "id": "le_mans_ultimate",
+    "title": "Le Mans Ultimate",
+    "aliases": ["lemansultimate", "lmu"],
+    "confidence": "corroborated",
+    "scope": "Same engine and same Config_DX11.ini as rFactor 2. The triple-screen values are physical metres and degrees, which is exactly the rig model.",
+    "source": "Corroborated as sharing rFactor 2's config layout; not read from a shipped file. See docs/adapters/rfactor2.md.",
+    "notes": ["Its ViewParams take physical metres and degrees — the same measurements your rig model already holds. One confirmed Config_DX11.ini turns this into a full adapter."],
+    "files": [
+      {
+        "pathTemplate": "{documents}\\..\\Le Mans Ultimate\\UserData\\Config_DX11.ini",
+        "format": "ini",
+        "writes": []
+      }
+    ]
+  },
+  {
+    "id": "automobilista2",
+    "title": "Automobilista 2",
+    "aliases": ["automobilista2", "ams2"],
+    "confidence": "corroborated",
+    "scope": "Its triple-screen geometry lives in triplescreensettings.xml. The element names have not been confirmed against a real file, so nothing is written yet.",
+    "source": "File location corroborated across independent sources; element names unconfirmed. See docs/adapters/madness-engine.md.",
+    "files": [
+      {
+        "pathTemplate": "{documents}\\Automobilista 2\\triplescreensettings.xml",
+        "format": "xml",
+        "writes": []
+      }
+    ]
+  },
+  {
+    "id": "raceroom",
+    "title": "RaceRoom Racing Experience",
+    "aliases": ["raceroomracingexperience", "raceroom", "rrre"],
+    "confidence": "corroborated",
+    "scope": "Resolution lives in graphics_options.xml as typed elements. Element names corroborated but not confirmed against a real file.",
+    "source": "screenWidth / screenHeight and the path corroborated; not read from a shipped file. See docs/adapters/raceroom.md.",
+    "files": [
+      {
+        "pathTemplate": "{documents}\\My Games\\SimBin\\RaceRoom Racing Experience\\UserData\\graphics_options.xml",
+        "format": "xml",
+        "writes": []
+      }
+    ]
+  },
+  {
+    "id": "dirt_rally_2",
+    "title": "DiRT Rally 2.0",
+    "aliases": ["dirtrally20", "dirtrally2"],
+    "confidence": "corroborated",
+    "scope": "Graphics and hardware settings live in hardware_settings_config.xml. Not written until the element layout is confirmed.",
+    "source": "Path corroborated across independent sources; element layout unconfirmed. See docs/adapters/codemasters.md.",
+    "files": [
+      {
+        "pathTemplate": "{documents}\\My Games\\DiRT Rally 2.0\\hardwaresettings\\hardware_settings_config.xml",
+        "format": "xml",
+        "writes": []
+      }
+    ]
+  },
+  {
+    "id": "acc",
+    "title": "Assetto Corsa Competizione",
+    "aliases": ["assettocorsacompetizione", "acc"],
+    "confidence": "corroborated",
+    "scope": "An Unreal Engine title. Resolution lives in GameUserSettings.ini, but Unreal keeps LastUserConfirmed copies and reverts to them under conditions this project has not established, so nothing is written.",
+    "source": "Standard Unreal keys, corroborated. The revert behaviour is the unresolved part. See docs/adapters/unreal.md.",
+    "files": [
+      {
+        "pathTemplate": "{localappdata}\\AC2\\Saved\\Config\\WindowsNoEditor\\GameUserSettings.ini",
+        "format": "ini",
+        "writes": []
+      }
+    ]
+  },
+  {
+    "id": "ac_evo",
+    "title": "Assetto Corsa EVO",
+    "aliases": ["assettocorsaevo", "acevo"],
+    "confidence": "corroborated",
+    "scope": "An Unreal Engine 5 title in early access. Its config layout is still moving between builds, so the app will show you the file and not write to it.",
+    "source": "Unreal convention only. Nothing confirmed against a shipped file. See docs/adapters/unreal.md.",
+    "files": [
+      {
+        "pathTemplate": "{localappdata}\\AC\\Saved\\Config\\Windows\\GameUserSettings.ini",
+        "format": "ini",
+        "writes": []
+      }
+    ]
+  },
+  {
+    "id": "ac_rally",
+    "title": "Assetto Corsa Rally",
+    "aliases": ["assettocorsarally", "acrally"],
+    "confidence": "corroborated",
+    "scope": "Early access, config layout unconfirmed. Listed so it gets a profile, a preflight and window placement like anything else — only the settings writing waits.",
+    "source": "Nothing confirmed. See docs/adapters/unreal.md.",
+    "files": [
+      {
+        "pathTemplate": "{localappdata}\\ACRally\\Saved\\Config\\Windows\\GameUserSettings.ini",
+        "format": "ini",
+        "writes": []
+      }
+    ]
+  },
+  {
+    "id": "beamng",
+    "title": "BeamNG.drive",
+    "aliases": ["beamngdrive", "beamng"],
+    "confidence": "corroborated",
+    "scope": "Keeps its settings as JSON, which this build cannot edit safely yet. Profile, preflight and window placement all work; settings writing does not.",
+    "source": "Path convention only. JSON support is not built. See docs/adapters/README.md.",
+    "files": [
+      {
+        "pathTemplate": "{localappdata}\\BeamNG.drive\\settings\\game-settings.ini",
+        "format": "ini",
+        "writes": []
+      }
+    ]
+  }
+]

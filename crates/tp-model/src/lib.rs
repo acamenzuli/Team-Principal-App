@@ -12,6 +12,7 @@
 pub mod adapter;
 pub mod axes;
 pub mod catalog;
+pub mod catalog_games;
 pub mod detect;
 pub mod device;
 pub mod dinput;
@@ -29,14 +30,17 @@ pub mod topology;
 pub mod units;
 pub mod vdf;
 pub mod window;
+pub mod xml;
 
 pub use adapter::{
     apply as apply_edits, catalog as adapter_catalog, diff as diff_edits,
-    for_game as adapter_for_game, plan as adapter_plan, AdapterInfo, AdapterPlan, AdapterPreview,
-    AppliedAdapterInfo, BackupInfo, Confidence, Edit, FileDiff, FileEdits, MissingKey, ValueChange,
+    for_game as adapter_for_game, inspect as inspect_config, plan as adapter_plan, AdapterInfo,
+    AdapterPlan, AdapterPreview, AppliedAdapterInfo, BackupInfo, Confidence, ConfigGroup,
+    ConfigInspection, Edit, FileDiff, FileEdits, MissingKey, ValueChange,
 };
 pub use axes::{axis_name, is_axis, normalise, normalise_unipolar};
 pub use catalog::{Catalog, CatalogEntry, DeviceKind};
+pub use catalog_games::{ConfigFormat, Derived, GameEntry, Unit};
 pub use detect::rig_from_monitors;
 pub use device::*;
 pub use dinput::{format_guid, vid_pid_from_product_guid};
@@ -60,3 +64,4 @@ pub use window::{
     borderless_ex_style, borderless_style, client_from_outer, has_drifted, is_borderless,
     outer_from_client, pick_target, title_matches, FrameInsets, WindowCandidate, WindowMatch,
 };
+pub use xml::{Xml, XmlError};

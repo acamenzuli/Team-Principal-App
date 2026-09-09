@@ -1030,6 +1030,17 @@ pub fn preview_adapter(
     })
 }
 
+/// What a title's config files actually contain.
+///
+/// For the games the catalog recognises but nobody has confirmed the layout
+/// of. Names only, never values: what is needed to write an adapter is what the
+/// settings are *called*, and a listing with no numbers in it is one a user can
+/// read and send without having to judge what is in it.
+#[tauri::command]
+pub fn inspect_adapter(adapter_id: String) -> Vec<tp_model::ConfigInspection> {
+    crate::adapters::inspect(&adapter_id)
+}
+
 /// Back up, then write.
 ///
 /// Returns the backup id, so the UI can offer to undo exactly this change

@@ -210,6 +210,7 @@ pub fn run() {
             ipc::restore_snapshot,
             ipc::list_adapters,
             ipc::preview_adapter,
+            ipc::inspect_adapter,
             ipc::apply_adapter,
             ipc::list_backups,
             ipc::restore_backup,

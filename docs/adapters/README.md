@@ -20,8 +20,40 @@ because these two claims are not the same and must not look the same:
 | `Verified` | Key names read from a real file of that game, or from the developer's own documentation. |
 | `Corroborated` | Agreed across independent second-hand sources. Not seen in a shipped file. |
 
-There is deliberately no third level below these. A key name nobody can
-corroborate does not get written at all.
+Orthogonal to both, and shown in the UI as its own badge: **whether the entry
+writes anything at all.** An entry with no `writes` is a *recognised title with
+an unconfirmed layout* — the app knows the game, finds its config, and will show
+you what is in it without touching it.
+
+That is the honest middle state between "supported" and "never heard of it", and
+it is where most of the catalog starts. It is also what makes covering a dozen
+sims possible without guessing at any of them: a title is listed the moment its
+config file is located, and starts writing the moment one real file confirms
+what its settings are called.
+
+## Turning a listed title into a writing one
+
+The **Inspect** button on the Game Settings tab reads the game's config on the
+user's own machine and reports its structure — section and key names for INI,
+element names for XML, **and no values at all**. What an adapter needs is what
+the settings are *called*; the numbers are the user's own business, and a
+listing with nothing personal in it is one they can read and send without having
+to weigh anything up.
+
+One of those turns a forum-post guess into a fact. That is the whole loop, and
+it is why this scales.
+
+## The catalog is data
+
+Entries live in `crates/tp-model/data/adapters.json` and are embedded at build
+time. Adding a title is a JSON entry: where the file is, what format it is, and
+which of the rig's derived values go under which keys.
+
+The vocabulary of derived values — screen width, monitor width, eye distance,
+bezel gap, side angle, pixel dimensions, screen count, in millimetres,
+centimetres or metres — is shared across every entry, so the arithmetic lives in
+one place and a correction to how a measurement is derived fixes every title at
+once.
 
 ## The runtime check that makes this safe
 
@@ -46,8 +78,8 @@ skipped and reported, never one that is silently wrong.
    corroborated third-party source.
 2. Write `docs/adapters/<title>.md` from the template below, with URLs and
    dates.
-3. Add the plan function in `crates/tp-model/src/adapter.rs`, with a test that
-   asserts the values it derives from a known rig.
+3. Add the entry to `crates/tp-model/data/adapters.json`. Only reach for Rust if
+   the game needs a *derived value* the vocabulary does not yet have.
 4. Every `Edit` carries a `because`. A number in a diff with no reason is a
    number nobody can check against their own tape measure.
 5. Whatever the adapter cannot express goes in `warnings`, in the user's words.

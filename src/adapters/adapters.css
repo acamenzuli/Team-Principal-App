@@ -136,3 +136,22 @@
   background: var(--accent-wash);
   color: var(--accent-ink);
 }
+
+.ad__inspection {
+  margin-top: var(--s4);
+}
+
+/* Read-only and selectable: the whole point is copying it out. */
+.ad__dump {
+  width: 100%;
+  margin-top: var(--s3);
+  padding: var(--s3);
+  background: var(--data-bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  color: var(--ink-dim);
+  font-family: var(--font-num);
+  font-size: var(--size-sm);
+  line-height: 1.5;
+  resize: vertical;
+}

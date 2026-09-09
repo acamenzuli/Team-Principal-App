@@ -9,4 +9,11 @@ scope: string, confidence: Confidence,
 /**
  * Where the key names came from, so the claim can be checked.
  */
-source: string, };
+source: string, 
+/**
+ * False when the title is recognised but nobody has confirmed what its
+ * settings are called. The app will show you the file and refuse to write
+ * to it — the honest middle state between "supported" and "never heard of
+ * it", and where most of the catalog starts.
+ */
+writesSettings: boolean, };

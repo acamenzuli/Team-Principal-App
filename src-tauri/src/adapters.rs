@@ -59,6 +59,45 @@ fn local_app_data() -> AppResult<PathBuf> {
         .map_err(|_| AppError::Config("LOCALAPPDATA is not set".into()))
 }
 
+/// What a title's config files actually contain, for one nobody has confirmed.
+///
+/// The way a recognised-but-unwritten title becomes a real adapter: the app
+/// reads the structure on this machine, the user sends it in, and it becomes a
+/// catalog entry backed by a real file. Names only, never values.
+pub fn inspect(adapter_id: &str) -> Vec<tp_model::ConfigInspection> {
+    let Some(entry) = tp_model::catalog_games::shipped()
+        .into_iter()
+        .find(|e| e.id == adapter_id)
+    else {
+        return Vec::new();
+    };
+
+    entry
+        .files
+        .iter()
+        .map(|file| {
+            let Ok(path) = resolve(&file.path_template) else {
+                return empty_inspection(&file.path_template, file.format);
+            };
+            match std::fs::read_to_string(&path) {
+                Ok(text) => {
+                    tp_model::inspect_config(&path.display().to_string(), &text, file.format)
+                }
+                Err(_) => empty_inspection(&path.display().to_string(), file.format),
+            }
+        })
+        .collect()
+}
+
+fn empty_inspection(path: &str, format: tp_model::ConfigFormat) -> tp_model::ConfigInspection {
+    tp_model::ConfigInspection {
+        path: path.to_string(),
+        exists: false,
+        format,
+        groups: Vec::new(),
+    }
+}
+
 /// What applying this plan would do to the files on this machine.
 ///
 /// Reads only. This is the diff the user sees before anything is written, and
@@ -73,7 +112,12 @@ pub fn preview(plan: &AdapterPlan) -> Vec<FileDiff> {
                 return missing_file(&file.path_template);
             };
             match std::fs::read_to_string(&path) {
-                Ok(text) => tp_model::diff_edits(&path.display().to_string(), &text, &file.edits),
+                Ok(text) => tp_model::diff_edits(
+                    &path.display().to_string(),
+                    &text,
+                    file.format,
+                    &file.edits,
+                ),
                 // Almost always "the game has not been run yet", which is worth
                 // saying rather than reporting as a failure.
                 Err(_) => missing_file(&path.display().to_string()),
@@ -101,6 +145,19 @@ fn missing_file(path: &str) -> FileDiff {
 /// game's own config, and inventing that file would be inventing every setting
 /// in it.
 pub fn apply(plan: &AdapterPlan) -> AppResult<AppliedAdapter> {
+    // A catalog entry with no writes is a title whose settings nobody has
+    // confirmed. Refusing here as well as omitting the edits means a future
+    // caller cannot accidentally turn "we do not know" into "write nothing,
+    // successfully".
+    if plan.files.iter().all(|f| f.edits.is_empty()) {
+        return Err(AppError::Config(
+            "Nobody has confirmed what this game's settings are called, so \
+             Team Principal will not write to its config. Use Inspect to send \
+             its file layout in."
+                .into(),
+        ));
+    }
+
     let mut targets = Vec::new();
     for file in &plan.files {
         let path = resolve(&file.path_template)?;
@@ -127,7 +184,7 @@ pub fn apply(plan: &AdapterPlan) -> AppResult<AppliedAdapter> {
     for (path, file) in targets {
         let text = std::fs::read_to_string(&path)
             .map_err(|e| AppError::Io(format!("could not read {}: {e}", path.display())))?;
-        let updated = tp_model::apply_edits(&text, &file.edits);
+        let updated = tp_model::apply_edits(&text, file.format, &file.edits);
 
         // Write-then-rename in the same directory, so a crash mid-write cannot
         // leave the game with a truncated config.
