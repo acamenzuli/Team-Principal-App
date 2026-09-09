@@ -1,0 +1,169 @@
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+}
+
+/* The one thing on this page that is a decision rather than a report. */
+.home__hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s6);
+  flex-wrap: wrap;
+  padding: var(--s6);
+  border-radius: var(--radius);
+  border: 1px solid var(--rule);
+  background:
+    radial-gradient(60ch 30ch at 8% -30%, var(--accent-glow), transparent 62%),
+    var(--ground-raised);
+}
+
+.home__lede {
+  min-width: 0;
+}
+
+.home__title {
+  margin: 0;
+  font-size: var(--size-display);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.home__sub {
+  margin: var(--s3) 0 0;
+  color: var(--ink-dim);
+  font-size: var(--size-row);
+}
+
+.home__sub strong {
+  color: var(--ink);
+}
+
+.home__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: var(--s4);
+}
+
+/* A panel is a button. Every one of them goes somewhere — a tile reporting a
+   number nobody can act on is decoration. */
+.hp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s5);
+  text-align: left;
+  background: var(--data-bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.hp:hover {
+  border-color: var(--accent-edge);
+  background: var(--ground-raised);
+}
+
+.hp__title {
+  font-size: var(--size-sm);
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+
+.hp__value {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  font-size: var(--size-display);
+  line-height: 1;
+}
+
+.hp__unit {
+  font-size: var(--size-sm);
+  font-family: var(--font-ui);
+  color: var(--ink-faint);
+  letter-spacing: 0;
+}
+
+.hp__note {
+  font-size: var(--size-sm);
+  color: var(--ink-dim);
+}
+
+.home__block {
+  padding: var(--s5);
+  background: var(--ground-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+
+.home__heading {
+  margin: 0 0 var(--s4);
+  font-size: var(--size-row);
+  font-weight: 600;
+}
+
+.home__games {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4);
+  margin: 0;
+  padding: 0;
+}
+
+.home__games li {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-size: var(--size-sm);
+  color: var(--ink-dim);
+}
+
+.home__games img,
+.home__mono {
+  width: 32px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--ground-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: var(--ink-faint);
+  flex: none;
+}
+
+.home__problems {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.home__problems li {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3) 0;
+  font-size: var(--size-base);
+  color: var(--ink-dim);
+}
+
+.home__problems li + li {
+  border-top: 1px solid var(--rule);
+}
+
+.home__problems li > span:first-child {
+  color: var(--warn);
+  flex: none;
+}
+
+.home__problems li > span:nth-child(2) {
+  flex: 1;
+}

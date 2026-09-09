@@ -64,6 +64,7 @@ import type { Preferences } from "./bindings/Preferences";
 import type { RigModel } from "./bindings/RigModel";
 import type { RigSolutionInfo } from "./bindings/RigSolutionInfo";
 import type { RigWarningInfo } from "./bindings/RigWarningInfo";
+import type { StartupState } from "./bindings/StartupState";
 import type { ScreenRole } from "./bindings/ScreenRole";
 import type { ScreenSolutionInfo } from "./bindings/ScreenSolutionInfo";
 import type { ScreenSpec } from "./bindings/ScreenSpec";
@@ -142,9 +143,26 @@ export type {
   ScreenSolutionInfo,
   ScreenSpec,
   SessionMode,
+  StartupState,
 };
 
 export const appInfo = () => invoke<AppInfo>("app_info");
+
+/**
+ * The frontend has something to show: close the splash and reveal the window.
+ *
+ * Called once, from the first render backed by real data. The main window
+ * starts hidden precisely so this decides when it appears — showing it earlier
+ * means a white rectangle the size of the window, which is exactly what the
+ * splash exists to prevent.
+ */
+export const ready = () => invoke<void>("ready");
+
+/** Read from the registry, not remembered — Windows disables these itself. */
+export const startupState = () => invoke<StartupState>("startup_state");
+
+export const setRunAtStartup = (enabled: boolean) =>
+  invoke<StartupState>("set_run_at_startup", { enabled });
 
 export const listMonitors = () => invoke<MonitorInfo[]>("list_monitors");
 
@@ -162,8 +180,6 @@ export const refreshDevices = () => invoke<void>("refresh_devices");
  * never reaches the UI.
  */
 // --------------------------------------------------------- window control
-
-export const discoverGames = () => invoke<InstalledGameInfo[]>("discover_games");
 
 // ---------------------------------------------------------------- preflight
 
@@ -206,8 +222,6 @@ export const skipStep = (id: number) => invoke<void>("skip_step", { id });
 export const launchGame = (force: boolean) => invoke<void>("launch_game", { force });
 
 // ----------------------------------------------------------------- profiles
-
-export const listProfiles = () => invoke<Profile[]>("list_profiles");
 
 /**
  * The Games tab: every profile, with what is true of it on this machine now.
@@ -253,12 +267,16 @@ export const saveProfile = (profile: Profile) => invoke<Profile>("save_profile",
 
 export const deleteProfile = (id: string) => invoke<void>("delete_profile", { id });
 
-/** A profile for a game that has none yet, saved and returned. */
-export const createProfile = (args: {
-  name: string;
-  launchUri: string;
-  installPath: string | null;
-}) => invoke<Profile>("create_profile", args);
+/**
+ * Add a game the launchers do not know about.
+ *
+ * Steam and Epic are found automatically; everything else is not — iRacing has
+ * its own updater, and a title bought direct has no manifest anywhere. Naming
+ * the executable up front also gives the launcher something to watch for and
+ * the window matcher something to find.
+ */
+export const addGame = (name: string, exePath: string) =>
+  invoke<Profile>("add_game", { name, exePath });
 
 /**
  * Step status changes.
@@ -427,10 +445,7 @@ export const revealFile = (path: string) => invoke<void>("reveal_file", { path }
  */
 export const licenceState = () => invoke<LicenceState>("licence_state");
 
-export const activateLicence = (key: string) =>
-  invoke<LicenceState>("activate_licence", { key });
 
-export const deactivateLicence = () => invoke<LicenceState>("deactivate_licence");
 
 // ------------------------------------------------------------------- the rig
 

@@ -234,3 +234,35 @@
 .fitnote strong {
   color: var(--ink);
 }
+
+.setup__rigs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-bottom: var(--s3);
+}
+
+.setup__rig {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s3) var(--s4);
+  text-align: left;
+  background: var(--data-bg);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.setup__rig--on {
+  border-color: var(--accent-edge);
+  background: var(--accent-wash);
+  color: var(--accent-ink);
+}
+
+.setup__rig .num {
+  font-size: var(--size-sm);
+  color: var(--ink-faint);
+}

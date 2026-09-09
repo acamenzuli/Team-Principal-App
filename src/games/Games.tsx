@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Section } from "../dashboard/primitives";
 import {
+  addGame,
   asIpcError,
   captureWindow,
   gameLibrary,
@@ -36,6 +37,7 @@ export function Games() {
   const [editing, setEditing] = useState<ProfileCard | null>(null);
   const [captured, setCaptured] = useState<CaptureResult | null>(null);
   const [capturingFor, setCapturingFor] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -128,8 +130,23 @@ export function Games() {
           <button className="btn btn--quiet" onClick={() => void load()}>
             Scan again
           </button>
+          {/* Steam and Epic are found; everything else is not. Plenty of sims
+              install outside both, and without this they are simply absent. */}
+          <button className="btn btn--quiet" onClick={() => setAdding(true)}>
+            Add a game by hand
+          </button>
         </div>
       </Section>
+
+      {adding && (
+        <AddGame
+          onAdded={() => {
+            setAdding(false);
+            void load();
+          }}
+          onClose={() => setAdding(false)}
+        />
+      )}
 
       {captured && (
         <CaptureOutcome
@@ -253,6 +270,79 @@ function GameCard({
         </div>
       </div>
     </article>
+  );
+}
+
+/**
+ * Adding a game the launchers do not know about.
+ *
+ * Two fields, because two is all it needs: a name, and the executable. The
+ * executable is the valuable half — naming it up front gives the launcher
+ * something to watch for and the window matcher something to find, which is
+ * exactly what a Steam profile lacks until somebody copies a layout.
+ */
+function AddGame({ onAdded, onClose }: { onAdded: () => void; onClose: () => void }) {
+  const [name, setName] = useState("");
+  const [path, setPath] = useState("");
+  const [problem, setProblem] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function add() {
+    setBusy(true);
+    try {
+      await addGame(name, path);
+      onAdded();
+    } catch (e) {
+      setProblem(asIpcError(e).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="cap">
+      <div className="cap__panel glass">
+        <h3 className="cap__title">Add a game</h3>
+        <p className="note">
+          For anything Steam and Epic do not list — iRacing, a title bought direct, an older sim
+          with its own installer.
+        </p>
+
+        <div className="field">
+          <label className="field__label">Name</label>
+          <input
+            className="text-input"
+            value={name}
+            placeholder="rFactor 2"
+            onChange={(e) => setName(e.target.value)}
+          />
+        </div>
+
+        <div className="field">
+          <label className="field__label">Program</label>
+          <input
+            className="text-input num"
+            value={path}
+            placeholder="C:\\Games\\rFactor2\\Bin64\\rFactor2.exe"
+            onChange={(e) => setPath(e.target.value)}
+          />
+          <span className="hint">
+            The game's own .exe, not its launcher — that is the window this app will place.
+          </span>
+        </div>
+
+        {problem && <p className="warn warn--hard">{problem}</p>}
+
+        <div className="cap__actions">
+          <button className="btn btn--quiet" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn" disabled={busy || !name.trim() || !path.trim()} onClick={() => void add()}>
+            {busy ? "Adding…" : "Add"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -24,6 +24,7 @@ pub mod rig;
 pub mod session;
 pub mod settings;
 pub mod snapshots;
+pub mod startup;
 pub mod window;
 
 /// Which milestone this build represents. Shown in the UI and in diagnostics so
@@ -68,6 +69,12 @@ pub fn now_iso8601() -> String {
         .unwrap_or_else(|_| "1970-01-01T00:00:00Z".into())
 }
 
+/// How this instance was started. Read by `ready`, which decides whether the
+/// main window is shown or comes up minimised.
+pub struct Startup {
+    pub minimised: bool,
+}
+
 /// Command-line options. Deliberately tiny.
 #[derive(Debug, Clone, Default)]
 pub struct Cli {
@@ -79,6 +86,9 @@ pub struct Cli {
     /// integration test can interrogate the *real* executable, which is the
     /// only binary the manifest is embedded into.
     pub check_dpi: bool,
+    /// `--minimised`: come up out of the way. What the Windows startup entry
+    /// passes, so a boot start does not take the screen.
+    pub minimised: bool,
 }
 
 impl Cli {
@@ -94,6 +104,9 @@ impl Cli {
                 }
                 "--simulate" => cli.simulate = true,
                 "--check-dpi" => cli.check_dpi = true,
+                // Both spellings: the registry entry writes one and people
+                // typing it by hand will use the other.
+                "--minimised" | "--minimized" => cli.minimised = true,
                 _ => {}
             }
             i += 1;
@@ -105,6 +118,7 @@ impl Cli {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let cli = Cli::from_env();
+    let start_minimised = cli.minimised;
 
     // Answered before anything else starts, so the check costs nothing and
     // cannot be perturbed by logging or provider setup.
@@ -170,16 +184,21 @@ pub fn run() {
                 }
             });
             app.manage(hotkey);
+            app.manage(Startup {
+                minimised: start_minimised,
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             ipc::app_info,
+            ipc::ready,
+            ipc::startup_state,
+            ipc::set_run_at_startup,
             ipc::list_monitors,
             ipc::list_devices,
             ipc::refresh_devices,
             ipc::start_input_monitor,
             ipc::stop_input_monitor,
-            ipc::discover_games,
             ipc::start_preflight,
             ipc::cancel_preflight,
             ipc::pending_session,
@@ -188,10 +207,9 @@ pub fn run() {
             ipc::retry_step,
             ipc::skip_step,
             ipc::launch_game,
-            ipc::list_profiles,
             ipc::save_profile,
             ipc::delete_profile,
-            ipc::create_profile,
+            ipc::add_game,
             ipc::game_library,
             ipc::remember_window,
             ipc::capture_window,
@@ -221,8 +239,6 @@ pub fn run() {
             ipc::create_diagnostics,
             ipc::reveal_file,
             ipc::licence_state,
-            ipc::activate_licence,
-            ipc::deactivate_licence,
             ipc::list_rigs,
             ipc::current_rig,
             ipc::save_rig,

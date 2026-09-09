@@ -4,7 +4,9 @@ import { Section } from "../dashboard/primitives";
 import {
   asIpcError,
   currentRig,
+  deleteRig,
   detectRig,
+  listRigs,
   fitRig,
   saveRig,
   solveRig,
@@ -35,6 +37,7 @@ const FULL_SPAN: SessionMode = { kind: "full_span", fit: "letterbox" };
  */
 export function ScreenSetup({ unit }: { unit: LengthUnit }) {
   const [rig, setRig] = useState<RigModel | null>(null);
+  const [rigs, setRigs] = useState<RigModel[]>([]);
   const [solution, setSolution] = useState<RigSolutionInfo | null>(null);
   const [fit, setFit] = useState<BestFitInfo | null>(null);
   const [session, setSession] = useState<SessionMode>(FULL_SPAN);
@@ -45,6 +48,12 @@ export function ScreenSetup({ unit }: { unit: LengthUnit }) {
     currentRig()
       .then(setRig)
       .catch((e) => setError(asIpcError(e).message));
+    // Every saved rig, so the switcher can offer them. A failure here is not
+    // worth an error: one rig is the normal case and the switcher simply does
+    // not appear.
+    listRigs()
+      .then(setRigs)
+      .catch(() => setRigs([]));
   }, []);
 
   // Re-solve on every edit. The solver is pure and microseconds fast, so there
@@ -105,6 +114,44 @@ export function ScreenSetup({ unit }: { unit: LengthUnit }) {
   return (
     <div className="setup">
       <div className="setup__form">
+        {/* More than one rig is a real case — a wheel stand for the desk and a
+            proper cockpit, or a triple you sometimes run as a single. The
+            storage has always kept them; this is the switch. */}
+        {rigs.length > 1 && (
+          <Section title="Rig" note={`${rigs.length} saved`}>
+            <div className="setup__rigs">
+              {rigs.map((r) => (
+                <button
+                  key={r.id}
+                  className={`setup__rig${r.id === rig.id ? " setup__rig--on" : ""}`}
+                  onClick={() => setRig(r)}
+                >
+                  <span>{r.name}</span>
+                  <span className="num">
+                    {r.screens.length} {r.screens.length === 1 ? "screen" : "screens"}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {rigs.length > 1 && (
+              <button
+                className="btn btn--quiet"
+                onClick={() =>
+                  void deleteRig(rig.id)
+                    .then(() => listRigs())
+                    .then((all) => {
+                      setRigs(all);
+                      if (all[0]) setRig(all[0]);
+                    })
+                    .catch((e) => setError(asIpcError(e).message))
+                }
+              >
+                Delete “{rig.name}”
+              </button>
+            )}
+          </Section>
+        )}
+
         <Section
           title="Where you sit"
           note="Measured from your normal driving position, hands on the wheel."

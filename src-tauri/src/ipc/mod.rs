@@ -452,29 +452,6 @@ pub fn stop_watching_window(state: State<'_, crate::window::watchdog::ActiveWatc
 
 // ------------------------------------------------------------- game discovery
 
-/// Every game the launchers say is installed.
-///
-/// Read from Steam's own library index and Epic's manifests, so nobody has to
-/// type an install path. A manifest can outlive the files it describes, so a
-/// game whose folder is gone is not listed — a launch that fails for no visible
-/// reason is worse than an absent row.
-#[tauri::command]
-pub fn discover_games() -> Vec<tp_model::InstalledGameInfo> {
-    crate::launcher::discover()
-        .into_iter()
-        .map(|g| tp_model::InstalledGameInfo {
-            has_adapter: tp_model::adapter_for_game(&g.name).is_some(),
-            name: g.name,
-            install_path: g.install_path.display().to_string(),
-            launcher: match &g.source {
-                crate::launcher::GameSource::Steam { .. } => "steam".into(),
-                crate::launcher::GameSource::Epic { .. } => "epic".into(),
-            },
-            launch_uri: crate::launcher::launch_uri(&g.source),
-        })
-        .collect()
-}
-
 // ------------------------------------------------------------- launch runs
 
 /// Start a preflight run for a saved profile.
@@ -593,11 +570,6 @@ pub fn launch_game(
 // ----------------------------------------------------------------- profiles
 
 #[tauri::command]
-pub fn list_profiles() -> Vec<tp_model::Profile> {
-    crate::profiles::list()
-}
-
-#[tauri::command]
 pub fn save_profile(profile: tp_model::Profile) -> AppResult<tp_model::Profile> {
     crate::profiles::save(&profile)
 }
@@ -607,33 +579,49 @@ pub fn delete_profile(id: Uuid) -> AppResult<()> {
     crate::profiles::delete(id)
 }
 
-/// A profile for a game that has none yet, saved and returned.
+/// Add a game the launchers do not know about.
 ///
-/// Deliberately empty of utilities and peripherals rather than guessing at
-/// them: a preflight that checks things nobody asked for is one people learn to
-/// ignore.
+/// Steam and Epic are found automatically; everything else is not. Plenty of
+/// sims install outside both — iRacing has its own updater, rFactor 2 predates
+/// half of this, and a title bought direct has no manifest anywhere. Without
+/// this they are simply absent, which is the kind of gap that makes people
+/// stop using an app rather than report it.
+///
+/// The adapter is matched by name, so a hand-added Assetto Corsa still gets its
+/// settings written.
 #[tauri::command]
-pub fn create_profile(
-    name: String,
-    launch_uri: String,
-    install_path: Option<String>,
-) -> AppResult<tp_model::Profile> {
-    let launch = if launch_uri.is_empty() {
+pub fn add_game(name: String, exe_path: String) -> AppResult<tp_model::Profile> {
+    let exe = std::path::Path::new(&exe_path);
+    if !exe.is_file() {
+        return Err(AppError::Config(format!(
+            "{exe_path} is not a file. Point this at the game's own .exe."
+        )));
+    }
+    let name = name.trim();
+    if name.is_empty() {
+        return Err(AppError::Config("Give it a name.".into()));
+    }
+
+    let mut profile = crate::profiles::starter(
+        name,
         tp_model::LaunchMethod::Executable {
-            path: install_path.clone().unwrap_or_default(),
+            path: exe_path.clone(),
             args: Vec::new(),
             working_dir: None,
-        }
-    } else {
-        tp_model::LaunchMethod::Uri { uri: launch_uri }
-    };
-    crate::profiles::save(&crate::profiles::starter(
-        &name,
-        launch,
-        install_path,
+        },
+        exe.parent().map(|p| p.display().to_string()),
         tp_model::Platform::Other,
         None,
-    ))
+    );
+    // Knowing the executable up front is what lets the launcher watch for the
+    // game to appear and to exit, and what lets the window matcher find it.
+    // A hand-added game is the one case where this is free.
+    profile.window_plan.target.exe_name =
+        exe.file_name().and_then(|n| n.to_str()).map(str::to_string);
+    if let Some(adapter) = tp_model::adapter_for_game(name) {
+        profile.game.adapter_id = adapter.id;
+    }
+    crate::profiles::save(&profile)
 }
 
 /// Every profile, with what is true of it on this machine right now.
@@ -1238,22 +1226,6 @@ pub fn licence_state() -> tp_model::LicenceState {
     crate::licence::provider().state()
 }
 
-/// Redeem a key. The key itself never comes back out.
-#[tauri::command]
-pub fn activate_licence(key: String) -> AppResult<tp_model::LicenceState> {
-    crate::licence::provider()
-        .activate(&key)
-        .map_err(AppError::Config)
-}
-
-/// Release this machine's seat.
-#[tauri::command]
-pub fn deactivate_licence() -> AppResult<tp_model::LicenceState> {
-    crate::licence::provider()
-        .deactivate()
-        .map_err(AppError::Config)
-}
-
 // ------------------------------------------------------------------ recovery
 
 /// The session that did not finish, if there is one.
@@ -1299,4 +1271,62 @@ pub fn recover_session() -> AppResult<Vec<String>> {
 #[tauri::command]
 pub fn dismiss_pending_session() {
     crate::session::clear();
+}
+
+// ------------------------------------------------------------------- startup
+
+/// The frontend has something to show. Close the splash and reveal the app.
+///
+/// Called once, from the first render that has real data behind it. The main
+/// window starts hidden precisely so this can decide *when* it appears —
+/// showing it earlier means a white rectangle the size of the window, which is
+/// the thing a splash screen exists to prevent.
+///
+/// Minimised when the machine started the app rather than the user, or when
+/// they have asked for it always. Minimised rather than hidden: there is no
+/// tray icon, and an app with no way back is not a feature.
+#[tauri::command]
+pub fn ready(app: tauri::AppHandle, startup: State<'_, crate::Startup>) {
+    use tauri::Manager;
+
+    let minimised = startup.minimised || crate::settings::load().0.start_minimised;
+
+    if let Some(main) = app.get_webview_window("main") {
+        if minimised {
+            let _ = main.minimize();
+        }
+        // Shown either way. A minimised window still has to exist on the
+        // taskbar, or there is no way back to it.
+        let _ = main.show();
+        if !minimised {
+            let _ = main.set_focus();
+        }
+    }
+
+    // Last, so the splash never disappears before the app is up — a gap of
+    // empty desktop reads as a crash.
+    if let Some(splash) = app.get_webview_window("splash") {
+        let _ = splash.close();
+    }
+}
+
+/// Whether the app is registered to start with Windows, read from the registry.
+///
+/// Read back rather than remembered: Windows disables startup entries through
+/// Task Manager and through its own heuristics without telling the app, and a
+/// switch showing On over an entry Windows turned off is a lie the user finds
+/// out about on the morning it matters.
+#[tauri::command]
+pub fn startup_state() -> tp_model::StartupState {
+    tp_model::StartupState {
+        enabled: crate::startup::is_enabled(),
+        stale: crate::startup::is_stale(),
+    }
+}
+
+/// Register or unregister the app to start with Windows.
+#[tauri::command]
+pub fn set_run_at_startup(enabled: bool) -> AppResult<tp_model::StartupState> {
+    crate::startup::set(enabled)?;
+    Ok(startup_state())
 }

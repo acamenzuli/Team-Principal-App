@@ -387,3 +387,11 @@
 .card__actions {
   flex-wrap: wrap;
 }
+
+.cap__panel .field {
+  margin-top: var(--s4);
+}
+
+.cap__actions {
+  gap: var(--s2);
+}

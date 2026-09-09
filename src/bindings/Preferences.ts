@@ -10,6 +10,18 @@ export type Preferences = { schemaVersion: number,
  */
 units: LengthUnit, appearance: Appearance, team: TeamBranding, 
 /**
+ * Start with Windows, minimised.
+ *
+ * Separate from `start_minimised` on purpose: most people want the app
+ * there when they sit down without it taking the screen, and want it
+ * front and centre when they open it themselves.
+ */
+runAtStartup: boolean, 
+/**
+ * Start minimised even when opened by hand.
+ */
+startMinimised: boolean, 
+/**
  * Whether the first-run wizard has been completed.
  *
  * `#[serde(default)]` so an existing preferences file loads as

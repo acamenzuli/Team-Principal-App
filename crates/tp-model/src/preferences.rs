@@ -24,6 +24,16 @@ pub struct Preferences {
     pub units: LengthUnit,
     pub appearance: Appearance,
     pub team: TeamBranding,
+    /// Start with Windows, minimised.
+    ///
+    /// Separate from `start_minimised` on purpose: most people want the app
+    /// there when they sit down without it taking the screen, and want it
+    /// front and centre when they open it themselves.
+    #[serde(default)]
+    pub run_at_startup: bool,
+    /// Start minimised even when opened by hand.
+    #[serde(default)]
+    pub start_minimised: bool,
     /// Whether the first-run wizard has been completed.
     ///
     /// `#[serde(default)]` so an existing preferences file loads as
@@ -41,6 +51,8 @@ impl Default for Preferences {
             units: LengthUnit::Mm,
             appearance: Appearance::default(),
             team: TeamBranding::default(),
+            run_at_startup: false,
+            start_minimised: false,
             onboarded: false,
         }
     }
@@ -447,4 +459,17 @@ impl Default for LicenceState {
             message: None,
         }
     }
+}
+
+/// Whether the app starts with Windows, as the registry actually reports it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct StartupState {
+    pub enabled: bool,
+    /// The registered command no longer points at this executable — the app has
+    /// been moved or reinstalled elsewhere, leaving an entry that launches
+    /// nothing. Surfaced rather than silently repaired: quietly rewriting a
+    /// registry value the user did not ask about is not this app's business.
+    pub stale: bool,
 }

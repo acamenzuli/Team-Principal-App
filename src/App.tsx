@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Adapters } from "./adapters/Adapters";
 import { Dashboard } from "./dashboard/Dashboard";
+import { Home } from "./home/Home";
 import { applyTheme } from "./design/theme";
 import { Peripherals } from "./devices/Peripherals";
 import { Games } from "./games/Games";
@@ -14,33 +15,37 @@ import {
   appInfo,
   asIpcError,
   getPreferences,
+  ready,
   savePreferences,
   type AppInfo,
   type Preferences,
 } from "./ipc";
 import "./app.css";
 
-type View = "rig" | "screen" | "devices" | "games" | "adapters" | "windows" | "settings";
+type View = "home" | "rig" | "screen" | "devices" | "games" | "adapters" | "windows" | "settings";
 
 export function App() {
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [prefs, setPrefs] = useState<Preferences | null>(null);
   const [prefsProblem, setPrefsProblem] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<View>("rig");
+  const [view, setView] = useState<View>("home");
 
   useEffect(() => {
-    appInfo()
-      .then(setInfo)
-      .catch((e) => setError(asIpcError(e).message));
-
-    getPreferences()
-      .then((loaded) => {
+    // Both before the window is shown, so the first frame is the themed app
+    // rather than a flash of default colours. The splash is covering this.
+    Promise.all([appInfo(), getPreferences()])
+      .then(([app, loaded]) => {
+        setInfo(app);
         setPrefs(loaded.preferences);
         setPrefsProblem(loaded.problem);
         applyTheme(loaded.preferences, loaded.accentForeground);
       })
-      .catch((e) => setError(asIpcError(e).message));
+      .catch((e) => setError(asIpcError(e).message))
+      // Whatever happened, show the window. A splash that never goes away
+      // because something failed to load is the worst outcome available: the
+      // error is invisible and the app looks hung.
+      .finally(() => void ready());
   }, []);
 
   // Every settings change writes through to disk and re-themes immediately, so
@@ -94,6 +99,9 @@ export function App() {
         </div>
 
         <nav className="tabs" aria-label="Sections">
+          <Tab id="home" current={view} onSelect={setView}>
+            Home
+          </Tab>
           <Tab id="rig" current={view} onSelect={setView}>
             Displays
           </Tab>
@@ -153,6 +161,7 @@ export function App() {
             <span aria-hidden="true">▲</span> {prefsProblem}
           </p>
         )}
+        {view === "home" && <Home onGo={setView} />}
         {view === "rig" && <Dashboard />}
         {view === "devices" && <Peripherals />}
         {view === "games" && <Games />}

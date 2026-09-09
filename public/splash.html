@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Team Principal</title>
+    <style>
+      /* Deliberately self-contained: no imports, no fonts to fetch, no
+         JavaScript. A splash screen that waits for a stylesheet is a blank
+         rectangle for the moment it exists to cover. */
+      :root {
+        color-scheme: dark;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #0b0d0f;
+        color: #e8eaed;
+        font: 14px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+        user-select: none;
+        cursor: default;
+      }
+      .splash {
+        position: relative;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        padding: 30px;
+        box-sizing: border-box;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      /* One light source, off the top-left, in the accent. The same gesture the
+         app's own background makes, so the splash reads as the first frame of
+         the app rather than a different product. */
+      .splash::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(60ch 40ch at 10% -10%, rgba(255, 107, 53, 0.22), transparent 60%),
+          linear-gradient(160deg, #12161a, #0b0d0f);
+      }
+      .content {
+        position: relative;
+      }
+      .mark {
+        width: 34px;
+        height: 34px;
+        border-radius: 5px;
+        background: linear-gradient(135deg, #ff6b35, #7a2f13);
+        box-shadow: 0 0 28px rgba(255, 107, 53, 0.35);
+      }
+      h1 {
+        margin: 18px 0 2px;
+        font-size: 26px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      p {
+        margin: 0;
+        color: #9aa3ab;
+        font-size: 13px;
+      }
+      /* An indeterminate sweep, because the app genuinely does not know how long
+         enumeration will take — a fake percentage would be inventing a number,
+         which is the one thing this project does not do. */
+      .bar {
+        position: relative;
+        margin-top: 22px;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      .bar::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        width: 38%;
+        background: linear-gradient(90deg, transparent, #ff6b35, transparent);
+        animation: sweep 1.25s ease-in-out infinite;
+      }
+      @keyframes sweep {
+        from {
+          transform: translateX(-100%);
+        }
+        to {
+          transform: translateX(360%);
+        }
+      }
+      /* Someone who has asked their machine to stop animating things has asked
+         this too. */
+      @media (prefers-reduced-motion: reduce) {
+        .bar::after {
+          animation: none;
+          width: 100%;
+          opacity: 0.5;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="splash">
+      <div class="content">
+        <div class="mark"></div>
+        <h1>Team Principal</h1>
+        <p>Reading your rig&hellip;</p>
+        <div class="bar"></div>
+      </div>
+    </div>
+  </body>
+</html>

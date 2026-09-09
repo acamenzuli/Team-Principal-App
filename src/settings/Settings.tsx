@@ -6,11 +6,14 @@ import {
   createDiagnostics,
   licenceState as fetchLicenceState,
   revealFile,
+  setRunAtStartup,
+  startupState as fetchStartupState,
   type AccentPreset,
   type GlassLevel,
   type LengthUnit,
   type LicenceState,
   type Preferences,
+  type StartupState,
 } from "../ipc";
 import "./settings.css";
 
@@ -198,6 +201,8 @@ export function Settings({
         </Row>
       </Group>
 
+      <Startup prefs={prefs} onChange={update} />
+
       <Group title="First-time setup" note={prefs.onboarded ? "done" : "not finished"}>
         <p className="note">
           The guided walk-through: what was detected, and the one measurement nothing on this
@@ -223,6 +228,79 @@ export function Settings({
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Starting with Windows, and starting out of the way.
+ *
+ * Two separate switches because they answer different questions. Most people
+ * want the app there when they sit down without it taking the screen, and want
+ * it front and centre when they open it themselves.
+ *
+ * The startup switch reflects the registry, re-read rather than remembered:
+ * Windows disables startup entries through Task Manager and through its own
+ * heuristics without telling the app, and a switch showing On over an entry
+ * Windows turned off is a lie the user finds out about on the morning it
+ * matters.
+ */
+function Startup({
+  prefs,
+  onChange,
+}: {
+  prefs: Preferences;
+  onChange: (next: Preferences) => Promise<void>;
+}) {
+  const [state, setState] = useState<StartupState | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchStartupState()
+      .then(setState)
+      .catch(() => setState(null));
+  }, []);
+
+  async function toggle(enabled: boolean) {
+    try {
+      setState(await setRunAtStartup(enabled));
+      await onChange({ ...prefs, runAtStartup: enabled });
+      setProblem(null);
+    } catch (e) {
+      setProblem(asIpcError(e).message);
+    }
+  }
+
+  return (
+    <Group title="Starting up">
+      <Row label="With Windows" hint="starts minimised, so it is there without being in the way">
+        <Toggle
+          checked={state?.enabled ?? false}
+          label={state?.enabled ? "On" : "Off"}
+          onChange={(v) => void toggle(v)}
+        />
+      </Row>
+
+      {state?.stale && (
+        <p className="note note--fail">
+          Windows has a startup entry for Team Principal that points somewhere else — the app has
+          been moved or reinstalled since. Turn this off and on again to repair it.
+        </p>
+      )}
+
+      <Row label="Always minimised" hint="even when you open it yourself">
+        <Toggle
+          checked={prefs.startMinimised}
+          label={prefs.startMinimised ? "On" : "Off"}
+          onChange={(v) => void onChange({ ...prefs, startMinimised: v })}
+        />
+      </Row>
+
+      {problem && (
+        <p className="settings__error">
+          <span aria-hidden="true">■</span> {problem}
+        </p>
+      )}
+    </Group>
   );
 }
 

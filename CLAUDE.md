@@ -75,6 +75,10 @@ cargo check --workspace --target x86_64-pc-windows-msvc --all-targets
   so the UI cannot say "Started" when it started nothing.
 - **Win32 results are verified by read-back**, never by return code. UIPI makes
   silent failure the normal case.
+- **No dead IPC surface.** Every `#[tauri::command]` is reachable from the UI.
+  A command with no caller is a claim the app does something it does not, and
+  `scripts/check-ipc.mjs` only checks that both sides agree — not that anything
+  uses them.
 
 ## Milestones
 
