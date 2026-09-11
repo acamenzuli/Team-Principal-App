@@ -75,20 +75,25 @@ because it is the one step that fails silently.
 
 ## Testing that updates actually work
 
-The full loop, once the key exists:
+There is a **test channel**: one GitHub release, tagged `dev`, that every push
+to the development branch replaces. Installed copies of the app follow it, so a
+change reaches the rig without anybody downloading an artifact.
 
-1. Install the current build — Actions → newest CI run → Artifacts →
-   `team-principal-installer`. Check **Settings → Updates** shows its version
-   and that **Check now** says *Up to date* rather than "no signing key".
-2. Tag the next version and publish the release as above.
-3. Back in the installed app, press **Check now**. It should find the new
-   version. Press **Install and restart**: the strip reports downloading,
-   verifying, then restarting, and the app comes back on the new version with
-   every rig, profile and backup exactly as it was.
+Setting it up is one action, once:
 
-If step 1 says *this build has no update signing key*, the installer predates
-the key — rebuild by pushing the committed config change and use the new
-artifact.
+1. Add the `TAURI_SIGNING_PRIVATE_KEY` secret as above.
+2. Push. Watch **Actions → CI** finish; it now publishes a **Test channel**
+   release.
+3. Install that `.exe` **once**, by hand.
+
+From then on: push a change, wait for CI, and the running app offers it — a
+strip across the top, or **Settings → Updates → Check now**. Install and
+restart, and it comes back on the new build with every rig, profile, snapshot
+and backup untouched.
+
+The version on a test build is `0.1.<CI run number>`. It is a build number,
+not a release: it only has to increase, because an update is found by comparing
+versions and nothing else.
 
 Two things that look like bugs and are not:
 
@@ -97,8 +102,30 @@ Two things that look like bugs and are not:
   did. Answering the prompt is part of the flow.
 - **SmartScreen warns again on the new version.** Until the code-signing
   certificate below exists, every build is unsigned as far as Windows is
-  concerned, including updates. The updater signature is a different mechanism
+  concerned, updates included. The updater signature is a different mechanism
   and Windows knows nothing about it.
+
+If the app says *this build has no update signing key*, it was built before the
+secret existed. Push anything, and install the test-channel build that run
+produces — that is the last manual install.
+
+---
+
+## Before you sell it: replace the test key
+
+**If the current signing key was generated anywhere other than your own
+machine — including by an assistant in a chat — treat it as a test key and
+replace it before the first paying customer.** A signing key is only worth
+anything while exactly one person has seen it.
+
+```powershell
+node scripts/updater-key.mjs --force
+```
+
+Then update the `TAURI_SIGNING_PRIVATE_KEY` secret, commit the new public key,
+and make sure the first release customers get is built **after** that change.
+Doing it before anyone has installed the app costs nothing. Doing it after
+means every install has to be replaced by hand.
 
 ---
 

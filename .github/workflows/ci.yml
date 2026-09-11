@@ -74,6 +74,10 @@ jobs:
   windows:
     name: Windows build
     runs-on: windows-latest
+    # Needed to publish the test-channel release below. Nothing else in
+    # this workflow writes to the repository.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -99,6 +103,54 @@ jobs:
       - name: Build the fake-game harness
         run: cargo build --release -p tp-fakegame
 
+      # ----------------------------------------------------------- test channel
+      #
+      # Every push to the development branch publishes an installer the app can
+      # update itself to, so testing a change does not mean downloading an
+      # artifact and running an installer by hand each time.
+      #
+      # Three things have to line up for that, and all three are set here rather
+      # than committed:
+      #
+      # * **A version newer than the last one.** The updater compares versions
+      #   and offers nothing otherwise. The run number is monotonic, which is
+      #   the only property needed of it.
+      # * **The test endpoint.** The committed one is `releases/latest` — the
+      #   stable channel, which deliberately excludes these builds. This channel
+      #   is a single release tagged `dev` whose assets are replaced on every
+      #   push, so the URL never changes and old builds do not pile up.
+      # * **Updater artifacts**, which make the build sign the installer. That
+      #   needs the private key, so without the secret this step does nothing
+      #   and the job carries on producing the plain artifact as before.
+      - name: Prepare the test channel
+        id: channel
+        if: github.ref_name == 'claude/sim-racing-launcher-display-i60v81'
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        shell: pwsh
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
+            "signing=false" | Out-File $env:GITHUB_OUTPUT -Append
+            Write-Host "::warning::No TAURI_SIGNING_PRIVATE_KEY secret, so this build cannot be signed and the app will not be able to update itself. See docs/RELEASING.md."
+            exit 0
+          }
+
+          $version = "0.1.${{ github.run_number }}"
+          $config = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          $config.version = $version
+          $config.plugins.updater.endpoints =
+            @("https://github.com/${{ github.repository }}/releases/download/dev/latest.json")
+          $config.bundle | Add-Member -NotePropertyName createUpdaterArtifacts -NotePropertyValue $true -Force
+          $config | ConvertTo-Json -Depth 20 | Set-Content src-tauri/tauri.conf.json
+
+          $toml = Get-Content src-tauri/Cargo.toml -Raw
+          $toml = $toml -replace '(?m)^version = ".*"$', ('version = "' + $version + '"')
+          Set-Content src-tauri/Cargo.toml $toml
+
+          "signing=true" | Out-File $env:GITHUB_OUTPUT -Append
+          "version=$version" | Out-File $env:GITHUB_OUTPUT -Append
+          Write-Host "Test build $version, updating from the dev channel"
+
       # Produces both an NSIS installer and a portable exe. This is how the app
       # gets onto the rig without installing a Rust toolchain there: download
       # the artifact from this run's summary page.
@@ -106,7 +158,62 @@ jobs:
       # Unsigned until Azure Trusted Signing is set up, so SmartScreen will warn
       # on first launch. Expected — see the README.
       - name: Build installer and portable exe
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: npm run tauri build
+
+      # The manifest the app fetches. Written here rather than by a release
+      # action because the installer is already built above, and building it a
+      # second time to obtain a JSON file would double the slowest job in the
+      # repository.
+      #
+      # The installer is renamed to a fixed, space-free name: GitHub rewrites
+      # spaces in asset names, and a URL assembled from a name containing them
+      # is a download that 404s at the one moment nobody is watching.
+      - name: Write the update manifest
+        if: steps.channel.outputs.signing == 'true'
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
+          $signature = (Get-Content "$($setup.FullName).sig" -Raw).Trim()
+
+          New-Item -ItemType Directory -Force -Path channel | Out-Null
+          Copy-Item $setup.FullName channel/TeamPrincipal-setup.exe
+
+          $manifest = @{
+            version = "${{ steps.channel.outputs.version }}"
+            notes = "Test build. Rigs, profiles and backups are kept."
+            pub_date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            platforms = @{
+              "windows-x86_64" = @{
+                signature = $signature
+                url = "https://github.com/${{ github.repository }}/releases/download/dev/TeamPrincipal-setup.exe"
+              }
+            }
+          }
+          $manifest | ConvertTo-Json -Depth 10 | Set-Content channel/latest.json -Encoding utf8
+
+      # One release, tagged `dev`, replaced in place. Marked a prerelease so it
+      # can never be mistaken for a real one — and so `releases/latest`, the
+      # stable channel every published build follows, keeps ignoring it.
+      - name: Publish to the test channel
+        if: steps.channel.outputs.signing == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev
+          name: Test channel
+          body: |
+            The newest development build, replaced on every push.
+
+            Installed copies of Team Principal offer this automatically. Install
+            it by hand once; after that the app updates itself to each new
+            build.
+
+            Not a release — the version numbers here are build numbers.
+          prerelease: true
+          files: |
+            channel/TeamPrincipal-setup.exe
+            channel/latest.json
 
       - name: Upload installer
         uses: actions/upload-artifact@v4

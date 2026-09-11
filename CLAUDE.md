@@ -19,6 +19,12 @@ CI also builds a Windows installer on every push and uploads it as a run
 artifact, so the app can be put on the rig without a toolchain there. Actions
 tab -> newest run -> Artifacts -> `team-principal-installer`.
 
+Pushes to the development branch also publish the **Test channel** release
+(tag `dev`), which installed copies update themselves to. Install that once and
+the artifact download stops being part of the loop. It needs the
+`TAURI_SIGNING_PRIVATE_KEY` secret; without it CI warns and builds a plain
+installer. See `docs/RELEASING.md`.
+
 ## Commands
 
 ```powershell
