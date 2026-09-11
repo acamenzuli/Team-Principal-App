@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 
 import { Section, StatusPill } from "../dashboard/primitives";
 import { InputMonitor } from "./InputMonitor";
@@ -86,76 +86,100 @@ export function Peripherals() {
               </tr>
             </thead>
             <tbody>
-              {devices.map((d) => (
-                <tr key={d.device.instancePath ?? `${d.device.vid}-${d.device.pid}`}>
-                  <td>
-                    {d.device.displayName}
-                    {d.rawProductName && d.rawProductName !== d.device.displayName && (
-                      <span className="devices__raw">{d.rawProductName}</span>
-                    )}
-                  </td>
-                  <td>
-                    <StatusPill status={d.status} />
-                  </td>
-                  <td className="num">
-                    {hex(d.device.vid)} / {hex(d.device.pid)}
-                  </td>
-                  <td className="num">
-                    {d.device.serial ?? <span className="note">none reported</span>}
-                  </td>
-                  <td className="num">
-                    {d.dinputPresent ? (
-                      <>
-                        slot {d.dinputSlot ?? "?"}
-                        {d.dinputInstanceGuid && (
-                          <span className="devices__raw">{d.dinputInstanceGuid}</span>
+              {devices.map((d) => {
+                // Compared by path, never by object identity: the list is
+                // replaced wholesale whenever a device arrives or leaves, and
+                // an identity check would quietly stop matching.
+                const open =
+                  d.device.instancePath !== null &&
+                  watching?.device.instancePath === d.device.instancePath;
+
+                return (
+                  <Fragment key={d.device.instancePath ?? `${d.device.vid}-${d.device.pid}`}>
+                    <tr className={open ? "is-open" : undefined}>
+                      <td>
+                        {d.device.displayName}
+                        {d.rawProductName && d.rawProductName !== d.device.displayName && (
+                          <span className="devices__raw">{d.rawProductName}</span>
                         )}
-                      </>
-                    ) : (
-                      <span className="note">not listed</span>
+                      </td>
+                      <td>
+                        <StatusPill status={d.status} />
+                      </td>
+                      <td className="num">
+                        {hex(d.device.vid)} / {hex(d.device.pid)}
+                      </td>
+                      <td className="num">
+                        {d.device.serial ?? <span className="note">none reported</span>}
+                      </td>
+                      <td className="num">
+                        {d.dinputPresent ? (
+                          <>
+                            slot {d.dinputSlot ?? "?"}
+                            {d.dinputInstanceGuid && (
+                              <span className="devices__raw">{d.dinputInstanceGuid}</span>
+                            )}
+                          </>
+                        ) : (
+                          <span className="note">not listed</span>
+                        )}
+                      </td>
+                      <td>
+                        {d.isVirtual && <span className="tag">vJoy</span>}
+                        {!d.dinputPresent && (
+                          <span className="tag tag--warn" title="Games cannot see it yet">
+                            ▲ not in DirectInput
+                          </span>
+                        )}
+                        {d.bindingDrift && (
+                          <span className="tag tag--warn">
+                            ▲ slot moved {d.bindingDrift.expectedSlot ?? "?"} →{" "}
+                            {d.bindingDrift.actualSlot ?? "?"}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        {d.device.instancePath ? (
+                          <button
+                            className="btn btn--quiet"
+                            aria-expanded={open}
+                            onClick={() => setWatching(open ? null : d)}
+                          >
+                            {open ? "Hide" : "Test"}
+                          </button>
+                        ) : (
+                          // No device path means nothing to open, and a button
+                          // here would be a promise the app cannot keep.
+                          <span
+                            className="note"
+                            title="Windows reports no device path for this one"
+                          >
+                            can't test
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+
+                    {/* Directly under the row it belongs to, not at the foot of
+                        the table: a panel that opens somewhere else reads as
+                        nothing having happened. */}
+                    {open && d.device.instancePath && (
+                      <tr className="devices__expanded">
+                        <td colSpan={7}>
+                          <InputMonitor
+                            key={d.device.instancePath}
+                            instancePath={d.device.instancePath}
+                            name={d.device.displayName}
+                            onClose={() => setWatching(null)}
+                          />
+                        </td>
+                      </tr>
                     )}
-                  </td>
-                  <td>
-                    {d.isVirtual && <span className="tag">vJoy</span>}
-                    {!d.dinputPresent && (
-                      <span className="tag tag--warn" title="Games cannot see it yet">
-                        ▲ not in DirectInput
-                      </span>
-                    )}
-                    {d.bindingDrift && (
-                      <span className="tag tag--warn">
-                        ▲ slot moved {d.bindingDrift.expectedSlot ?? "?"} →{" "}
-                        {d.bindingDrift.actualSlot ?? "?"}
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    {d.device.instancePath && (
-                      <button
-                        className="btn btn--quiet"
-                        onClick={() =>
-                          setWatching((current) =>
-                            current?.device.instancePath === d.device.instancePath ? null : d,
-                          )
-                        }
-                      >
-                        {watching?.device.instancePath === d.device.instancePath ? "Hide" : "Test"}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
-        )}
-
-        {watching?.device.instancePath && (
-          <InputMonitor
-            key={watching.device.instancePath}
-            instancePath={watching.device.instancePath}
-            name={watching.device.displayName}
-            onClose={() => setWatching(null)}
-          />
         )}
 
         <div className="devices__actions">

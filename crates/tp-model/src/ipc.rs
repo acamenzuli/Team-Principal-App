@@ -291,6 +291,42 @@ pub struct AxisReading {
     pub unipolar: f64,
 }
 
+/// What the monitor is doing, published alongside the frames.
+///
+/// A panel that only ever showed frames could not tell "this device has not
+/// moved yet" apart from "this device could not be opened at all", and the
+/// second is the case a user hits: HID paths can be refused, and a failure
+/// inside the reading thread used to reach nothing but the log. Every outcome
+/// is on the wire so the panel can say which one happened.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase",
+    tag = "kind"
+)]
+pub enum InputStatus {
+    /// The device is being opened.
+    Opening { instance_path: String },
+    /// Open, and its descriptor has been read. The names and the count are
+    /// what the device *declares*, not what it has sent — so the panel can
+    /// draw every axis and button before anything is touched, and show which
+    /// ones have since been exercised.
+    Listening {
+        instance_path: String,
+        axes: Vec<String>,
+        buttons: u32,
+    },
+    /// Paused because a session is running. Nothing here can steal input, but
+    /// the monitor stands down anyway, and saying so beats a still bar.
+    Suspended { instance_path: String },
+    /// Could not be read. The message is the Win32 one, unedited.
+    Failed {
+        instance_path: String,
+        message: String,
+    },
+}
+
 // ----------------------------------------------------------- window control
 
 /// The outcome of placing a window, after it has been read back.

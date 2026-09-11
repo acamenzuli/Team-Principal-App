@@ -66,6 +66,13 @@ fifteen seconds unless you confirm it.** There's also a panic key
 Every wheel, pedal set and button box, live. Unplug something and watch it go
 red; plug it back in and it goes green on its own.
 
+**Test** opens a panel under that device showing every axis and button it has,
+before you touch anything. Move a pedal and its bar moves and gets a tick;
+press a button and it lights and stays outlined. A running tally says how many
+of its controls you have proved, so a dead pedal is obvious rather than
+something you infer. If the device can't be read at all, the panel says why
+instead of waiting in silence.
+
 It also spots when Windows quietly reshuffles your controller order — which is
 what silently breaks your bindings in games and is almost impossible to notice
 until you're on track.

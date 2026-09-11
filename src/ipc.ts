@@ -40,6 +40,7 @@ import type { DesktopLayoutInfo } from "./bindings/DesktopLayoutInfo";
 import type { DetectedDevice } from "./bindings/DetectedDevice";
 import type { GlassLevel } from "./bindings/GlassLevel";
 import type { InputFrame } from "./bindings/InputFrame";
+import type { InputStatus } from "./bindings/InputStatus";
 import type { LicenceState } from "./bindings/LicenceState";
 import type { Tier } from "./bindings/Tier";
 import type { FixAction } from "./bindings/FixAction";
@@ -112,6 +113,7 @@ export type {
   FixAction,
   GlassLevel,
   InputFrame,
+  InputStatus,
   InstalledGameInfo,
   LicenceState,
   Tier,
@@ -330,7 +332,15 @@ export const stopWatchingWindow = () => invoke<void>("stop_watching_window");
 export const startInputMonitor = (instancePath: string) =>
   invoke<void>("start_input_monitor", { instancePath });
 
-export const stopInputMonitor = () => invoke<void>("stop_input_monitor");
+/**
+ * Stop watching one device.
+ *
+ * The path matters: a stop for a device that is no longer the one being
+ * monitored is ignored, so a panel closing cannot kill the panel that replaced
+ * it.
+ */
+export const stopInputMonitor = (instancePath: string) =>
+  invoke<void>("stop_input_monitor", { instancePath });
 
 /**
  * Live axis and button values for the monitored device.
@@ -341,6 +351,18 @@ export const stopInputMonitor = () => invoke<void>("stop_input_monitor");
  */
 export function onInput(handler: (frame: InputFrame) => void): Promise<UnlistenFn> {
   return listen<InputFrame>("peripherals://input", (e) => handler(e.payload));
+}
+
+/**
+ * What the monitor is doing.
+ *
+ * `start_input_monitor` returns as soon as the reading thread is spawned, so
+ * its Ok says nothing about whether the device opened. Everything that can go
+ * wrong afterwards — a refused HID path, a device with no input reports, a
+ * session suspending the monitor — arrives here instead of in the log.
+ */
+export function onInputStatus(handler: (status: InputStatus) => void): Promise<UnlistenFn> {
+  return listen<InputStatus>("peripherals://input-status", (e) => handler(e.payload));
 }
 
 export function onDevicesChanged(

@@ -33,12 +33,51 @@
 
 /* ---------------------------------------------------------- input monitor */
 
+/* The expanded row. It carries no padding of its own so the panel inside it
+   sits flush under the device it belongs to, and no hover tint, because it is
+   not a row you can click. */
+.devices__expanded > td {
+  padding: 0 0 var(--s4);
+}
+
+.grid tbody tr.devices__expanded:hover {
+  background: none;
+}
+
+/* The row being tested stays marked while its panel is open, so a long list
+   does not leave you hunting for which one you clicked. */
+.grid tbody tr.is-open {
+  background: var(--accent-wash);
+}
+
+.grid tbody tr.is-open > td:first-child {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
 .monitor {
-  margin-top: var(--s4);
   padding: var(--s4);
   background: var(--ground-raised);
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius);
+}
+
+.monitor__state {
+  margin: var(--s1) 0 0;
+  font-size: var(--size-sm);
+  color: var(--ink-dim);
+}
+
+.monitor__why {
+  display: block;
+  margin-top: var(--s1);
+  font-weight: 400;
+}
+
+.monitor__tally {
+  margin: var(--s4) 0 0;
+  font-size: var(--size-sm);
+  color: var(--ink-dim);
+  max-width: 70ch;
 }
 
 .monitor__head {
@@ -63,9 +102,20 @@
 
 .axis {
   display: grid;
-  grid-template-columns: 64px 1fr 80px;
+  grid-template-columns: 64px 1fr 80px 16px;
   align-items: center;
   gap: var(--s3);
+}
+
+/* A tick, not a colour change: an axis that has been moved has been proven,
+   and that fact should survive it returning to rest. */
+.axis__seen {
+  font-size: 12px;
+  color: var(--pass);
+}
+
+.axis--seen .axis__name {
+  color: var(--ink);
 }
 
 .axis__name {
@@ -114,6 +164,12 @@
   font-family: var(--font-num);
   font-size: 12px;
   color: var(--ink-faint);
+}
+
+/* Exercised at some point during this test, whether or not it is down now. */
+.button--seen {
+  border-color: var(--pass);
+  color: var(--ink);
 }
 
 .button--down {

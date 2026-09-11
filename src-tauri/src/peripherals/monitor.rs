@@ -19,11 +19,26 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-use tauri::AppHandle;
-pub use tp_model::{AxisReading, InputFrame};
+use tauri::{AppHandle, Emitter};
+pub use tp_model::{AxisReading, InputFrame, InputStatus};
 
 /// The event carrying live values.
 pub const EVENT: &str = "peripherals://input";
+
+/// The event carrying what the monitor is *doing*.
+///
+/// Frames alone cannot distinguish "nothing has moved yet" from "this device
+/// could never be opened" — and the second failed silently into the log, which
+/// is how a Test button comes to look like it does nothing.
+pub const STATUS_EVENT: &str = "peripherals://input-status";
+
+/// Publish a status. A failure to publish is not worth failing over: the
+/// window is usually gone by then.
+fn publish(app: &AppHandle, status: InputStatus) {
+    if let Err(e) = app.emit(STATUS_EVENT, &status) {
+        tracing::debug!(error = %e, "could not publish a monitor status");
+    }
+}
 
 /// Roughly 30 updates a second. Faster is invisible on screen and only costs
 /// IPC traffic; slower makes a pedal feel laggy to the person testing it.
@@ -48,6 +63,9 @@ pub fn is_suspended() -> bool {
 /// A running monitor. Dropping it stops the thread.
 pub struct Monitor {
     stop: Arc<AtomicBool>,
+    /// Which device this one reads. Stopping is matched against it — see
+    /// [`crate::ipc::stop_input_monitor`].
+    pub path: String,
 }
 
 impl Drop for Monitor {
@@ -65,23 +83,52 @@ pub struct ActiveMonitor(pub std::sync::Mutex<Option<Monitor>>);
 pub fn start(app: AppHandle, instance_path: String) -> Monitor {
     let stop = Arc::new(AtomicBool::new(false));
     let thread_stop = stop.clone();
+    let path = instance_path.clone();
+
+    publish(
+        &app,
+        InputStatus::Opening {
+            instance_path: instance_path.clone(),
+        },
+    );
 
     std::thread::Builder::new()
         .name("input-monitor".into())
         .spawn(move || {
             if let Err(e) = win::run(&app, &instance_path, &thread_stop) {
                 tracing::warn!(path = %instance_path, error = %e, "input monitor stopped");
+                // The thread is where opening actually happens, so the command
+                // that started it has already returned Ok. Without this, every
+                // failure here is invisible to the person looking at the panel.
+                publish(
+                    &app,
+                    InputStatus::Failed {
+                        instance_path,
+                        message: e.to_string(),
+                    },
+                );
             }
         })
         .expect("could not start the input monitor thread");
 
-    Monitor { stop }
+    Monitor { stop, path }
 }
 
 #[cfg(not(windows))]
-pub fn start(_app: AppHandle, _instance_path: String) -> Monitor {
+pub fn start(app: AppHandle, instance_path: String) -> Monitor {
+    // No HID layer to read. Say so rather than leaving a panel waiting for
+    // frames that cannot arrive.
+    let path = instance_path.clone();
+    publish(
+        &app,
+        InputStatus::Failed {
+            instance_path,
+            message: "live input is only available on Windows".into(),
+        },
+    );
     Monitor {
         stop: Arc::new(AtomicBool::new(false)),
+        path,
     }
 }
 
@@ -98,7 +145,7 @@ mod win {
     use windows::Win32::System::Threading::{CreateEventW, WaitForSingleObject};
     use windows::Win32::System::IO::{CancelIoEx, GetOverlappedResult, OVERLAPPED};
 
-    use super::{AxisReading, InputFrame, EVENT, MIN_INTERVAL_MS};
+    use super::{publish, AxisReading, InputFrame, InputStatus, EVENT, MIN_INTERVAL_MS};
     use crate::error::{AppError, AppResult};
 
     pub fn run(app: &AppHandle, path: &str, stop: &AtomicBool) -> AppResult<()> {
@@ -156,6 +203,13 @@ mod win {
         let value_caps = value_caps(preparsed, &caps);
         let button_caps = button_caps(preparsed, &caps);
 
+        // Publish the shape of the device before a single report arrives. The
+        // panel can then draw every axis and button at rest, and mark them as
+        // they are exercised — which is the whole point of a test panel. A
+        // panel that only fills in as things move cannot tell you that a pedal
+        // you have not pressed yet exists.
+        publish(app, listening(path, &value_caps, &button_caps));
+
         // A manual-reset event is not needed; the read completes or is
         // cancelled, and nothing else waits on this.
         let event = CreateEventW(None, false, false, None).map_err(|e| AppError::Win32 {
@@ -167,12 +221,42 @@ mod win {
         let mut report = vec![0u8; caps.InputReportByteLength as usize];
         let mut last_sent = Instant::now() - Duration::from_millis(MIN_INTERVAL_MS);
 
+        // Ask for the current report once, so the panel opens showing where the
+        // hardware actually is rather than an empty frame. Not every device
+        // answers this — a wheel that reports only on change will refuse — and
+        // that is fine: the loop below is the real source. Nothing is invented
+        // when it fails; the panel simply shows no reading yet.
+        if HidD_GetInputReport(
+            device,
+            report.as_mut_ptr() as *mut core::ffi::c_void,
+            report.len() as u32,
+        ) {
+            let frame = decode(preparsed, &mut report, &value_caps, &button_caps, path);
+            let _ = app.emit(EVENT, &frame);
+        }
+
+        let mut said_suspended = false;
+
         while !stop.load(Ordering::Relaxed) {
             // Suspended during a game session: sleep rather than exit, so
             // resuming does not need the device reopened.
             if super::is_suspended() {
+                if !said_suspended {
+                    said_suspended = true;
+                    publish(
+                        app,
+                        InputStatus::Suspended {
+                            instance_path: path.to_string(),
+                        },
+                    );
+                }
                 std::thread::sleep(Duration::from_millis(200));
                 continue;
+            }
+
+            if said_suspended {
+                said_suspended = false;
+                publish(app, listening(path, &value_caps, &button_caps));
             }
 
             let mut overlapped = OVERLAPPED {
@@ -224,6 +308,35 @@ mod win {
         let _ = CloseHandle(event);
         let _ = HidD_FreePreparsedData(preparsed);
         Ok(())
+    }
+
+    /// What the device declares it has, for the panel to draw at rest.
+    ///
+    /// Both the first announcement and the one after a session ends need this,
+    /// and a panel that disagreed with itself between them would be worse than
+    /// no panel.
+    unsafe fn listening(
+        path: &str,
+        values: &[HIDP_VALUE_CAPS],
+        buttons: &[HIDP_BUTTON_CAPS],
+    ) -> InputStatus {
+        InputStatus::Listening {
+            instance_path: path.to_string(),
+            axes: values
+                .iter()
+                // A closure inside an `unsafe fn` does not inherit its unsafe
+                // context, so the union read is spelled out here.
+                .map(|c| tp_model::axis_name(unsafe { c.Anonymous.Range.UsageMin }).to_string())
+                .collect(),
+            buttons: buttons
+                .iter()
+                .map(|c| {
+                    let (min, max) =
+                        unsafe { (c.Anonymous.Range.UsageMin, c.Anonymous.Range.UsageMax) };
+                    (max.saturating_sub(min) as u32) + 1
+                })
+                .sum(),
+        }
     }
 
     unsafe fn value_caps(

@@ -364,10 +364,29 @@ pub fn start_input_monitor(
     }
 }
 
+/// Stop watching one device.
+///
+/// Scoped to a device on purpose. A panel that is being replaced issues its
+/// stop and the next panel issues its start, and those are two independent
+/// messages: an unscoped stop that arrived late would kill the monitor that had
+/// just been started, and the new panel would sit there reporting nothing
+/// forever with no error to show for it. Matching on the path makes a late stop
+/// a no-op instead of a silent failure.
 #[tauri::command]
-pub fn stop_input_monitor(active: State<'_, crate::peripherals::monitor::ActiveMonitor>) {
+pub fn stop_input_monitor(
+    active: State<'_, crate::peripherals::monitor::ActiveMonitor>,
+    instance_path: String,
+) {
     if let Ok(mut slot) = active.0.lock() {
-        *slot = None;
+        match slot.as_ref() {
+            Some(m) if m.path == instance_path => *slot = None,
+            Some(m) => tracing::debug!(
+                stopping = %instance_path,
+                active = %m.path,
+                "a stale stop for a device that is no longer being monitored"
+            ),
+            None => {}
+        }
     }
 }
 
