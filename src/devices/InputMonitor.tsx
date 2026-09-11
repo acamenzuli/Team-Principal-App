@@ -62,39 +62,53 @@ export function InputMonitor({
     const unlisteners: Array<() => void> = [];
     let cancelled = false;
 
-    const keep = (f: () => void) => {
-      if (cancelled) f();
-      else unlisteners.push(f);
-    };
+    // Both listeners are in place *before* the monitor is started, and that
+    // ordering is the whole thing. `listen` is asynchronous: it round-trips to
+    // the backend to register. Starting the monitor first meant the device was
+    // opened, its descriptor read and both statuses published while the
+    // listener was still being registered — and Tauri does not replay events,
+    // so they were gone. The panel then sat on "Starting…" for a device that
+    // had opened perfectly, and never drew the axes and buttons that arrived
+    // with the status it missed.
+    void (async () => {
+      const [stopFrames, stopStatus] = await Promise.all([
+        onInput((next) => {
+          if (next.instancePath !== instancePath) return;
+          next.axes.forEach((a, i) => {
+            const rest = restAxes.current.get(i);
+            if (rest === undefined) restAxes.current.set(i, a.unipolar);
+            // Five per cent of travel. Below that is noise from a
+            // potentiometer sitting still, and a tick that appears on its own
+            // proves nothing.
+            else if (Math.abs(a.unipolar - rest) > 0.05) movedAxes.current.add(i);
+          });
+          next.buttons.forEach((down, i) => {
+            if (down) usedButtons.current.add(i);
+          });
+          setFrame(next);
+        }),
+        onInputStatus((next) => {
+          if (next.instancePath === instancePath) setStatus(next);
+        }),
+      ]);
 
-    // Frames and statuses for another device would arrive if a previous
-    // monitor were still winding down.
-    void onInput((next) => {
-      if (next.instancePath !== instancePath) return;
-      next.axes.forEach((a, i) => {
-        const rest = restAxes.current.get(i);
-        if (rest === undefined) restAxes.current.set(i, a.unipolar);
-        // Five per cent of travel. Below that is noise from a potentiometer
-        // sitting still, and a tick that appears on its own proves nothing.
-        else if (Math.abs(a.unipolar - rest) > 0.05) movedAxes.current.add(i);
-      });
-      next.buttons.forEach((down, i) => {
-        if (down) usedButtons.current.add(i);
-      });
-      setFrame(next);
-    }).then(keep);
+      if (cancelled) {
+        stopFrames();
+        stopStatus();
+        return;
+      }
+      unlisteners.push(stopFrames, stopStatus);
 
-    void onInputStatus((next) => {
-      if (next.instancePath === instancePath) setStatus(next);
-    }).then(keep);
-
-    startInputMonitor(instancePath).catch((e) =>
-      setStatus({
-        kind: "failed",
-        instancePath,
-        message: e instanceof Error ? e.message : String(e),
-      }),
-    );
+      try {
+        await startInputMonitor(instancePath);
+      } catch (e) {
+        setStatus({
+          kind: "failed",
+          instancePath,
+          message: e instanceof Error ? e.message : String(e),
+        });
+      }
+    })();
 
     return () => {
       cancelled = true;
