@@ -24,8 +24,11 @@ export function UpdateStrip({
 }) {
   const { stage, busy, start, clear } = useInstall();
 
-  // Nothing to offer and nothing happening.
-  if (!found?.available && stage === null) return null;
+  // Nothing to offer and nothing happening. Every other outcome — no key,
+  // nothing published, up to date, offline — belongs on the Settings screen
+  // where it was asked for, not across the top of the app.
+  const offered = found?.outcome.kind === "available" ? found.outcome : null;
+  if (!offered && stage === null) return null;
 
   const failed = stage?.kind === "failed";
   const fraction = stage ? fractionOf(stage) : null;
@@ -39,7 +42,7 @@ export function UpdateStrip({
           describeStage(stage)
         ) : (
           <>
-            Version <strong className="num">{found?.newVersion}</strong> is available.
+            Version <strong className="num">{offered?.version}</strong> is available.
           </>
         )}
       </span>

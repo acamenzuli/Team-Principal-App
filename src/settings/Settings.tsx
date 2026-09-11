@@ -305,9 +305,9 @@ function Updates({
         >
           {checking ? "Checking…" : "Check now"}
         </button>
-        {found?.available && !busy && (
+        {found?.outcome.kind === "available" && !busy && (
           <button className="btn" onClick={start}>
-            Install {found.newVersion} and restart
+            Install {found.outcome.version} and restart
           </button>
         )}
         {checkedAt && !busy && (
@@ -324,21 +324,10 @@ function Updates({
         </p>
       )}
 
-      {found && !found.configured && (
-        <p className="note note--fail">
-          This build has no update signing key compiled in, so it cannot check — a signed update
-          could not be verified, and installing one unverified is not something this app will do.
-          That is a property of how it was built rather than something to fix here; see
-          docs/RELEASING.md.
-        </p>
-      )}
-      {found?.configured && !found.available && !stage && (
-        <p className="note">
-          Up to date. Checked against the releases published on GitHub; nothing newer than v
-          {found.currentVersion} is there.
-        </p>
-      )}
-      {found?.notes && <p className="note">{found.notes}</p>}
+      {/* Each outcome says which one it is. None of them is dressed as another:
+          a repository with nothing released in it is not a network fault, and
+          neither of those is "up to date". */}
+      {found && !stage && <Outcome info={found} />}
 
       {problem && (
         <p className="settings__error">
@@ -353,6 +342,52 @@ function Updates({
       </p>
     </Group>
   );
+}
+
+/** What a check found, in the words that fit the case. */
+function Outcome({ info }: { info: UpdateInfo }) {
+  const { outcome } = info;
+
+  switch (outcome.kind) {
+    case "no_key":
+      return (
+        <p className="note note--fail">
+          This build has no update signing key compiled in, so it cannot check — a signed update
+          could not be verified, and installing one unverified is not something this app will do.
+          That is a property of how it was built rather than something to fix here; see
+          docs/RELEASING.md.
+        </p>
+      );
+
+    case "nothing_published":
+      return (
+        <p className="note">
+          Nothing has been published yet. The update service is reachable and this build can
+          verify what it finds there — there is simply no release to compare against, which is
+          what an unreleased product looks like.
+        </p>
+      );
+
+    case "up_to_date":
+      return (
+        <p className="note">
+          Up to date. Nothing newer than <span className="num">v{info.currentVersion}</span> has
+          been published.
+        </p>
+      );
+
+    case "available":
+      return outcome.notes ? <p className="note">{outcome.notes}</p> : null;
+
+    case "unreachable":
+      return (
+        <p className="note">
+          Couldn't reach the update service: {outcome.message}. Usually this machine being
+          offline, which is the normal state of a rig in a garage — nothing is wrong with the
+          app, and the next check will find it.
+        </p>
+      );
+  }
 }
 
 /**

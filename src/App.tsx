@@ -66,7 +66,7 @@ export function App() {
     let live = true;
     checkForUpdate()
       .then((found) => {
-        if (!live || !found.available) return;
+        if (!live || found.outcome.kind !== "available") return;
         setUpdate(found);
         if (prefs.updates === "automatic") void installUpdate().catch(() => {});
       })

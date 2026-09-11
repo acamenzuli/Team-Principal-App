@@ -179,7 +179,10 @@ While one is installing, the strip says where it has got to — downloading, wit
 how much of it has arrived; verifying the signature; then restarting. If it
 can't install, the strip turns red and says why rather than disappearing.
 **Check now** in Settings does the same thing on demand and shows the version
-you're on either way.
+you're on either way. It says which answer it got, and never dresses one up as
+another: nothing published yet, up to date, a new version, or couldn't reach
+GitHub — being offline in a garage is not a fault, and doesn't get reported as
+one.
 
 **Your settings are never touched.** Rigs, profiles, backups and preferences
 live separately from the program, so updating — or even reinstalling — keeps

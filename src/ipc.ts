@@ -67,6 +67,7 @@ import type { RigSolutionInfo } from "./bindings/RigSolutionInfo";
 import type { RigWarningInfo } from "./bindings/RigWarningInfo";
 import type { StartupState } from "./bindings/StartupState";
 import type { UpdateInfo } from "./bindings/UpdateInfo";
+import type { UpdateOutcome } from "./bindings/UpdateOutcome";
 import type { UpdatePolicy } from "./bindings/UpdatePolicy";
 import type { UpdateStage } from "./bindings/UpdateStage";
 import type { ScreenRole } from "./bindings/ScreenRole";
@@ -150,6 +151,7 @@ export type {
   SessionMode,
   StartupState,
   UpdateInfo,
+  UpdateOutcome,
   UpdatePolicy,
   UpdateStage,
 };

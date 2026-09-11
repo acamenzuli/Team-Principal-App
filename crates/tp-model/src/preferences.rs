@@ -535,19 +535,47 @@ pub enum UpdateStage {
 }
 
 /// What a check found.
+///
+/// Every outcome is named. The alternative — a pair of booleans and an error —
+/// forced the UI to infer, and it inferred wrong: a repository with no releases
+/// in it yet reported "could not reach the update service", which describes a
+/// broken network rather than a product that has not shipped.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateInfo {
-    pub available: bool,
     pub current_version: String,
-    /// `None` when nothing newer was found.
-    pub new_version: Option<String>,
-    /// The release notes, as written on the release.
-    pub notes: Option<String>,
-    pub published_at: Option<String>,
-    /// False when this build has no update endpoint configured — a private
-    /// build, or one made before the signing key existed. Reported rather than
-    /// shown as "up to date", which would be a claim nothing checked.
-    pub configured: bool,
+    pub outcome: UpdateOutcome,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase",
+    tag = "kind"
+)]
+pub enum UpdateOutcome {
+    /// This build has no public key compiled in, so it cannot verify an update
+    /// and will not install one unverified. Reported rather than shown as "up
+    /// to date", which would be a claim nothing checked.
+    NoKey,
+    /// The endpoint has no manifest. Nothing has been released yet — the
+    /// ordinary state of a product before its first release, and of the test
+    /// channel before its first build. Not a failure, and not "up to date"
+    /// either: there is nothing to be up to date with.
+    NothingPublished,
+    /// Checked, and this is the newest there is.
+    UpToDate,
+    /// Something newer exists.
+    Available {
+        version: String,
+        /// The release notes, as written on the release.
+        notes: Option<String>,
+        published_at: Option<String>,
+    },
+    /// The endpoint could not be reached. Being offline is the normal case for
+    /// a rig in a garage and is not a failure of this app, so the message says
+    /// which it was.
+    Unreachable { message: String },
 }

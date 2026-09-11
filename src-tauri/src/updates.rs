@@ -28,7 +28,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use tauri::{AppHandle, Emitter};
 use tauri_plugin_updater::UpdaterExt;
-use tp_model::{UpdateInfo, UpdateStage};
+use tp_model::{UpdateInfo, UpdateOutcome, UpdateStage};
 
 use crate::error::{AppError, AppResult};
 
@@ -73,15 +73,17 @@ pub fn is_configured(app: &AppHandle) -> bool {
 }
 
 /// Ask the endpoint what the latest version is. Downloads nothing.
+///
+/// Returns an outcome rather than an error for everything that is a normal
+/// state of the world: no key in this build, no release published yet, nothing
+/// newer, or no network. Only a broken updater is an `Err` here.
 pub async fn check(app: &AppHandle) -> AppResult<UpdateInfo> {
+    let current_version = version();
+
     if !is_configured(app) {
         return Ok(UpdateInfo {
-            available: false,
-            current_version: version(),
-            new_version: None,
-            notes: None,
-            published_at: None,
-            configured: false,
+            current_version,
+            outcome: UpdateOutcome::NoKey,
         });
     }
 
@@ -89,29 +91,28 @@ pub async fn check(app: &AppHandle) -> AppResult<UpdateInfo> {
         .updater()
         .map_err(|e| AppError::Config(format!("the updater could not start: {e}")))?;
 
-    match updater.check().await {
-        Ok(Some(update)) => Ok(UpdateInfo {
-            available: true,
-            current_version: update.current_version.clone(),
-            new_version: Some(update.version.clone()),
+    let outcome = match updater.check().await {
+        Ok(Some(update)) => UpdateOutcome::Available {
+            version: update.version.clone(),
             notes: update.body.clone(),
             published_at: update.date.map(|d| d.to_string()),
-            configured: true,
-        }),
-        Ok(None) => Ok(UpdateInfo {
-            available: false,
-            current_version: version(),
-            new_version: None,
-            notes: None,
-            published_at: None,
-            configured: true,
-        }),
-        // Being offline is the normal case for a rig in a garage, and it is not
-        // a failure of this app. The message says which it was.
-        Err(e) => Err(AppError::Config(format!(
-            "could not reach the update service: {e}"
-        ))),
-    }
+        },
+        Ok(None) => UpdateOutcome::UpToDate,
+        // No manifest at the endpoint. That is a 404, and before the first
+        // release exists it is the *correct* answer rather than a fault: there
+        // is nothing published to compare against. Reporting it as a failure
+        // to reach the service describes a broken network, sends somebody to
+        // check their firewall, and is wrong.
+        Err(tauri_plugin_updater::Error::ReleaseNotFound) => UpdateOutcome::NothingPublished,
+        Err(e) => UpdateOutcome::Unreachable {
+            message: e.to_string(),
+        },
+    };
+
+    Ok(UpdateInfo {
+        current_version,
+        outcome,
+    })
 }
 
 /// Download and install the update, then restart.
