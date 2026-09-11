@@ -173,7 +173,13 @@ choice, in Settings:
 - **Do nothing** — no checking at all.
 
 Automatic updates won't interrupt a race. If a session is running, the update
-waits.
+waits and says so.
+
+While one is installing, the strip says where it has got to — downloading, with
+how much of it has arrived; verifying the signature; then restarting. If it
+can't install, the strip turns red and says why rather than disappearing.
+**Check now** in Settings does the same thing on demand and shows the version
+you're on either way.
 
 **Your settings are never touched.** Rigs, profiles, backups and preferences
 live separately from the program, so updating — or even reinstalling — keeps

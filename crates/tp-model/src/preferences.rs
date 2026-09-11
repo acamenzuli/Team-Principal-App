@@ -496,6 +496,44 @@ pub enum UpdatePolicy {
     Never,
 }
 
+/// Where an install has got to.
+///
+/// An update is the one operation that ends with the app disappearing and
+/// coming back, so a button that greys out and says nothing for thirty seconds
+/// reads as a crash. Every phase is published, including the failures — which
+/// used to be swallowed entirely by the callers.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase",
+    tag = "kind"
+)]
+pub enum UpdateStage {
+    /// Asking the endpoint what exists.
+    Checking,
+    /// Downloading the installer. `total` is absent when the server sends no
+    /// content length, which is why the bar has an indeterminate state.
+    ///
+    /// Byte counts cross into TypeScript as `number`, matching the durations in
+    /// `profile.rs`: a u64 arrives as a bigint that cannot be divided by a
+    /// plain number without a cast at every call site, and an installer is
+    /// nowhere near the precision limit.
+    Downloading {
+        #[ts(type = "number")]
+        downloaded: u64,
+        #[ts(type = "number | null")]
+        total: Option<u64>,
+    },
+    /// Downloaded and verified against the public key compiled into this
+    /// binary. Running the installer now.
+    Installing,
+    /// Installed. The app is about to be replaced by the new version.
+    Restarting,
+    /// Nothing was installed, and the app is still the version it was.
+    Failed { message: String },
+}
+
 /// What a check found.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[ts(export)]

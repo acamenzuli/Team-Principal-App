@@ -27,29 +27,48 @@ jobs:
 
       - run: npm ci
 
-      # The public half of the updater keypair. Compiled into the binary, and
-      # what every future update is checked against — so a build made without
-      # it can never be updated by one made with it, and vice versa.
+      # The version comes from the tag, not from a hand-edited file.
       #
-      # Substituted here rather than committed so that rotating the key is a
-      # secret change rather than a code change.
-      # Both of these are release-only, and deliberately not committed.
-      #
+      # An update is found by comparing versions, so a release built at the same
+      # version as the build people are running is invisible to it — the check
+      # succeeds, finds nothing newer, and reports "up to date". That is a
+      # confusing way to lose an evening, and deriving the version from the tag
+      # removes the chance of it.
+      - name: Take the version from the tag
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            Write-Error "Tag '${{ github.ref_name }}' is not vMAJOR.MINOR.PATCH."
+            exit 1
+          }
+          $config = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          $config.version = $version
+          $config | ConvertTo-Json -Depth 20 | Set-Content src-tauri/tauri.conf.json
+
+          # Cargo reads its own version, and the app reports CARGO_PKG_VERSION.
+          $toml = Get-Content src-tauri/Cargo.toml -Raw
+          $toml = $toml -replace '(?m)^version = ".*"$', "version = ""$version"""
+          Set-Content src-tauri/Cargo.toml $toml
+          Write-Host "Releasing $version"
+
       # createUpdaterArtifacts makes the build produce a signed update alongside
       # the installer — which means it *requires* the private key. Committing it
       # would break the ordinary CI build, which has no key and must not have
       # one; that build produces the installer people download for testing.
-      - name: Turn on updater artifacts and set the public key
-        env:
-          TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+      #
+      # The public key is not set here: it is committed in tauri.conf.json, so
+      # every build — this one, CI's, and a local one — carries the same key and
+      # can verify the same releases. See scripts/updater-key.mjs.
+      - name: Turn on updater artifacts
         shell: pwsh
         run: |
-          if (-not $env:TAURI_SIGNING_PUBLIC_KEY) {
-            Write-Error "No TAURI_SIGNING_PUBLIC_KEY secret. See docs/RELEASING.md."
+          $config = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          if (-not $config.plugins.updater.pubkey -or
+              $config.plugins.updater.pubkey -eq "UNCONFIGURED") {
+            Write-Error "No updater public key in tauri.conf.json. Run: node scripts/updater-key.mjs"
             exit 1
           }
-          $config = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
-          $config.plugins.updater.pubkey = $env:TAURI_SIGNING_PUBLIC_KEY
           $config.bundle | Add-Member -NotePropertyName createUpdaterArtifacts -NotePropertyValue $true -Force
           $config | ConvertTo-Json -Depth 20 | Set-Content src-tauri/tauri.conf.json
 
@@ -83,3 +102,21 @@ jobs:
           releaseDraft: true
           prerelease: false
           includeUpdaterJson: true
+
+      # The release is created as a draft on purpose — an installer nobody has
+      # opened yet should not be in front of customers. But a draft is invisible
+      # to the updater: `releases/latest` does not resolve to it, so every app
+      # in the world will keep reporting "up to date" until it is published.
+      # That is a quiet failure, so it gets the loudest notice available here.
+      - name: Say what is left to do
+        shell: pwsh
+        run: |
+          @(
+            "## Draft release created",
+            "",
+            "**Nothing can update to it yet.** A draft is not ``releases/latest``,",
+            "so every installed copy will go on reporting *Up to date* until you",
+            "open the release on GitHub and press **Publish release**.",
+            "",
+            "Install the ``.exe`` from the draft first and check it starts."
+          ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8

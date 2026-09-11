@@ -11,6 +11,7 @@ import { Recovery } from "./onboarding/Recovery";
 import { ScreenSetup } from "./screen/ScreenSetup";
 import { Settings } from "./settings/Settings";
 import { WindowControl } from "./windowctl/WindowControl";
+import { UpdateStrip } from "./updates/UpdateStrip";
 import {
   appInfo,
   asIpcError,
@@ -106,20 +107,7 @@ export function App() {
       {/* A strip rather than a dialog. Nobody opened this app to read about a
           new version of it, and a modal would stand between them and the
           button they came for. */}
-      {update?.available && (
-        <div className="app__update">
-          <span aria-hidden="true">●</span>
-          <span>
-            Version <strong className="num">{update.newVersion}</strong> is available.
-          </span>
-          <button className="btn btn--tiny" onClick={() => void installUpdate()}>
-            Install and restart
-          </button>
-          <button className="btn btn--tiny btn--quiet" onClick={() => setUpdate(null)}>
-            Later
-          </button>
-        </div>
-      )}
+      <UpdateStrip found={update} onDismiss={() => setUpdate(null)} />
 
       <main className="app__body">
           <p className="app__error">
@@ -205,20 +193,7 @@ export function App() {
       {/* A strip rather than a dialog. Nobody opened this app to read about a
           new version of it, and a modal would stand between them and the
           button they came for. */}
-      {update?.available && (
-        <div className="app__update">
-          <span aria-hidden="true">●</span>
-          <span>
-            Version <strong className="num">{update.newVersion}</strong> is available.
-          </span>
-          <button className="btn btn--tiny" onClick={() => void installUpdate()}>
-            Install and restart
-          </button>
-          <button className="btn btn--tiny btn--quiet" onClick={() => setUpdate(null)}>
-            Later
-          </button>
-        </div>
-      )}
+      <UpdateStrip found={update} onDismiss={() => setUpdate(null)} />
 
       <main className="app__body">
         {prefsProblem && (

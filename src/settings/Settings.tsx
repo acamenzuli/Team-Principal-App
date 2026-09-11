@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
+import { describeStage, useInstall } from "../updates/useInstall";
 import {
   accentPresets as fetchAccentPresets,
+  appInfo,
   asIpcError,
   checkForUpdate,
   createDiagnostics,
-  installUpdate,
   licenceState as fetchLicenceState,
   revealFile,
   setRunAtStartup,
@@ -254,23 +255,36 @@ function Updates({
   onChange: (next: Preferences) => Promise<void>;
 }) {
   const [found, setFound] = useState<UpdateInfo | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [version, setVersion] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [checkedAt, setCheckedAt] = useState<Date | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const { stage, busy, start } = useInstall();
+
+  // The version this build is, shown before anything is checked. It used to
+  // come from the result of a check, so the heading read "v" until you pressed
+  // a button — on the one screen where you go to find out what you are running.
+  useEffect(() => {
+    appInfo()
+      .then((info) => setVersion(info.version))
+      .catch(() => setVersion(null));
+  }, []);
 
   async function check() {
-    setBusy(true);
+    setChecking(true);
     try {
       setFound(await checkForUpdate());
+      setCheckedAt(new Date());
       setProblem(null);
     } catch (e) {
       setProblem(asIpcError(e).message);
     } finally {
-      setBusy(false);
+      setChecking(false);
     }
   }
 
   return (
-    <Group title="Updates" note={`v${found?.currentVersion ?? ""}`}>
+    <Group title="Updates" note={version ? `v${version}` : ""}>
       <Row label="When a new version is available">
         <Segmented<UpdatePolicy>
           value={prefs.updates}
@@ -284,24 +298,45 @@ function Updates({
       </Row>
 
       <div className="settings__actions">
-        <button className="btn btn--quiet" disabled={busy} onClick={() => void check()}>
-          {busy ? "Checking…" : "Check now"}
+        <button
+          className="btn btn--quiet"
+          disabled={checking || busy}
+          onClick={() => void check()}
+        >
+          {checking ? "Checking…" : "Check now"}
         </button>
-        {found?.available && (
-          <button className="btn" disabled={busy} onClick={() => void installUpdate()}>
+        {found?.available && !busy && (
+          <button className="btn" onClick={start}>
             Install {found.newVersion} and restart
           </button>
         )}
+        {checkedAt && !busy && (
+          <span className="hint">last checked {checkedAt.toLocaleTimeString()}</span>
+        )}
       </div>
+
+      {/* The install reports itself, in the same words as the strip at the top
+          of the app — including a refusal, which this screen used to discard
+          entirely by throwing it into a click handler. */}
+      {stage && (
+        <p className={stage.kind === "failed" ? "settings__error" : "note"}>
+          {stage.kind === "failed" && <span aria-hidden="true">■</span>} {describeStage(stage)}
+        </p>
+      )}
 
       {found && !found.configured && (
         <p className="note note--fail">
-          This build has no update signing key, so it cannot check. That is a property of how it
-          was built rather than something to fix here — see docs/RELEASING.md.
+          This build has no update signing key compiled in, so it cannot check — a signed update
+          could not be verified, and installing one unverified is not something this app will do.
+          That is a property of how it was built rather than something to fix here; see
+          docs/RELEASING.md.
         </p>
       )}
-      {found?.configured && !found.available && (
-        <p className="note">Up to date.</p>
+      {found?.configured && !found.available && !stage && (
+        <p className="note">
+          Up to date. Checked against the releases published on GitHub; nothing newer than v
+          {found.currentVersion} is there.
+        </p>
       )}
       {found?.notes && <p className="note">{found.notes}</p>}
 
@@ -310,6 +345,12 @@ function Updates({
           <span aria-hidden="true">■</span> {problem}
         </p>
       )}
+
+      <p className="hint">
+        An update replaces the program only. Rigs, game profiles, peripherals, snapshots and
+        backups live in your app data folder and are not touched — which is why updating keeps
+        everything, and why uninstalling does too.
+      </p>
     </Group>
   );
 }

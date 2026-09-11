@@ -8,7 +8,7 @@ does everything else afterwards.
 | --- | --- | --- |
 | **Stops** | somebody pushing a fake update to your customers | Windows SmartScreen warning on install |
 | **Costs** | nothing | about €120/year |
-| **Comes from** | `npm run tauri signer generate` | a certificate authority |
+| **Comes from** | `node scripts/updater-key.mjs` | a certificate authority |
 | **Lives** | GitHub Actions secret | Azure, or a USB token |
 | **Needed for** | the update button to work at all | a clean first install |
 
@@ -21,25 +21,84 @@ can never be updated by a build made with one.
 
 ## 1. The updater key (free, do this first)
 
+One command, from the repository root:
+
 ```powershell
-npm run tauri signer generate -- -w "$env:USERPROFILE\.tauri\team-principal.key"
+node scripts/updater-key.mjs
 ```
 
-It asks for a password. Use one, and keep it — losing either half means every
-existing install can never be updated again, and the only fix is asking every
-customer to reinstall by hand.
+It generates the keypair, writes the **public** half into
+`src-tauri/tauri.conf.json`, and prints the **private** half once.
 
-It writes two files. Then, in the repository's **Settings → Secrets and
-variables → Actions**, add three secrets:
+- **Commit the config change.** The public key is meant to be public, and
+  committing it is what lets every build check for updates — including the
+  installer CI produces on every push, which is the one you test with.
+- **Add the private half as a secret.** Repository **Settings → Secrets and
+  variables → Actions → New repository secret**, named
+  `TAURI_SIGNING_PRIVATE_KEY`. That is the only secret needed.
+- **Back the private key up** somewhere that is not this machine and not this
+  repository. It cannot be regenerated: lose it and no existing install can
+  ever be updated again, and the only fix is asking every customer to reinstall
+  by hand. The script refuses to replace an existing key for that reason.
 
-| Secret | Value |
-| --- | --- |
-| `TAURI_SIGNING_PRIVATE_KEY` | the whole contents of `team-principal.key` |
-| `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | the password you just chose |
-| `TAURI_SIGNING_PUBLIC_KEY` | the whole contents of `team-principal.key.pub` |
+The script sets no password. The secret store is what protects the key; a
+password in a second secret beside it adds a step without adding a keeper. To
+use one anyway, set `TP_KEY_PASSWORD` before running the script and add it as
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
 
-Back the private key up somewhere that is not this machine and not this
-repository. It is the one thing here that cannot be regenerated.
+---
+
+## Cutting a release
+
+Everything is driven by the tag. There is no version to edit by hand — the
+workflow takes it from the tag and writes it into both `tauri.conf.json` and
+`Cargo.toml`, which is what stops the classic mistake of releasing the same
+version twice and watching every app report "up to date" forever.
+
+```powershell
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+Then, on GitHub:
+
+1. Watch **Actions → Release** finish. It builds, signs, and creates a release.
+2. The release is a **draft**. Install the `.exe` from it and check it starts.
+3. Press **Publish release**.
+
+**Step 3 is not optional.** A draft is not `releases/latest`, so the updater
+cannot see it — every installed copy will go on reporting *Up to date* until
+the release is published. The workflow prints this as its run summary too,
+because it is the one step that fails silently.
+
+---
+
+## Testing that updates actually work
+
+The full loop, once the key exists:
+
+1. Install the current build — Actions → newest CI run → Artifacts →
+   `team-principal-installer`. Check **Settings → Updates** shows its version
+   and that **Check now** says *Up to date* rather than "no signing key".
+2. Tag the next version and publish the release as above.
+3. Back in the installed app, press **Check now**. It should find the new
+   version. Press **Install and restart**: the strip reports downloading,
+   verifying, then restarting, and the app comes back on the new version with
+   every rig, profile and backup exactly as it was.
+
+If step 1 says *this build has no update signing key*, the installer predates
+the key — rebuild by pushing the committed config change and use the new
+artifact.
+
+Two things that look like bugs and are not:
+
+- **Windows asks for permission during the update.** The app installs for all
+  users, so replacing it needs an administrator, exactly as the first install
+  did. Answering the prompt is part of the flow.
+- **SmartScreen warns again on the new version.** Until the code-signing
+  certificate below exists, every build is unsigned as far as Windows is
+  concerned, including updates. The updater signature is a different mechanism
+  and Windows knows nothing about it.
 
 ---
 

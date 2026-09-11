@@ -17,3 +17,8 @@ dist-ssr
 .env.local
 *.log
 .DS_Store
+
+# The updater signing key. The public half lives in src-tauri/tauri.conf.json
+# and is committed on purpose; this is the private half, and a copy of it in
+# the repository would let anyone sign an update that every install accepts.
+.updater-key/

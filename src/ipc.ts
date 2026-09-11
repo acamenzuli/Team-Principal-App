@@ -68,6 +68,7 @@ import type { RigWarningInfo } from "./bindings/RigWarningInfo";
 import type { StartupState } from "./bindings/StartupState";
 import type { UpdateInfo } from "./bindings/UpdateInfo";
 import type { UpdatePolicy } from "./bindings/UpdatePolicy";
+import type { UpdateStage } from "./bindings/UpdateStage";
 import type { ScreenRole } from "./bindings/ScreenRole";
 import type { ScreenSolutionInfo } from "./bindings/ScreenSolutionInfo";
 import type { ScreenSpec } from "./bindings/ScreenSpec";
@@ -150,6 +151,7 @@ export type {
   StartupState,
   UpdateInfo,
   UpdatePolicy,
+  UpdateStage,
 };
 
 export const appInfo = () => invoke<AppInfo>("app_info");
@@ -187,6 +189,17 @@ export const checkForUpdate = () => invoke<UpdateInfo>("check_for_update");
  * before any of the new version runs. Refused while a session is in flight.
  */
 export const installUpdate = () => invoke<void>("install_update");
+
+/**
+ * Where an install has got to.
+ *
+ * An update ends with the app being replaced, so a button that greys out and
+ * says nothing reads as a crash. Every phase arrives here, failures included —
+ * both callers used to discard them.
+ */
+export function onUpdateStage(handler: (stage: UpdateStage) => void): Promise<UnlistenFn> {
+  return listen<UpdateStage>("updates://stage", (e) => handler(e.payload));
+}
 
 export const listMonitors = () => invoke<MonitorInfo[]>("list_monitors");
 

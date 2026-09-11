@@ -24,11 +24,32 @@
 //! program files — which is why an update keeps everything and a reinstall
 //! does too.
 
-use tauri::AppHandle;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+
+use tauri::{AppHandle, Emitter};
 use tauri_plugin_updater::UpdaterExt;
-use tp_model::UpdateInfo;
+use tp_model::{UpdateInfo, UpdateStage};
 
 use crate::error::{AppError, AppResult};
+
+/// Where an install has got to. The UI subscribes rather than guessing from a
+/// disabled button.
+pub const STAGE_EVENT: &str = "updates://stage";
+
+fn stage(app: &AppHandle, stage: UpdateStage) {
+    if let Err(e) = app.emit(STAGE_EVENT, &stage) {
+        tracing::debug!(error = %e, "could not publish an update stage");
+    }
+}
+
+/// Set while an install is running.
+///
+/// Two things can start one — the strip at the top of the app and the Settings
+/// screen — and an automatic install starts on its own. Two downloads racing
+/// each other to replace the same binary is not a state worth having, so the
+/// second one is refused with something to read rather than allowed to
+/// interleave.
+static INSTALLING: AtomicBool = AtomicBool::new(false);
 
 /// The placeholder that ships when no signing key has been configured.
 ///
@@ -99,6 +120,35 @@ pub async fn check(app: &AppHandle) -> AppResult<UpdateInfo> {
 /// out from under a running race would be unforgivable, and the marker that
 /// says a session is live is already on disk for exactly this kind of question.
 pub async fn install(app: &AppHandle) -> AppResult<()> {
+    if INSTALLING.swap(true, Ordering::SeqCst) {
+        return Err(AppError::Config("an update is already installing".into()));
+    }
+
+    let outcome = install_once(app).await;
+    // Only reached when the install did *not* restart the app.
+    INSTALLING.store(false, Ordering::SeqCst);
+    outcome
+}
+
+async fn install_once(app: &AppHandle) -> AppResult<()> {
+    match run_install(app).await {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            // Both the banner and Settings can start this, and both used to
+            // drop the error on the floor. Publishing it means a refusal is
+            // visible wherever the install was started from.
+            stage(
+                app,
+                UpdateStage::Failed {
+                    message: e.to_string(),
+                },
+            );
+            Err(e)
+        }
+    }
+}
+
+async fn run_install(app: &AppHandle) -> AppResult<()> {
     if let Some(session) = crate::session::pending() {
         return Err(AppError::Config(format!(
             "{} is mid-session. Finish the race and try again — restarting the \
@@ -106,6 +156,8 @@ pub async fn install(app: &AppHandle) -> AppResult<()> {
             session.profile_name
         )));
     }
+
+    stage(app, UpdateStage::Checking);
 
     let updater = app
         .updater()
@@ -120,14 +172,32 @@ pub async fn install(app: &AppHandle) -> AppResult<()> {
 
     tracing::info!(from = %update.current_version, to = %update.version, "installing an update");
 
+    // Progress arrives per chunk, which is far more often than a screen can
+    // use. The running total is kept here and published as it changes; the UI
+    // throttles nothing because there is nothing left to throttle.
+    let downloaded = AtomicU64::new(0);
+
     // The signature is verified inside this call, against the public key
     // compiled into this binary. An update that does not verify is refused
     // before a single byte of it is run.
     update
-        .download_and_install(|_chunk, _total| {}, || {})
+        .download_and_install(
+            |chunk, total| {
+                let so_far = downloaded.fetch_add(chunk as u64, Ordering::Relaxed) + chunk as u64;
+                stage(
+                    app,
+                    UpdateStage::Downloading {
+                        downloaded: so_far,
+                        total,
+                    },
+                );
+            },
+            || stage(app, UpdateStage::Installing),
+        )
         .await
         .map_err(|e| AppError::Config(format!("the update could not be installed: {e}")))?;
 
     tracing::info!("update installed; restarting");
+    stage(app, UpdateStage::Restarting);
     app.restart();
 }
