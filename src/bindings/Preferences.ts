@@ -34,4 +34,14 @@ updates: UpdatePolicy,
  * other setting in it. The wizard is cheap to dismiss and impossible to
  * recover from a corrupt file.
  */
-onboarded: boolean, };
+onboarded: boolean, 
+/**
+ * What the user calls each device, keyed by `DeviceRef::alias_key`.
+ *
+ * Kept here rather than on a profile because a name for a pedal set is a
+ * fact about the rig, not about one game — renaming it in front of
+ * Assetto Corsa and finding it unchanged in iRacing would be absurd. The
+ * user's name always wins over the catalog and over Windows: it is their
+ * rig, and they are the one who has to recognise the row.
+ */
+deviceAliases: { [key in string]?: string }, };

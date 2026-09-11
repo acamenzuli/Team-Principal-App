@@ -27,7 +27,10 @@ use tp_model::{Catalog, DetectedDevice, Observation};
 use crate::error::AppResult;
 
 /// Enumerate every game controller and decide its status.
-pub fn enumerate(catalog: &Catalog) -> AppResult<Vec<DetectedDevice>> {
+pub fn enumerate(
+    catalog: &Catalog,
+    aliases: &std::collections::BTreeMap<String, String>,
+) -> AppResult<Vec<DetectedDevice>> {
     let hid_devices: Vec<hid::HidDevice> = hid::enumerate()
         .into_iter()
         .filter(|d| d.is_game_controller())
@@ -46,7 +49,17 @@ pub fn enumerate(catalog: &Catalog) -> AppResult<Vec<DetectedDevice>> {
         .iter()
         .map(|d| {
             let is_virtual = vjoy::is_vjoy_device(d.vid, d.pid);
-            let display_name = catalog.best_name(d.vid, d.pid, None, d.product.as_deref());
+            // The user's own name wins over the catalog and over Windows —
+            // `best_name` has taken one since it was written, and this is
+            // where it finally gets one.
+            let alias_key = tp_model::alias_key(
+                d.vid,
+                d.pid,
+                d.serial.as_deref(),
+                Some(d.instance_path.as_str()),
+            );
+            let alias = aliases.get(&alias_key).map(String::as_str);
+            let display_name = catalog.best_name(d.vid, d.pid, alias, d.product.as_deref());
 
             let nth = taken.entry((d.vid, d.pid)).or_insert(0);
             let di = di_devices
@@ -82,6 +95,8 @@ pub fn enumerate(catalog: &Catalog) -> AppResult<Vec<DetectedDevice>> {
                 // Drift is a comparison against a saved profile, so it is
                 // decided when a profile is in hand, not during a bare scan.
                 binding_drift: None,
+                renamed: alias.is_some(),
+                alias_key,
             }
         })
         .collect();

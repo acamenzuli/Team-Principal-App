@@ -67,6 +67,41 @@ pub fn refresh_devices(watch: State<'_, crate::peripherals::watch::PeripheralWat
     }
 }
 
+/// Give a device your own name, or take it back.
+///
+/// The name is stored against the best identity the device has — its serial if
+/// it reports one, the port it is in if it does not — so it survives a replug
+/// and a restart. It is not stored on a profile: what you call a pedal set is
+/// a fact about the rig, and having it change between games would be absurd.
+///
+/// An empty name clears the alias rather than storing an empty string, so the
+/// catalog name comes back instead of a blank row.
+#[tauri::command]
+pub fn set_device_alias(
+    key: String,
+    name: Option<String>,
+    watch: State<'_, crate::peripherals::watch::PeripheralWatch>,
+) -> AppResult<tp_model::Preferences> {
+    let (mut prefs, _) = crate::settings::load();
+
+    match name.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        Some(name) => prefs.device_aliases.insert(key, name.to_string()),
+        None => prefs.device_aliases.remove(&key),
+    };
+
+    let saved = crate::settings::save(&prefs)?;
+
+    // The list every surface reads comes from the watch thread, so ask it to
+    // rescan. The new name then arrives on `peripherals://changed` like any
+    // other change, rather than by this command returning a second answer to
+    // the same question.
+    if let Some(w) = &watch.0 {
+        w.poke();
+    }
+
+    Ok(saved)
+}
+
 /// The virtual desktop's bounding box and its dead regions.
 ///
 /// Separate from `list_monitors` because it is derived rather than detected:

@@ -66,6 +66,11 @@ fifteen seconds unless you confirm it.** There's also a panic key
 Every wheel, pedal set and button box, live. Unplug something and watch it go
 red; plug it back in and it goes green on its own.
 
+**Rename** any of them by clicking its name. A rig with three identical button
+boxes is three identical rows until you say which is which, and only you can —
+the name is stored against the device (its serial, or the port it's in) and
+follows it between games and across restarts.
+
 **Test** opens a panel under that device showing every axis and button it has,
 before you touch anything. Move a pedal and its bar moves and gets a tick;
 press a button and it lights and stays outlined. A running tally says how many

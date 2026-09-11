@@ -211,6 +211,15 @@ export const listDevices = () => invoke<DetectedDevice[]>("list_devices");
 export const refreshDevices = () => invoke<void>("refresh_devices");
 
 /**
+ * Give a device your own name, or clear it with `null`.
+ *
+ * The renamed list arrives on `peripherals://changed` rather than as this
+ * call's return value — one path into the UI rather than two.
+ */
+export const setDeviceAlias = (key: string, name: string | null) =>
+  invoke<Preferences>("set_device_alias", { key, name });
+
+/**
  * Subscribe to peripheral changes.
  *
  * The backend watches for device arrival and removal at the OS level and

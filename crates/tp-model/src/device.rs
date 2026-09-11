@@ -44,6 +44,19 @@ pub struct DetectedDevice {
     /// Set when the device works but its DirectInput identity has moved since
     /// the profile was saved. A badge on top of Connected, not a fourth state.
     pub binding_drift: Option<BindingDrift>,
+    /// What a user-given name for this device is stored against. On the wire so
+    /// the UI can ask for a rename without reimplementing the identity rules —
+    /// two implementations of "which device is this" would disagree eventually,
+    /// and the symptom would be a name silently attaching to the wrong pedals.
+    ///
+    /// `#[serde(default)]` so fixture files written before this existed still
+    /// load; an empty key simply means nothing to rename.
+    #[serde(default)]
+    pub alias_key: String,
+    /// True when `display_name` is the user's own name rather than the
+    /// catalog's or Windows'. Drives whether there is anything to reset.
+    #[serde(default)]
+    pub renamed: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -135,4 +148,89 @@ pub struct DeviceEvent {
     pub from: DeviceStatus,
     pub to: DeviceStatus,
     pub reason: String,
+}
+
+/// The key a user's own name for a device is stored against.
+///
+/// A USB device has no single stable identity, so this picks the best one
+/// available and says which it used:
+///
+/// * **Serial**, when the device reports one. Survives being moved to another
+///   port, another hub, another motherboard header.
+/// * **Interface path**, when it does not. Two identical un-serialled pedal
+///   sets are genuinely indistinguishable except by which port they are in, so
+///   the port is the identity — and moving one to a different port loses its
+///   name, which is the honest outcome rather than silently applying the name
+///   to whatever is plugged in there next.
+/// * **Model**, for a device with neither. Then the name belongs to every
+///   device of that model, which is the most that can be said.
+pub fn alias_key(vid: u16, pid: u16, serial: Option<&str>, instance_path: Option<&str>) -> String {
+    if let Some(serial) = serial.map(str::trim).filter(|s| !s.is_empty()) {
+        return format!("serial:{vid:04x}:{pid:04x}:{serial}");
+    }
+    if let Some(path) = instance_path.map(str::trim).filter(|s| !s.is_empty()) {
+        // Windows is inconsistent about the case of interface paths between
+        // APIs, and a key that changes case is a name that disappears.
+        return format!("path:{}", path.to_ascii_lowercase());
+    }
+    format!("model:{vid:04x}:{pid:04x}")
+}
+
+impl DeviceRef {
+    /// The key this device's user-given name is stored against.
+    pub fn alias_key(&self) -> String {
+        alias_key(
+            self.vid,
+            self.pid,
+            self.serial.as_deref(),
+            self.instance_path.as_deref(),
+        )
+    }
+}
+
+#[cfg(test)]
+mod alias_key_tests {
+    use super::*;
+
+    fn dev(serial: Option<&str>, path: Option<&str>) -> DeviceRef {
+        DeviceRef {
+            vid: 0x0EB7,
+            pid: 0x183B,
+            serial: serial.map(str::to_string),
+            instance_path: path.map(str::to_string),
+            display_name: "whatever".into(),
+        }
+    }
+
+    #[test]
+    fn a_serial_beats_the_port_it_is_plugged_into() {
+        let front = dev(Some("SN-9931"), Some(r"\\?\hid#vid_0eb7&pid_183b#7&1a"));
+        let back = dev(Some("SN-9931"), Some(r"\\?\hid#vid_0eb7&pid_183b#7&2b"));
+        assert_eq!(front.alias_key(), back.alias_key(), "same device, new port");
+    }
+
+    #[test]
+    fn two_identical_unserialled_pedal_sets_are_told_apart_by_port() {
+        let left = dev(None, Some(r"\\?\hid#vid_0eb7&pid_183b#7&1a"));
+        let right = dev(None, Some(r"\\?\hid#vid_0eb7&pid_183b#7&2b"));
+        assert_ne!(left.alias_key(), right.alias_key());
+    }
+
+    #[test]
+    fn a_path_that_changes_case_is_the_same_device() {
+        let lower = dev(None, Some(r"\\?\hid#vid_0eb7&pid_183b#7&1a"));
+        let upper = dev(None, Some(r"\\?\HID#VID_0EB7&PID_183B#7&1A"));
+        assert_eq!(lower.alias_key(), upper.alias_key());
+    }
+
+    #[test]
+    fn an_empty_serial_is_not_an_identity() {
+        let blank = dev(Some("   "), Some(r"\\?\hid#x"));
+        assert!(blank.alias_key().starts_with("path:"));
+    }
+
+    #[test]
+    fn with_neither_the_name_belongs_to_the_model() {
+        assert_eq!(dev(None, None).alias_key(), "model:0eb7:183b");
+    }
 }

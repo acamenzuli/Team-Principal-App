@@ -46,6 +46,9 @@ impl PeripheralProvider for WinPeripheralProvider {
         // The catalog is rebuilt per scan rather than cached: it is a few
         // entries, and a user rename must take effect on the next refresh
         // rather than on the next restart.
-        crate::peripherals::enumerate(&tp_model::Catalog::seeded())
+        crate::peripherals::enumerate(
+            &tp_model::Catalog::seeded(),
+            &crate::settings::load().0.device_aliases,
+        )
     }
 }

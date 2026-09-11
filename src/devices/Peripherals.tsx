@@ -7,6 +7,7 @@ import {
   listDevices,
   onDevicesChanged,
   refreshDevices,
+  setDeviceAlias,
   type DetectedDevice,
 } from "../ipc";
 import "./devices.css";
@@ -98,10 +99,7 @@ export function Peripherals() {
                   <Fragment key={d.device.instancePath ?? `${d.device.vid}-${d.device.pid}`}>
                     <tr className={open ? "is-open" : undefined}>
                       <td>
-                        {d.device.displayName}
-                        {d.rawProductName && d.rawProductName !== d.device.displayName && (
-                          <span className="devices__raw">{d.rawProductName}</span>
-                        )}
+                        <DeviceName device={d} onProblem={setError} />
                       </td>
                       <td>
                         <StatusPill status={d.status} />
@@ -199,6 +197,88 @@ export function Peripherals() {
         </p>
       </Section>
     </div>
+  );
+}
+
+/**
+ * A device's name, and the means to change it.
+ *
+ * A rig with three identical un-serialled button boxes is three identical rows,
+ * and no catalog can fix that — only the person who knows which one is bolted
+ * to the left of the wheel can. So the name is theirs to set, and it is stored
+ * against the device rather than against any game: what you call a pedal set
+ * does not change because you launched a different sim.
+ *
+ * The saved name arrives back through the device event like every other change,
+ * so this does not hold its own copy of the truth.
+ */
+function DeviceName({
+  device,
+  onProblem,
+}: {
+  device: DetectedDevice;
+  onProblem: (message: string | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(device.device.displayName);
+
+  const save = async (name: string | null) => {
+    try {
+      await setDeviceAlias(device.aliasKey, name);
+      onProblem(null);
+      setEditing(false);
+    } catch (e) {
+      onProblem(asIpcError(e).message);
+    }
+  };
+
+  if (editing) {
+    return (
+      <form
+        className="rename"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save(draft);
+        }}
+      >
+        <input
+          className="rename__field"
+          value={draft}
+          autoFocus
+          aria-label="Name for this device"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setEditing(false);
+          }}
+        />
+        <button className="btn btn--tiny" type="submit">
+          Save
+        </button>
+        {device.renamed && (
+          <button className="btn btn--tiny btn--quiet" type="button" onClick={() => void save(null)}>
+            Reset
+          </button>
+        )}
+      </form>
+    );
+  }
+
+  return (
+    <button
+      className="rename__open"
+      title="Click to rename"
+      onClick={() => {
+        setDraft(device.device.displayName);
+        setEditing(true);
+      }}
+    >
+      {device.device.displayName}
+      {/* What Windows calls it, kept visible under a name you chose — so a
+          renamed row can still be matched against what a game will show. */}
+      {device.rawProductName && device.rawProductName !== device.device.displayName && (
+        <span className="devices__raw">{device.rawProductName}</span>
+      )}
+    </button>
   );
 }
 

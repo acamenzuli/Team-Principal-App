@@ -4,6 +4,8 @@
 //! deliberately separate from the rig model and from profiles: losing your
 //! accent colour must never be able to take a rig description with it.
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -45,6 +47,15 @@ pub struct Preferences {
     /// recover from a corrupt file.
     #[serde(default)]
     pub onboarded: bool,
+    /// What the user calls each device, keyed by `DeviceRef::alias_key`.
+    ///
+    /// Kept here rather than on a profile because a name for a pedal set is a
+    /// fact about the rig, not about one game — renaming it in front of
+    /// Assetto Corsa and finding it unchanged in iRacing would be absurd. The
+    /// user's name always wins over the catalog and over Windows: it is their
+    /// rig, and they are the one who has to recognise the row.
+    #[serde(default)]
+    pub device_aliases: BTreeMap<String, String>,
 }
 
 impl Default for Preferences {
@@ -58,6 +69,7 @@ impl Default for Preferences {
             start_minimised: false,
             updates: UpdatePolicy::default(),
             onboarded: false,
+            device_aliases: BTreeMap::new(),
         }
     }
 }

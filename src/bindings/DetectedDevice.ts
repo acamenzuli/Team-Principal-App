@@ -31,4 +31,19 @@ isVirtual: boolean, vjoy: VJoyInfo | null,
  * Set when the device works but its DirectInput identity has moved since
  * the profile was saved. A badge on top of Connected, not a fourth state.
  */
-bindingDrift: BindingDrift | null, };
+bindingDrift: BindingDrift | null, 
+/**
+ * What a user-given name for this device is stored against. On the wire so
+ * the UI can ask for a rename without reimplementing the identity rules —
+ * two implementations of "which device is this" would disagree eventually,
+ * and the symptom would be a name silently attaching to the wrong pedals.
+ *
+ * `#[serde(default)]` so fixture files written before this existed still
+ * load; an empty key simply means nothing to rename.
+ */
+aliasKey: string, 
+/**
+ * True when `display_name` is the user's own name rather than the
+ * catalog's or Windows'. Drives whether there is anything to reset.
+ */
+renamed: boolean, };

@@ -73,7 +73,12 @@ pub fn start(app: AppHandle) -> Watcher {
             let started = Instant::now();
 
             loop {
-                let scanned = super::enumerate(&catalog).unwrap_or_default();
+                // Re-read per scan rather than captured once: renaming a
+                // device has to show up on the next refresh, not the next
+                // restart. The file is a few hundred bytes and this loop runs
+                // on a hotplug or a slow reconcile, not in a hot path.
+                let aliases = crate::settings::load().0.device_aliases;
+                let scanned = super::enumerate(&catalog, &aliases).unwrap_or_default();
                 let now_ms = started.elapsed().as_millis() as u64;
                 let (published, changed) = debounce(&mut debouncers, scanned, now_ms);
 
@@ -186,6 +191,8 @@ mod tests {
             is_virtual: false,
             vjoy: None,
             binding_drift: None,
+            alias_key: tp_model::alias_key(0x0EB7, 0x0E04, None, Some(path)),
+            renamed: false,
         }
     }
 
