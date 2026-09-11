@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Section } from "../dashboard/primitives";
 import {
@@ -7,6 +7,7 @@ import {
   captureWindow,
   gameLibrary,
   setAutoApply,
+  setGameArt,
   type CaptureResult,
   type OpenWindow,
   type ProfileCard,
@@ -38,6 +39,8 @@ export function Games() {
   const [captured, setCaptured] = useState<CaptureResult | null>(null);
   const [capturingFor, setCapturingFor] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [scan, setScan] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -47,6 +50,60 @@ export function Games() {
       setError(asIpcError(e).message);
     }
   }, []);
+
+  /**
+   * Scan, and say what came of it.
+   *
+   * A scan that finds exactly what it found last time renders an identical
+   * list, which is indistinguishable from a button that does nothing — and
+   * that is precisely what it looked like. So this reports the outcome:
+   * what was added, what went away, or that nothing changed.
+   */
+  const rescan = useCallback(async () => {
+    setScanning(true);
+    const before = cards ?? [];
+    try {
+      const after = await gameLibrary();
+      setCards(after);
+      setError(null);
+
+      const ids = new Set(before.map((c) => c.profile.id));
+      const added = after.filter((c) => !ids.has(c.profile.id));
+      const installedNow = after.filter((c) => c.installed).length;
+      const installedBefore = before.filter((c) => c.installed).length;
+
+      if (added.length > 0) {
+        setScan(
+          `Found ${added.length} new ${added.length === 1 ? "game" : "games"}: ` +
+            added.map((c) => c.profile.name).join(", "),
+        );
+      } else if (installedNow !== installedBefore) {
+        setScan(`${installedNow} installed now, ${installedBefore} before.`);
+      } else {
+        setScan(
+          `Nothing new — ${after.length} ${after.length === 1 ? "profile" : "profiles"}, ` +
+            `${installedNow} installed. Checked at ${new Date().toLocaleTimeString()}.`,
+        );
+      }
+    } catch (e) {
+      setError(asIpcError(e).message);
+      setScan(null);
+    } finally {
+      setScanning(false);
+    }
+  }, [cards]);
+
+  async function chooseArt(card: ProfileCard, dataUri: string | null) {
+    try {
+      const updated = await setGameArt(card.profile.id, dataUri);
+      setCards((current) =>
+        (current ?? []).map((c) => (c.profile.id === updated.profile.id ? updated : c)),
+      );
+      setError(null);
+    } catch (e) {
+      setError(asIpcError(e).message);
+    }
+  }
 
   useEffect(() => {
     void load();
@@ -121,14 +178,15 @@ export function Games() {
               onEdit={() => setEditing(card)}
               onToggleAuto={(v) => void toggleAuto(card, v)}
               onCopyLayout={() => void copyLayout(card)}
+              onArt={(dataUri) => void chooseArt(card, dataUri)}
               capturing={capturingFor === card.profile.id}
             />
           ))}
         </div>
 
         <div className="devices__actions">
-          <button className="btn btn--quiet" onClick={() => void load()}>
-            Scan again
+          <button className="btn btn--quiet" disabled={scanning} onClick={() => void rescan()}>
+            {scanning ? "Scanning…" : "Scan again"}
           </button>
           {/* Steam and Epic are found; everything else is not. Plenty of sims
               install outside both, and without this they are simply absent. */}
@@ -136,6 +194,8 @@ export function Games() {
             Add a game by hand
           </button>
         </div>
+
+        {scan && <p className="note">{scan}</p>}
       </Section>
 
       {adding && (
@@ -190,6 +250,7 @@ function GameCard({
   onEdit,
   onToggleAuto,
   onCopyLayout,
+  onArt,
   capturing,
 }: {
   card: ProfileCard;
@@ -197,10 +258,12 @@ function GameCard({
   onEdit: () => void;
   onToggleAuto: (enabled: boolean) => void;
   onCopyLayout: () => void;
+  onArt: (dataUri: string | null) => void;
   capturing: boolean;
 }) {
   const { profile, installed, art, installPath, platform } = card;
   const saved = profile.windowPlan.rect.kind === "explicit";
+  const artInput = useRef<HTMLInputElement>(null);
 
   return (
     <article className={`card${installed ? "" : " card--gone"}`}>
@@ -215,6 +278,36 @@ function GameCard({
           </span>
         )}
         {!installed && <span className="card__gone">NOT INSTALLED</span>}
+
+        {/* Art is found in Steam's local cache, so a game from anywhere else
+            has none. Rather than guess at a picture or fetch one over the
+            network, you point at one. */}
+        <div className="card__artpick">
+          <button className="btn btn--tiny" onClick={() => artInput.current?.click()}>
+            {art ? "Change art" : "Add art"}
+          </button>
+          {art && (
+            <button className="btn btn--tiny btn--quiet" onClick={() => onArt(null)}>
+              Remove
+            </button>
+          )}
+        </div>
+        <input
+          ref={artInput}
+          className="visually-hidden"
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            // Cleared straight away so picking the same file twice still
+            // fires — a change event does not repeat for an identical value.
+            e.target.value = "";
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => onArt(String(reader.result));
+            reader.readAsDataURL(file);
+          }}
+        />
       </div>
 
       <div className="card__body">

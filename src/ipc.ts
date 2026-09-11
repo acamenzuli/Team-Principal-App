@@ -327,6 +327,17 @@ export const addGame = (name: string, exePath: string) =>
   invoke<Profile>("add_game", { name, exePath });
 
 /**
+ * Use a picture of your own for a game, or pass null to go back to the
+ * detected one.
+ *
+ * The image is sent as a data URI, the same way the team logo is, and saved
+ * into the app's own folder — so a cover does not vanish because somebody
+ * tidied up their desktop.
+ */
+export const setGameArt = (profileId: string, dataUri: string | null) =>
+  invoke<ProfileCard>("set_game_art", { profileId, dataUri });
+
+/**
  * Step status changes.
  *
  * The checklist is a pure view over this stream — it never drives the

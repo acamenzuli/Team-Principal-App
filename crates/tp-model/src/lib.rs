@@ -13,6 +13,7 @@ pub mod adapter;
 pub mod axes;
 pub mod catalog;
 pub mod catalog_games;
+pub mod datauri;
 pub mod detect;
 pub mod device;
 pub mod dinput;
@@ -41,6 +42,7 @@ pub use adapter::{
 pub use axes::{axis_name, is_axis, normalise, normalise_unipolar};
 pub use catalog::{Catalog, CatalogEntry, DeviceKind};
 pub use catalog_games::{ConfigFormat, Derived, GameEntry, Unit};
+pub use datauri::{decode_image_data_uri, DecodedImage};
 pub use detect::rig_from_monitors;
 pub use device::*;
 pub use dinput::{format_guid, vid_pid_from_product_guid};

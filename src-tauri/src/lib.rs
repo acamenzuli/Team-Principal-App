@@ -255,6 +255,7 @@ pub fn run() {
             ipc::delete_profile,
             ipc::add_game,
             ipc::game_library,
+            ipc::set_game_art,
             ipc::remember_window,
             ipc::capture_window,
             ipc::set_auto_apply,

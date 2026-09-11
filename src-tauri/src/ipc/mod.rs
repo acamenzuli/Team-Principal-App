@@ -764,6 +764,45 @@ fn matches_game(profile: &tp_model::Profile, game: &crate::launcher::InstalledGa
     }
 }
 
+/// Use a picture of your own for a game, or go back to the detected one.
+///
+/// Art is found in Steam's local cache, which means a game from anywhere else
+/// has none — Epic caches nothing stable, and a game added by hand was never
+/// in a store. Rather than guess at a picture or fetch one over the network,
+/// the answer is to let you point at one.
+///
+/// `None` clears yours and lets the next scan put back whatever it can find.
+#[tauri::command]
+pub fn set_game_art(
+    profile_id: String,
+    data_uri: Option<String>,
+) -> AppResult<tp_model::ProfileCard> {
+    let id = uuid::Uuid::parse_str(&profile_id)
+        .map_err(|_| AppError::Config("that is not a profile id".into()))?;
+    let mut profile = crate::profiles::load(id)?;
+
+    profile.game.art_path = match data_uri {
+        Some(uri) => Some(
+            crate::art::save_chosen(&profile_id, &uri)?
+                .display()
+                .to_string(),
+        ),
+        None => {
+            crate::art::clear_chosen(&profile_id);
+            // Back to whatever a scan can find, which for a Steam game is its
+            // cached cover and for anything else is nothing at all.
+            crate::launcher::discover()
+                .iter()
+                .find(|g| matches_game(&profile, g))
+                .and_then(|g| crate::art::find(&g.source))
+                .map(|p| p.display().to_string())
+        }
+    };
+
+    crate::profiles::save(&profile)?;
+    Ok(card(profile, &crate::launcher::discover()))
+}
+
 fn card(
     profile: tp_model::Profile,
     found: &[crate::launcher::InstalledGame],

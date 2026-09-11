@@ -83,6 +83,15 @@ what silently breaks your bindings in games and is almost impossible to notice
 until you're on track.
 
 ### Games
+**Scan again** says what it found — new games by name, or that nothing changed
+and when it checked.
+
+Cover art comes off your own disk: Steam already downloaded it, so there's no
+network call and no list of your games going anywhere. Epic caches nothing
+usable and a game added by hand was never in a store, so those have no art to
+find — **Add art** on the card lets you point at any picture, and it's copied
+into the app's own folder so it can't disappear when you tidy up.
+
 Every sim you have installed gets a profile automatically. Steam and Epic are
 found on their own; anything else you can add by hand.
 

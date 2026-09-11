@@ -125,6 +125,66 @@ fn base64(bytes: &[u8]) -> String {
     out
 }
 
+/// Where art the user chose themselves is kept.
+///
+/// Inside the app's own data folder rather than left where they found it: a
+/// picture on a desktop gets tidied away, and a card that loses its cover
+/// because a file moved is a bug report. It also means the art travels with
+/// the profiles in a diagnostics bundle and survives an uninstall like
+/// everything else there.
+fn chosen_dir() -> PathBuf {
+    crate::logging::app_data_dir().join("art")
+}
+
+/// Save an image the user picked for a profile, and return where it went.
+///
+/// One file per profile: choosing a new cover replaces the old one rather than
+/// leaving a folder that grows every time somebody changes their mind. The
+/// extension comes from the declared image type, so the name on disk describes
+/// the bytes in it.
+pub fn save_chosen(profile_id: &str, data_uri: &str) -> crate::error::AppResult<PathBuf> {
+    use crate::error::AppError;
+
+    // 8 MB, the same ceiling `as_data_uri` reads back. Anything larger is not
+    // cover art, and a 40 MB photograph inlined into every card would make the
+    // library screen crawl.
+    const LIMIT: usize = 8 * 1024 * 1024;
+
+    let image = tp_model::decode_image_data_uri(data_uri)
+        .map_err(|e| AppError::Config(format!("that image could not be read: {e}")))?;
+
+    if image.bytes.len() > LIMIT {
+        return Err(AppError::Config(format!(
+            "that image is {} MB. The limit is 8 MB — cover art is a picture, not a photograph.",
+            image.bytes.len() / 1_000_000
+        )));
+    }
+
+    let dir = chosen_dir();
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| AppError::Config(format!("could not make {}: {e}", dir.display())))?;
+
+    // Any previous cover for this profile, whatever type it was: choosing a
+    // new one replaces the old rather than leaving a folder that grows every
+    // time somebody changes their mind.
+    clear_chosen(profile_id);
+
+    let path = dir.join(format!("{profile_id}.{}", image.extension));
+    std::fs::write(&path, &image.bytes)
+        .map_err(|e| AppError::Config(format!("could not write {}: {e}", path.display())))?;
+
+    tracing::info!(path = %path.display(), bytes = image.bytes.len(), "saved chosen cover art");
+    Ok(path)
+}
+
+/// Forget art the user chose, so the detected art (if any) comes back.
+pub fn clear_chosen(profile_id: &str) {
+    let dir = chosen_dir();
+    for ext in ["png", "jpg", "webp"] {
+        let _ = std::fs::remove_file(dir.join(format!("{profile_id}.{ext}")));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
