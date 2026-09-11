@@ -131,7 +131,27 @@ jobs:
         run: |
           if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
             "signing=false" | Out-File $env:GITHUB_OUTPUT -Append
-            Write-Host "::warning::No TAURI_SIGNING_PRIVATE_KEY secret, so this build cannot be signed and the app will not be able to update itself. See docs/RELEASING.md."
+            Write-Host "::warning::No TAURI_SIGNING_PRIVATE_KEY secret, so this build cannot be signed and the app cannot update itself. See docs/RELEASING.md."
+            # A warning annotation is easy to scroll past, and the job still
+            # goes green, so the run looks like a success that quietly did half
+            # the job. The summary is the one place that cannot be missed.
+            @(
+              "## No test-channel build",
+              "",
+              "``TAURI_SIGNING_PRIVATE_KEY`` was empty in this job, so the installer",
+              "was not signed and no ``dev`` release was published. Installed copies",
+              "of the app will go on reporting *nothing published yet*.",
+              "",
+              "Add it under **Settings -> Secrets and variables -> Actions ->",
+              "Repository secrets**. Three things that look right and are not:",
+              "",
+              "* an **environment** secret - this job declares no environment, so it",
+              "  cannot see one",
+              "* a **variable** rather than a secret - different tab, same page",
+              "* a name that does not match exactly, including case",
+              "",
+              "See ``docs/RELEASING.md``."
+            ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
             exit 0
           }
 
