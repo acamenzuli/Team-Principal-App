@@ -17,6 +17,7 @@
 //! The frontend subscribes to `peripherals://changed`. It never polls.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -44,6 +45,9 @@ pub struct Watcher {
     /// immediately rather than waiting for the next scan.
     latest: Arc<Mutex<Vec<DetectedDevice>>>,
     wake: Sender<()>,
+    /// Set when a person asked for the scan, as opposed to the timer or a
+    /// hotplug notification.
+    asked: Arc<AtomicBool>,
 }
 
 impl Watcher {
@@ -51,8 +55,14 @@ impl Watcher {
         self.latest.lock().map(|g| g.clone()).unwrap_or_default()
     }
 
-    /// Ask for a rescan now — used by an explicit Refresh in the UI.
+    /// Ask for a rescan now — used by an explicit Rescan in the UI.
+    ///
+    /// Flagged as well as woken. Scans publish only when the list differs,
+    /// which is right for a timer and wrong for a button: a rescan that finds
+    /// exactly what it found last time is a correct answer, and a button that
+    /// produces no answer at all is indistinguishable from a broken one.
     pub fn poke(&self) {
+        self.asked.store(true, Ordering::Relaxed);
         let _ = self.wake.send(());
     }
 }
@@ -61,9 +71,11 @@ impl Watcher {
 pub fn start(app: AppHandle) -> Watcher {
     let (wake, wakes) = mpsc::channel::<()>();
     let latest = Arc::new(Mutex::new(Vec::new()));
+    let asked = Arc::new(AtomicBool::new(false));
     let watcher = Watcher {
         latest: latest.clone(),
         wake: wake.clone(),
+        asked: asked.clone(),
     };
 
     std::thread::Builder::new()
@@ -100,12 +112,15 @@ pub fn start(app: AppHandle) -> Watcher {
                 // the rest: renaming a device changes its name and nothing
                 // else, so the new name sat in the file, correctly saved, and
                 // never reached the screen until something was unplugged.
-                let changed = match latest.lock() {
-                    Ok(guard) => *guard != published,
-                    // Poisoned: publish rather than go quiet. A stuck device
-                    // list is worse than an extra event.
-                    Err(_) => true,
-                };
+                // Somebody pressed Rescan: answer them, changed or not.
+                let requested = asked.swap(false, Ordering::Relaxed);
+                let changed = requested
+                    || match latest.lock() {
+                        Ok(guard) => *guard != published,
+                        // Poisoned: publish rather than go quiet. A stuck
+                        // device list is worse than an extra event.
+                        Err(_) => true,
+                    };
 
                 if changed {
                     if let Ok(mut guard) = latest.lock() {

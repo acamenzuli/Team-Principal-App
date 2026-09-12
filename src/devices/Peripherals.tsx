@@ -25,6 +25,7 @@ export function Peripherals() {
   const [error, setError] = useState<string | null>(null);
   const [scannedAt, setScannedAt] = useState<Date | null>(null);
   const [watching, setWatching] = useState<DetectedDevice | null>(null);
+  const [rescanning, setRescanning] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -45,6 +46,9 @@ export function Peripherals() {
     void onDevicesChanged((next) => {
       setDevices(next);
       setScannedAt(new Date());
+      // An asked-for rescan always publishes, changed or not, so this is a
+      // reliable end to the button's busy state rather than a guess at one.
+      setRescanning(false);
     }).then((f) => {
       unlisten = f;
     });
@@ -181,8 +185,18 @@ export function Peripherals() {
         )}
 
         <div className="devices__actions">
-          <button className="btn btn--quiet" onClick={() => void refreshDevices()}>
-            Rescan now
+          <button
+            className="btn btn--quiet"
+            disabled={rescanning}
+            onClick={() => {
+              setRescanning(true);
+              void refreshDevices().catch((e) => {
+                setError(asIpcError(e).message);
+                setRescanning(false);
+              });
+            }}
+          >
+            {rescanning ? "Rescanning…" : "Rescan now"}
           </button>
           <span className="hint">
             This list updates itself — Windows reports device arrival and removal, and a device
