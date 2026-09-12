@@ -181,9 +181,29 @@ jobs:
           $config.bundle | Add-Member -NotePropertyName createUpdaterArtifacts -NotePropertyValue $true -Force
           $config | ConvertTo-Json -Depth 20 | Set-Content src-tauri/tauri.conf.json
 
-          $toml = Get-Content src-tauri/Cargo.toml -Raw
-          $toml = $toml -replace '(?m)^version = ".*"$', ('version = "' + $version + '"')
-          Set-Content src-tauri/Cargo.toml $toml
+          # The version the *app* reports is CARGO_PKG_VERSION, and the
+          # updater compares that same number. src-tauri/Cargo.toml says
+          # `version.workspace = true`, so the value lives in the root
+          # manifest — rewriting src-tauri's matched nothing and every build
+          # compiled as 0.1.0. That is not cosmetic: an update installs, the
+          # app still reports the old version, and it offers the same update
+          # forever.
+          #
+          # Scoped to the [workspace.package] block so it cannot touch a
+          # dependency version, and verified afterwards, because a regex that
+          # silently matches nothing is what caused this.
+          $toml = Get-Content Cargo.toml -Raw
+          $toml = [regex]::Replace(
+            $toml,
+            '(?ms)(\[workspace\.package\][^\[]*?^version = ")[^"]*(")',
+            ('${1}' + $version + '${2}')
+          )
+          Set-Content Cargo.toml $toml
+
+          if ((Get-Content Cargo.toml -Raw) -notmatch [regex]::Escape('version = "' + $version + '"')) {
+            Write-Error "The workspace version was not rewritten to $version."
+            exit 1
+          }
 
           "signing=true" | Out-File $env:GITHUB_OUTPUT -Append
           "version=$version" | Out-File $env:GITHUB_OUTPUT -Append

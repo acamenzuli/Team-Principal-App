@@ -46,10 +46,23 @@ jobs:
           $config.version = $version
           $config | ConvertTo-Json -Depth 20 | Set-Content src-tauri/tauri.conf.json
 
-          # Cargo reads its own version, and the app reports CARGO_PKG_VERSION.
-          $toml = Get-Content src-tauri/Cargo.toml -Raw
-          $toml = $toml -replace '(?m)^version = ".*"$', "version = ""$version"""
-          Set-Content src-tauri/Cargo.toml $toml
+          # The app reports CARGO_PKG_VERSION and the updater compares it.
+          # `version.workspace = true` in src-tauri means the value lives in
+          # the root manifest, scoped here to [workspace.package] so it cannot
+          # touch a dependency version, and verified because a regex that
+          # matches nothing fails silently.
+          $toml = Get-Content Cargo.toml -Raw
+          $toml = [regex]::Replace(
+            $toml,
+            '(?ms)(\[workspace\.package\][^\[]*?^version = ")[^"]*(")',
+            ('${1}' + $version + '${2}')
+          )
+          Set-Content Cargo.toml $toml
+
+          if ((Get-Content Cargo.toml -Raw) -notmatch [regex]::Escape('version = "' + $version + '"')) {
+            Write-Error "The workspace version was not rewritten to $version."
+            exit 1
+          }
           Write-Host "Releasing $version"
 
       # createUpdaterArtifacts makes the build produce a signed update alongside
