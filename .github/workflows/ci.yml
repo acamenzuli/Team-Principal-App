@@ -80,6 +80,13 @@ jobs:
       - name: IPC command surface matches the client
         run: node scripts/check-ipc.mjs
 
+      # The webview must be allowed to listen for events. Without that every
+      # event in the app is dropped in silence, which is not something any
+      # other check here would notice: the code compiles, the tests pass, and
+      # the commands all work.
+      - name: The webview can listen for events
+        run: node scripts/check-capabilities.mjs
+
       - name: Frontend typecheck and build
         run: npm run build
 

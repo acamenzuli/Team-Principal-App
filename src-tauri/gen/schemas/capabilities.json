@@ -1,1 +1,1 @@
-{}
+{"default":{"identifier":"default","description":"What the app's own windows are allowed to call. Without this file every core-plugin call from the webview is denied — and `listen` is one, so nothing event-driven works: no device arrivals, no live input, no launch progress. The app's own commands are not governed by this, which is why everything else kept working and this went unnoticed.","local":true,"windows":["main","splash"],"permissions":["core:default","opener:default"]}}
