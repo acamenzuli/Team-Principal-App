@@ -278,6 +278,12 @@ pub struct InputFrame {
     /// One entry per declared button, in report order, so the UI can draw a
     /// stable grid rather than a list that changes length as buttons are held.
     pub buttons: Vec<bool>,
+    /// One entry per declared hat: degrees clockwise from north, or `None`
+    /// when centred. A hat is not an axis — at rest it is centred rather than
+    /// zero, and its values wrap — so it is reported separately rather than
+    /// squeezed into the axis list where it would read as a stuck control.
+    #[serde(default)]
+    pub hats: Vec<Option<u16>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -316,6 +322,8 @@ pub enum InputStatus {
         instance_path: String,
         axes: Vec<String>,
         buttons: u32,
+        #[serde(default)]
+        hats: u32,
     },
     /// Paused because a session is running. Nothing here can steal input, but
     /// the monitor stands down anyway, and saying so beats a still bar.

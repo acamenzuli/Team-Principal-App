@@ -10,6 +10,7 @@
 //! * nothing platform-specific can leak into the wire format by accident.
 
 pub mod adapter;
+pub mod apps;
 pub mod axes;
 pub mod catalog;
 pub mod catalog_games;
@@ -39,7 +40,8 @@ pub use adapter::{
     AdapterPlan, AdapterPreview, AppliedAdapterInfo, BackupInfo, Confidence, ConfigGroup,
     ConfigInspection, Edit, FileDiff, FileEdits, MissingKey, ValueChange,
 };
-pub use axes::{axis_name, is_axis, normalise, normalise_unipolar};
+pub use apps::{app_from_path, offerable, tidy as tidy_apps, RunningApp};
+pub use axes::{axis_name, hat_degrees, is_axis, normalise, normalise_unipolar};
 pub use catalog::{Catalog, CatalogEntry, DeviceKind};
 pub use catalog_games::{ConfigFormat, Derived, GameEntry, Unit};
 pub use datauri::{decode_image_data_uri, DecodedImage};

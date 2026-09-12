@@ -256,6 +256,7 @@ pub fn run() {
             ipc::add_game,
             ipc::game_library,
             ipc::set_game_art,
+            ipc::list_running_apps,
             ipc::remember_window,
             ipc::capture_window,
             ipc::set_auto_apply,

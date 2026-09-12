@@ -224,6 +224,76 @@ fn input_idle(_timeout_ms: u64) -> bool {
     false
 }
 
+/// Every program running right now that could plausibly be a racing utility.
+///
+/// The full image path is needed, not just the name a process snapshot gives:
+/// the name is what a `ProcessExists` gate matches on, but the path is what
+/// actually gets started when the utility is not running yet.
+#[cfg(windows)]
+pub fn running_apps() -> Vec<tp_model::RunningApp> {
+    use windows::core::PWSTR;
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Diagnostics::ToolHelp::*;
+    use windows::Win32::System::Threading::{
+        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_FORMAT,
+        PROCESS_QUERY_LIMITED_INFORMATION,
+    };
+
+    // SAFETY: every handle opened here is closed on every path.
+    unsafe {
+        let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else {
+            return Vec::new();
+        };
+        let mut entry = PROCESSENTRY32W {
+            dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+            ..Default::default()
+        };
+
+        let mut paths: Vec<String> = Vec::new();
+        if Process32FirstW(snapshot, &mut entry).is_ok() {
+            loop {
+                // LIMITED_INFORMATION rather than QUERY_INFORMATION: it is
+                // enough for the image path and is granted for processes this
+                // one could not otherwise open, so the list is not silently
+                // missing whatever runs at a different integrity level.
+                if let Ok(process) = OpenProcess(
+                    PROCESS_QUERY_LIMITED_INFORMATION,
+                    false,
+                    entry.th32ProcessID,
+                ) {
+                    let mut buffer = [0u16; 512];
+                    let mut len = buffer.len() as u32;
+                    if QueryFullProcessImageNameW(
+                        process,
+                        PROCESS_NAME_FORMAT(0),
+                        PWSTR(buffer.as_mut_ptr()),
+                        &mut len,
+                    )
+                    .is_ok()
+                    {
+                        paths.push(String::from_utf16_lossy(&buffer[..len as usize]));
+                    }
+                    let _ = CloseHandle(process);
+                }
+
+                if Process32NextW(snapshot, &mut entry).is_err() {
+                    break;
+                }
+            }
+        }
+        let _ = CloseHandle(snapshot);
+
+        // Which of them are worth showing is decided in tp-model, where it is
+        // tested without needing a machine with SimHub on it.
+        tp_model::tidy_apps(paths)
+    }
+}
+
+#[cfg(not(windows))]
+pub fn running_apps() -> Vec<tp_model::RunningApp> {
+    Vec::new()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

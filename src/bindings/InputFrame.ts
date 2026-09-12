@@ -13,4 +13,11 @@ instancePath: string, axes: Array<AxisReading>,
  * One entry per declared button, in report order, so the UI can draw a
  * stable grid rather than a list that changes length as buttons are held.
  */
-buttons: Array<boolean>, };
+buttons: Array<boolean>, 
+/**
+ * One entry per declared hat: degrees clockwise from north, or `None`
+ * when centred. A hat is not an axis — at rest it is centred rather than
+ * zero, and its values wrap — so it is reported separately rather than
+ * squeezed into the axis list where it would read as a stuck control.
+ */
+hats: Array<number | null>, };

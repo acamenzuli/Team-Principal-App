@@ -4,12 +4,14 @@ import {
   asIpcError,
   deleteProfile,
   listDevices,
+  listRunningApps,
   saveProfile,
   type DetectedDevice,
   type Necessity,
   type PeripheralRequirement,
   type Profile,
   type ReadinessGate,
+  type RunningApp,
   type UtilitySpec,
 } from "../ipc";
 
@@ -41,6 +43,7 @@ export function ProfileEditor({
   const [devices, setDevices] = useState<DetectedDevice[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [picking, setPicking] = useState(false);
 
   useEffect(() => {
     listDevices()
@@ -196,19 +199,112 @@ export function ProfileEditor({
           />
         ))}
 
-        <button
-          className="btn btn--quiet"
-          onClick={() => setDraft((d) => ({ ...d, utilities: [...d.utilities, blankUtility()] }))}
-        >
-          Add a utility
-        </button>
+        <div className="pe__actions">
+          {/* Start it, then point at it. Typing a path from memory is how you
+              get a profile that fails its own check, and a catalog of known
+              utilities would guess at paths and go stale. */}
+          <button className="btn" onClick={() => setPicking(true)}>
+            Add software that's running
+          </button>
+          <button
+            className="btn btn--quiet"
+            onClick={() => setDraft((d) => ({ ...d, utilities: [...d.utilities, blankUtility()] }))}
+          >
+            Add one by hand
+          </button>
+        </div>
       </section>
+
+      {picking && (
+        <RunningPicker
+          already={draft.utilities.map((u) => u.exePath)}
+          onClose={() => setPicking(false)}
+          onPick={(app) => {
+            setDraft((d) => ({ ...d, utilities: [...d.utilities, utilityFor(app)] }));
+            setPicking(false);
+          }}
+        />
+      )}
 
       <footer className="pe__foot">
         <button className="btn btn--quiet" onClick={() => void remove()}>
           Delete this profile
         </button>
       </footer>
+    </div>
+  );
+}
+
+/**
+ * Pick a running program to require before a race.
+ *
+ * Everything on this machine, right now — not a list of utilities somebody
+ * thought of in advance. SimHub, a dashboard, a telemetry tool, a script
+ * written last weekend: if it is running, it can be required.
+ */
+function RunningPicker({
+  already,
+  onPick,
+  onClose,
+}: {
+  already: string[];
+  onPick: (app: RunningApp) => void;
+  onClose: () => void;
+}) {
+  const [apps, setApps] = useState<RunningApp[] | null>(null);
+  const [filter, setFilter] = useState("");
+  const [problem, setProblem] = useState<string | null>(null);
+
+  useEffect(() => {
+    listRunningApps()
+      .then(setApps)
+      .catch((e) => setProblem(asIpcError(e).message));
+  }, []);
+
+  const shown = (apps ?? []).filter((a) =>
+    `${a.label} ${a.exePath}`.toLowerCase().includes(filter.trim().toLowerCase()),
+  );
+
+  return (
+    <div className="picker" role="dialog" aria-label="Software running now">
+      <header className="picker__head">
+        <h4 className="picker__title">Software running now</h4>
+        <button className="btn btn--quiet btn--tiny" onClick={onClose}>
+          Close
+        </button>
+      </header>
+
+      <input
+        className="picker__filter"
+        placeholder="Type to narrow the list — simhub, crew, dash…"
+        value={filter}
+        autoFocus
+        onChange={(e) => setFilter(e.target.value)}
+      />
+
+      {problem && <p className="warn warn--hard">{problem}</p>}
+      {apps === null && !problem && <p className="note">Looking…</p>}
+      {apps !== null && shown.length === 0 && (
+        <p className="note">
+          Nothing matches. Start the program first — this lists what is running now, so the path
+          it records is one that has actually worked.
+        </p>
+      )}
+
+      <ul className="picker__list">
+        {shown.map((app) => {
+          const have = already.some((p) => p.toLowerCase() === app.exePath.toLowerCase());
+          return (
+            <li key={app.exePath}>
+              <button className="picker__row" disabled={have} onClick={() => onPick(app)}>
+                <span className="picker__name">{app.label}</span>
+                <span className="picker__path num">{app.exePath}</span>
+                {have && <span className="tag">already required</span>}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
@@ -412,6 +508,25 @@ function gateOfKind(kind: string, previous: ReadinessGate, exe: string): Readine
     default:
       return { kind: "immediate" };
   }
+}
+
+/**
+ * A utility built from a program that is running.
+ *
+ * Required by default, and checked by its executable name: that is the whole
+ * point of adding it — "do not let me on track without this". Optional is a
+ * deliberate downgrade rather than the starting position.
+ */
+function utilityFor(app: RunningApp): UtilitySpec {
+  return {
+    label: app.label,
+    exePath: app.exePath,
+    args: [],
+    readyWhen: { kind: "process_exists", exe: app.exe },
+    timeoutMs: 60_000,
+    required: true,
+    after: [],
+  };
 }
 
 function blankUtility(): UtilitySpec {

@@ -102,16 +102,9 @@
 
 .axis {
   display: grid;
-  grid-template-columns: 64px 1fr 80px 16px;
+  grid-template-columns: 10px 92px 1fr 80px;
   align-items: center;
   gap: var(--s3);
-}
-
-/* A tick, not a colour change: an axis that has been moved has been proven,
-   and that fact should survive it returning to rest. */
-.axis__seen {
-  font-size: 12px;
-  color: var(--pass);
 }
 
 .axis--seen .axis__name {
@@ -152,32 +145,6 @@
   margin-top: var(--s4);
 }
 
-.button {
-  min-width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  padding: 0 var(--s1);
-  background: var(--ground-deep);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-num);
-  font-size: 12px;
-  color: var(--ink-faint);
-}
-
-/* Exercised at some point during this test, whether or not it is down now. */
-.button--seen {
-  border-color: var(--pass);
-  color: var(--ink);
-}
-
-.button--down {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
-}
-
 /* ---------------------------------------------------------------- renaming */
 
 /* The name is a control, not a label — but a row of buttons reads as a toolbar,
@@ -214,4 +181,102 @@
   border-radius: var(--radius-sm);
   color: var(--ink);
   font: inherit;
+}
+
+/* ------------------------------------------------------- the test panel */
+
+.io {
+  margin-top: var(--s4);
+}
+
+.io__title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  margin: 0 0 var(--s2);
+  font-size: var(--size-sm);
+  font-weight: 500;
+  color: var(--ink-dim);
+}
+
+.io__count {
+  color: var(--ink-faint);
+}
+
+/* The device's own numbering, which is the numbering a game shows. */
+.io__n {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+/* The bubble. Dim when nothing has been reported, lit while a value is
+   arriving, and green once the control has actually been moved — so one look
+   answers "is it reporting" and "have I proved this one" at the same time. */
+.bub {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ground-deep);
+  border: 1px solid var(--rule-strong);
+  flex: 0 0 auto;
+}
+
+.bub--live {
+  border-color: var(--accent);
+}
+
+.bub--seen {
+  background: var(--pass);
+  border-color: var(--pass);
+}
+
+.hats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.hat {
+  display: grid;
+  grid-template-columns: 10px 92px 1fr;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.hat__name {
+  font-size: var(--size-sm);
+  color: var(--ink-dim);
+}
+
+.hat__value {
+  font-size: var(--size-sm);
+  color: var(--ink-faint);
+}
+
+/* Buttons are bubbles too, carrying their number. Round rather than square so
+   the whole panel reads as one instrument. */
+.bubbtn {
+  min-width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0 var(--s1);
+  background: var(--ground-deep);
+  border: 1px solid var(--rule);
+  border-radius: 15px;
+  font-family: var(--font-num);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.bubbtn--seen {
+  border-color: var(--pass);
+  color: var(--ink);
+}
+
+/* Held right now. Wins over --seen because it is the live state. */
+.bubbtn--down {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
 }

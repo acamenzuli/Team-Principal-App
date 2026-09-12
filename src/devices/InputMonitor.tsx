@@ -48,6 +48,7 @@ export function InputMonitor({
   const movedAxes = useRef<Set<number>>(new Set());
   const restAxes = useRef<Map<number, number>>(new Map());
   const usedButtons = useRef<Set<number>>(new Set());
+  const usedHats = useRef<Set<number>>(new Set());
 
   // Opening a panel has to be visible. On a long device list the row being
   // tested can sit below the fold, and a panel that appears off-screen is
@@ -85,6 +86,9 @@ export function InputMonitor({
           next.buttons.forEach((down, i) => {
             if (down) usedButtons.current.add(i);
           });
+          next.hats.forEach((degrees, i) => {
+            if (degrees !== null) usedHats.current.add(i);
+          });
           setFrame(next);
         }),
         onInputStatus((next) => {
@@ -117,6 +121,7 @@ export function InputMonitor({
       movedAxes.current.clear();
       restAxes.current.clear();
       usedButtons.current.clear();
+      usedHats.current.clear();
     };
   }, [instancePath]);
 
@@ -129,9 +134,10 @@ export function InputMonitor({
     [declared, frame],
   );
   const buttonCount = declared?.buttons ?? frame?.buttons.length ?? 0;
+  const hatCount = declared?.hats ?? frame?.hats.length ?? 0;
 
-  const exercised = movedAxes.current.size + usedButtons.current.size;
-  const total = axisNames.length + buttonCount;
+  const exercised = movedAxes.current.size + usedButtons.current.size + usedHats.current.size;
+  const total = axisNames.length + buttonCount + hatCount;
 
   return (
     <div className="monitor" ref={panel}>
@@ -164,49 +170,105 @@ export function InputMonitor({
 
       {status?.kind !== "failed" && (
         <>
-          <div className="axes">
-            {axisNames.length === 0 && status?.kind === "listening" && (
-              <p className="note">This device declares no axes — buttons only.</p>
-            )}
-            {axisNames.map((axisName, i) => {
-              const reading = frame?.axes[i];
-              const moved = movedAxes.current.has(i);
-              return (
-                <div className={`axis${moved ? " axis--seen" : ""}`} key={`${axisName}-${i}`}>
-                  <span className="axis__name">{axisName}</span>
-                  <span className="axis__track">
-                    <span
-                      className="axis__fill"
-                      style={{ width: `${Math.round((reading?.unipolar ?? 0) * 100)}%` }}
-                    />
-                  </span>
-                  <span className="axis__value num">
-                    {reading ? reading.value.toFixed(3) : "—"}
-                  </span>
-                  <span className="axis__seen" aria-label={moved ? "moved" : "not moved yet"}>
-                    {moved ? "✓" : ""}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          {total === 0 && status?.kind === "listening" && (
+            <p className="note">
+              This device declares no axes, buttons or hats. That is what its own descriptor
+              says — nothing here is being hidden from you.
+            </p>
+          )}
+
+          {axisNames.length > 0 && (
+            <section className="io">
+              <h4 className="io__title">
+                Axes <span className="io__count num">{axisNames.length}</span>
+              </h4>
+              <div className="axes">
+                {axisNames.map((axisName, i) => {
+                  const reading = frame?.axes[i];
+                  const moved = movedAxes.current.has(i);
+                  const live = reading !== undefined;
+                  return (
+                    <div className={`axis${moved ? " axis--seen" : ""}`} key={`${axisName}-${i}`}>
+                      {/* The bubble lights the moment a value arrives and stays
+                          lit once the control has been moved, so a glance says
+                          both "this is reporting" and "this one is proven". */}
+                      <span
+                        className={`bub${live ? " bub--live" : ""}${moved ? " bub--seen" : ""}`}
+                        aria-label={moved ? "moved" : "not moved yet"}
+                      />
+                      <span className="axis__name">
+                        {axisName} <span className="io__n num">{i + 1}</span>
+                      </span>
+                      <span className="axis__track">
+                        <span
+                          className="axis__fill"
+                          style={{ width: `${Math.round((reading?.unipolar ?? 0) * 100)}%` }}
+                        />
+                      </span>
+                      <span className="axis__value num">
+                        {reading ? reading.value.toFixed(3) : "—"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {hatCount > 0 && (
+            <section className="io">
+              <h4 className="io__title">
+                Hats <span className="io__count num">{hatCount}</span>
+              </h4>
+              <div className="hats">
+                {Array.from({ length: hatCount }, (_, i) => {
+                  const degrees = frame?.hats[i] ?? null;
+                  const used = usedHats.current.has(i);
+                  return (
+                    <div className="hat" key={i}>
+                      <span
+                        className={`bub${degrees !== null ? " bub--live" : ""}${
+                          used ? " bub--seen" : ""
+                        }`}
+                      />
+                      <span className="hat__name">
+                        Hat <span className="io__n num">{i + 1}</span>
+                      </span>
+                      {/* The direction in words as well as degrees: "225°" is
+                          not something anybody checks a POV switch against. */}
+                      <span className="hat__value num">
+                        {degrees === null ? "centred" : `${compass(degrees)} · ${degrees}°`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {buttonCount > 0 && (
-            <div className="buttons">
-              {Array.from({ length: buttonCount }, (_, i) => {
-                const down = frame?.buttons[i] ?? false;
-                const used = usedButtons.current.has(i);
-                return (
-                  <span
-                    key={i}
-                    className={`button${down ? " button--down" : ""}${used ? " button--seen" : ""}`}
-                    title={`Button ${i + 1}${used ? " — pressed during this test" : ""}`}
-                  >
-                    {i + 1}
-                  </span>
-                );
-              })}
-            </div>
+            <section className="io">
+              <h4 className="io__title">
+                Buttons <span className="io__count num">{buttonCount}</span>
+              </h4>
+              <div className="buttons">
+                {Array.from({ length: buttonCount }, (_, i) => {
+                  const down = frame?.buttons[i] ?? false;
+                  const used = usedButtons.current.has(i);
+                  return (
+                    <span
+                      key={i}
+                      className={`bubbtn${down ? " bubbtn--down" : ""}${
+                        used ? " bubbtn--seen" : ""
+                      }`}
+                      title={`Button ${i + 1}${used ? " — pressed during this test" : ""}`}
+                    >
+                      {i + 1}
+                    </span>
+                  );
+                })}
+              </div>
+            </section>
           )}
 
           {total > 0 && (
@@ -214,8 +276,9 @@ export function InputMonitor({
               <span className="num">
                 {exercised} of {total}
               </span>{" "}
-              checked — move an axis and it ticks, press a button and it keeps a green outline.
-              Anything still unmarked after you have tried it is the thing to report.
+              proven. Every control this device declares is listed above, numbered as the device
+              numbers them — which is the numbering a game will show you. Work through them and
+              anything still unlit is the thing to report.
             </p>
           )}
         </>
@@ -227,6 +290,12 @@ export function InputMonitor({
       </p>
     </div>
   );
+}
+
+/** A hat's direction in words. Degrees alone is not how anybody checks a POV. */
+function compass(degrees: number): string {
+  const points = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const;
+  return points[Math.round(degrees / 45) % 8] ?? "N";
 }
 
 /** One line saying exactly where this panel is, so it is never just blank. */

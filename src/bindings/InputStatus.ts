@@ -9,4 +9,4 @@
  * inside the reading thread used to reach nothing but the log. Every outcome
  * is on the wire so the panel can say which one happened.
  */
-export type InputStatus = { "kind": "opening", instancePath: string, } | { "kind": "listening", instancePath: string, axes: Array<string>, buttons: number, } | { "kind": "suspended", instancePath: string, } | { "kind": "failed", instancePath: string, message: string, };
+export type InputStatus = { "kind": "opening", instancePath: string, } | { "kind": "listening", instancePath: string, axes: Array<string>, buttons: number, hats: number, } | { "kind": "suspended", instancePath: string, } | { "kind": "failed", instancePath: string, message: string, };

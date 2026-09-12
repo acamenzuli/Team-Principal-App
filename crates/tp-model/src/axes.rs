@@ -180,3 +180,78 @@ mod tests {
         assert_eq!(sign_extend(5, 64), 5);
     }
 }
+
+/// Where a hat switch is pointing, in degrees clockwise from north, or `None`
+/// when it is centred.
+///
+/// A hat is not an axis and drawing it as one is wrong in both directions: at
+/// rest it is *centred*, not zero, and its values wrap — the position one step
+/// anticlockwise from north is the largest value it reports, not the smallest.
+///
+/// The number of positions comes from the declared logical range, because
+/// four-way and eight-way hats both exist and they report the same usage. Any
+/// value outside that range means centred, which is how the HID specification
+/// says a hat reports "not pressed" — and a device whose null value is its
+/// logical maximum plus one is the common case, not an edge case.
+pub fn hat_degrees(raw: u32, logical_min: i32, logical_max: i32) -> Option<u16> {
+    if logical_max <= logical_min {
+        return None;
+    }
+
+    let value = raw as i64;
+    if value < logical_min as i64 || value > logical_max as i64 {
+        return None;
+    }
+
+    let positions = (logical_max - logical_min + 1) as i64;
+    // Fewer than four positions is not a hat anybody makes; treating it as one
+    // would produce angles that mean nothing.
+    if positions < 4 {
+        return None;
+    }
+
+    let step = (value - logical_min as i64) as f64;
+    Some(((step * 360.0 / positions as f64).round() as u16) % 360)
+}
+
+#[cfg(test)]
+mod hat_tests {
+    use super::hat_degrees;
+
+    #[test]
+    fn an_eight_way_hat_reads_round_the_compass() {
+        // The usual declaration: 1..=8, north at 1, clockwise from there.
+        let at = |v| hat_degrees(v, 1, 8);
+        assert_eq!(at(1), Some(0), "north");
+        assert_eq!(at(3), Some(90), "east");
+        assert_eq!(at(5), Some(180), "south");
+        assert_eq!(at(7), Some(270), "west");
+        assert_eq!(at(8), Some(315), "north-west");
+    }
+
+    #[test]
+    fn a_four_way_hat_reads_the_same_compass() {
+        let at = |v| hat_degrees(v, 0, 3);
+        assert_eq!(at(0), Some(0));
+        assert_eq!(at(1), Some(90));
+        assert_eq!(at(2), Some(180));
+        assert_eq!(at(3), Some(270));
+    }
+
+    #[test]
+    fn anything_outside_the_declared_range_is_centred() {
+        // The common null value is one past the maximum, and it is how a hat
+        // says "not pressed" — reading it as a direction would light a
+        // direction nobody is holding.
+        assert_eq!(hat_degrees(0, 1, 8), None);
+        assert_eq!(hat_degrees(9, 1, 8), None);
+        assert_eq!(hat_degrees(15, 1, 8), None);
+    }
+
+    #[test]
+    fn a_malformed_declaration_is_centred_rather_than_a_panic() {
+        assert_eq!(hat_degrees(3, 8, 1), None);
+        assert_eq!(hat_degrees(0, 0, 0), None);
+        assert_eq!(hat_degrees(1, 0, 2), None, "three positions is not a hat");
+    }
+}

@@ -50,6 +50,7 @@ import type { PendingSession } from "./bindings/PendingSession";
 import type { PeripheralRequirement } from "./bindings/PeripheralRequirement";
 import type { Platform } from "./bindings/Platform";
 import type { Profile } from "./bindings/Profile";
+import type { RunningApp } from "./bindings/RunningApp";
 import type { ProfileCard } from "./bindings/ProfileCard";
 import type { ReadinessGate } from "./bindings/ReadinessGate";
 import type { Severity } from "./bindings/Severity";
@@ -126,6 +127,7 @@ export type {
   Platform,
   Profile,
   ProfileCard,
+  RunningApp,
   ReadinessGate,
   ReadyState,
   Severity,
@@ -336,6 +338,16 @@ export const addGame = (name: string, exePath: string) =>
  */
 export const setGameArt = (profileId: string, dataUri: string | null) =>
   invoke<ProfileCard>("set_game_art", { profileId, dataUri });
+
+/**
+ * Every program running right now, as things you could require before a race.
+ *
+ * Picking from what is running beats typing a path and beats a catalog of
+ * known utilities — which would guess where SimHub lives, go stale when a
+ * vendor renames an installer, and never cover a tool somebody wrote
+ * themselves.
+ */
+export const listRunningApps = () => invoke<RunningApp[]>("list_running_apps");
 
 /**
  * Step status changes.

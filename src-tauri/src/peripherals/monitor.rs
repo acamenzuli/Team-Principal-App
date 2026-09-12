@@ -200,7 +200,7 @@ mod win {
             ));
         }
 
-        let value_caps = value_caps(preparsed, &caps);
+        let (value_caps, hat_caps) = value_caps(preparsed, &caps);
         let button_caps = button_caps(preparsed, &caps);
 
         // Publish the shape of the device before a single report arrives. The
@@ -208,7 +208,7 @@ mod win {
         // they are exercised — which is the whole point of a test panel. A
         // panel that only fills in as things move cannot tell you that a pedal
         // you have not pressed yet exists.
-        publish(app, listening(path, &value_caps, &button_caps));
+        publish(app, listening(path, &value_caps, &button_caps, &hat_caps));
 
         // A manual-reset event is not needed; the read completes or is
         // cancelled, and nothing else waits on this.
@@ -231,7 +231,14 @@ mod win {
             report.as_mut_ptr() as *mut core::ffi::c_void,
             report.len() as u32,
         ) {
-            let frame = decode(preparsed, &mut report, &value_caps, &button_caps, path);
+            let frame = decode(
+                preparsed,
+                &mut report,
+                &value_caps,
+                &button_caps,
+                &hat_caps,
+                path,
+            );
             let _ = app.emit(EVENT, &frame);
         }
 
@@ -256,7 +263,7 @@ mod win {
 
             if said_suspended {
                 said_suspended = false;
-                publish(app, listening(path, &value_caps, &button_caps));
+                publish(app, listening(path, &value_caps, &button_caps, &hat_caps));
             }
 
             let mut overlapped = OVERLAPPED {
@@ -297,7 +304,14 @@ mod win {
             last_sent = Instant::now();
 
             let n = transferred as usize;
-            let frame = decode(preparsed, &mut report[..n], &value_caps, &button_caps, path);
+            let frame = decode(
+                preparsed,
+                &mut report[..n],
+                &value_caps,
+                &button_caps,
+                &hat_caps,
+                path,
+            );
             if let Err(e) = app.emit(EVENT, &frame) {
                 tracing::debug!(error = %e, "could not publish an input frame");
                 break;
@@ -319,6 +333,7 @@ mod win {
         path: &str,
         values: &[HIDP_VALUE_CAPS],
         buttons: &[HIDP_BUTTON_CAPS],
+        hats: &[HIDP_VALUE_CAPS],
     ) -> InputStatus {
         InputStatus::Listening {
             instance_path: path.to_string(),
@@ -336,24 +351,38 @@ mod win {
                     (max.saturating_sub(min) as u32) + 1
                 })
                 .sum(),
+            hats: hats.len() as u32,
         }
     }
 
+    /// Axes and hats, split.
+    ///
+    /// Both arrive as value caps and a hat used to be dropped on the floor by
+    /// `is_axis`, which is why a wheel's POV switch appeared nowhere: it is not
+    /// an axis, and it was not anything else either.
     unsafe fn value_caps(
         preparsed: PHIDP_PREPARSED_DATA,
         caps: &HIDP_CAPS,
-    ) -> Vec<HIDP_VALUE_CAPS> {
+    ) -> (Vec<HIDP_VALUE_CAPS>, Vec<HIDP_VALUE_CAPS>) {
+        const HAT: u16 = 0x39;
+
         let mut count = caps.NumberInputValueCaps;
         if count == 0 {
-            return Vec::new();
+            return (Vec::new(), Vec::new());
         }
         let mut out = vec![HIDP_VALUE_CAPS::default(); count as usize];
         if HidP_GetValueCaps(HidP_Input, out.as_mut_ptr(), &mut count, preparsed).is_err() {
-            return Vec::new();
+            return (Vec::new(), Vec::new());
         }
         out.truncate(count as usize);
+
+        let hats: Vec<HIDP_VALUE_CAPS> = out
+            .iter()
+            .filter(|c| c.UsagePage == 0x01 && unsafe { c.Anonymous.Range.UsageMin } == HAT)
+            .copied()
+            .collect();
         out.retain(|c| tp_model::is_axis(c.UsagePage, unsafe { c.Anonymous.Range.UsageMin }));
-        out
+        (out, hats)
     }
 
     unsafe fn button_caps(
@@ -377,6 +406,7 @@ mod win {
         report: &mut [u8],
         values: &[HIDP_VALUE_CAPS],
         buttons: &[HIDP_BUTTON_CAPS],
+        hat_caps: &[HIDP_VALUE_CAPS],
         path: &str,
     ) -> InputFrame {
         let axes: Vec<AxisReading> = values
@@ -441,10 +471,36 @@ mod win {
             }
         }
 
+        // Hats. Centred is `None` rather than a direction, so a POV nobody is
+        // holding cannot light one up.
+        let hats: Vec<Option<u16>> = hat_caps
+            .iter()
+            .map(|cap| {
+                let usage = cap.Anonymous.Range.UsageMin;
+                let mut raw = 0u32;
+                if HidP_GetUsageValue(
+                    HidP_Input,
+                    cap.UsagePage,
+                    None,
+                    usage,
+                    &mut raw,
+                    preparsed,
+                    report,
+                )
+                .ok()
+                .is_err()
+                {
+                    return None;
+                }
+                tp_model::hat_degrees(raw, cap.LogicalMin, cap.LogicalMax)
+            })
+            .collect();
+
         InputFrame {
             instance_path: path.to_string(),
             axes,
             buttons: pressed,
+            hats,
         }
     }
 }

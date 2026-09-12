@@ -764,6 +764,20 @@ fn matches_game(profile: &tp_model::Profile, game: &crate::launcher::InstalledGa
     }
 }
 
+/// Every program running right now, as things you could require before a race.
+///
+/// Picking from what is running beats typing a path, and it beats a catalog of
+/// known utilities: a catalog guesses where SimHub lives, goes stale when a
+/// vendor renames an installer, and never covers the tool somebody wrote
+/// themselves. What is on this machine, right now, is not a guess.
+///
+/// Windows internals are filtered out — that rule lives in `tp-model` and is
+/// tested there.
+#[tauri::command]
+pub fn list_running_apps() -> Vec<tp_model::RunningApp> {
+    crate::launcher::gates::running_apps()
+}
+
 /// Use a picture of your own for a game, or go back to the detected one.
 ///
 /// Art is found in Steam's local cache, which means a game from anywhere else
