@@ -102,6 +102,51 @@ pub fn set_device_alias(
     Ok(saved)
 }
 
+/// Give one control your own name, or take it back.
+///
+/// Named per device and per number, so two identical button boxes keep their
+/// own names. The number stays visible whatever you call it, because the
+/// number is what a game's binding screen shows.
+#[tauri::command]
+pub fn set_input_alias(
+    device_key: String,
+    kind: tp_model::InputKind,
+    index: u32,
+    name: Option<String>,
+) -> AppResult<std::collections::BTreeMap<String, String>> {
+    let (mut prefs, _) = crate::settings::load();
+    let key = tp_model::input_alias_key(&device_key, kind, index);
+
+    match name.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        Some(name) => prefs.input_aliases.insert(key, name.to_string()),
+        None => prefs.input_aliases.remove(&key),
+    };
+
+    let saved = crate::settings::save(&prefs)?;
+    Ok(for_device(&saved, &device_key))
+}
+
+/// The names given to one device's controls, keyed by control.
+#[tauri::command]
+pub fn input_aliases(device_key: String) -> std::collections::BTreeMap<String, String> {
+    for_device(&crate::settings::load().0, &device_key)
+}
+
+/// Just this device's entries, so the panel is not handed every control of
+/// every peripheral ever named.
+fn for_device(
+    prefs: &tp_model::Preferences,
+    device_key: &str,
+) -> std::collections::BTreeMap<String, String> {
+    let prefix = format!("{device_key}|");
+    prefs
+        .input_aliases
+        .iter()
+        .filter(|(k, _)| k.starts_with(&prefix))
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect()
+}
+
 /// What has happened to one device since the app started.
 ///
 /// Connections and disconnections as they were *shown*, not as they were

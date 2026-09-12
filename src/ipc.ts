@@ -41,6 +41,7 @@ import type { DetectedDevice } from "./bindings/DetectedDevice";
 import type { DeviceEvent } from "./bindings/DeviceEvent";
 import type { GlassLevel } from "./bindings/GlassLevel";
 import type { InputFrame } from "./bindings/InputFrame";
+import type { InputKind } from "./bindings/InputKind";
 import type { InputStatus } from "./bindings/InputStatus";
 import type { LicenceState } from "./bindings/LicenceState";
 import type { Tier } from "./bindings/Tier";
@@ -120,6 +121,7 @@ export type {
   FixAction,
   GlassLevel,
   InputFrame,
+  InputKind,
   InputStatus,
   InstalledGameInfo,
   LicenceState,
@@ -235,6 +237,27 @@ export const setDeviceAlias = (key: string, name: string | null) =>
  * debouncer swallowed never reached the screen and is not in here.
  */
 export const deviceHistory = (key: string) => invoke<DeviceEvent[]>("device_history", { key });
+
+/** The names given to one device's controls, keyed by `input_alias_key`. */
+export const inputAliases = (deviceKey: string) =>
+  invoke<Record<string, string>>("input_aliases", { deviceKey });
+
+/**
+ * Name one control, or pass null to take the name back.
+ *
+ * Returns the device's names, so the panel updates from what was saved rather
+ * than from what it hoped was saved.
+ */
+export const setInputAlias = (
+  deviceKey: string,
+  kind: InputKind,
+  index: number,
+  name: string | null,
+) => invoke<Record<string, string>>("set_input_alias", { deviceKey, kind, index, name });
+
+/** The key a control's name is stored against. Must match `input_alias_key`. */
+export const inputAliasKey = (deviceKey: string, kind: InputKind, index: number) =>
+  `${deviceKey}|${kind}|${index}`;
 
 /**
  * Something happening to a device, as it happens.

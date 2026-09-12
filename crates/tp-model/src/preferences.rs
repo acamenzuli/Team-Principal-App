@@ -52,6 +52,12 @@ pub struct Preferences {
     /// any one game.
     #[serde(default)]
     pub library: LibraryView,
+    /// What the user calls each individual control, keyed by
+    /// `input_alias_key`. "Brake" and "Upshift" are what somebody thinks in;
+    /// "axis 2" and "button 7" are what the hardware says, and the test panel
+    /// is where those two get introduced to each other.
+    #[serde(default)]
+    pub input_aliases: BTreeMap<String, String>,
     /// What the user calls each device, keyed by `DeviceRef::alias_key`.
     ///
     /// Kept here rather than on a profile because a name for a pedal set is a
@@ -76,6 +82,7 @@ impl Default for Preferences {
             onboarded: false,
             library: LibraryView::default(),
             device_aliases: BTreeMap::new(),
+            input_aliases: BTreeMap::new(),
         }
     }
 }

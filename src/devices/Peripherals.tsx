@@ -171,6 +171,7 @@ export function Peripherals() {
                           <InputMonitor
                             key={d.device.instancePath}
                             instancePath={d.device.instancePath}
+                            deviceKey={d.aliasKey}
                             name={d.device.displayName}
                             onClose={() => setWatching(null)}
                           />

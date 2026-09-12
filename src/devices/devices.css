@@ -403,3 +403,82 @@
   font-size: 9px;
   line-height: 1;
 }
+
+/* ------------------------------------------------------- naming a control */
+
+/* The name is a control, not a label — styled as the text it replaces, and it
+   only shows its hand on hover. */
+.io__rename {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: text;
+  border-bottom: 1px dashed transparent;
+}
+
+.io__rename:hover {
+  border-bottom-color: var(--rule-strong);
+}
+
+/* What the hardware calls it, kept visible under a name you chose, so a row
+   can still be matched against what a game reports. */
+.io__raw {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.axis__name,
+.hat__name {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+
+/* A named button is reachable from the list as well as from its bubble: at
+   thirty buttons, finding number 23 in a grid is harder than reading a name. */
+.legend {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin: var(--s3) 0 0;
+  padding: 0;
+}
+
+.legend__item {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s1) var(--s2);
+  background: var(--ground-deep);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: var(--size-sm);
+  cursor: pointer;
+}
+
+.legend__item:hover {
+  border-color: var(--accent-edge);
+  color: var(--ink);
+}
+
+.legend__n {
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+
+/* A button you can click to name is a button that should say so. */
+.bubbtn {
+  cursor: pointer;
+}
+
+.bubbtn:hover {
+  border-color: var(--accent-edge);
+}

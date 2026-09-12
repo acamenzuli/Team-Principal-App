@@ -2,13 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   deviceHistory,
+  inputAliasKey,
+  inputAliases,
   onDeviceEvent,
   onInput,
   onInputStatus,
+  setInputAlias,
   startInputMonitor,
   stopInputMonitor,
   type DeviceEvent,
   type InputFrame,
+  type InputKind,
   type InputStatus,
 } from "../ipc";
 
@@ -34,15 +38,43 @@ import {
  */
 export function InputMonitor({
   instancePath,
+  deviceKey,
   name,
   onClose,
 }: {
   instancePath: string;
+  deviceKey: string;
   name: string;
   onClose: () => void;
 }) {
   const [frame, setFrame] = useState<InputFrame | null>(null);
   const [status, setStatus] = useState<InputStatus | null>(null);
+  // What the user calls each control. "Brake" and "Upshift" are what somebody
+  // thinks in; "axis 2" and "button 7" are what the hardware says, and this
+  // panel is where the two are introduced to each other.
+  const [aliases, setAliases] = useState<Record<string, string>>({});
+  const [naming, setNaming] = useState<{ kind: InputKind; index: number } | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    inputAliases(deviceKey)
+      .then((a) => live && setAliases(a))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [deviceKey]);
+
+  const aliasOf = (kind: InputKind, index: number) =>
+    aliases[inputAliasKey(deviceKey, kind, index)];
+
+  const rename = async (kind: InputKind, index: number, value: string | null) => {
+    try {
+      setAliases(await setInputAlias(deviceKey, kind, index, value));
+    } finally {
+      setNaming(null);
+    }
+  };
 
   // Which controls have been exercised since this panel opened. Refs, not
   // state: they are written on every frame and only ever read during the
@@ -218,10 +250,17 @@ export function InputMonitor({
                         }`}
                         aria-label={active ? "moving" : uses > 0 ? "moved" : "not moved yet"}
                       />
-                      <span className="axis__name">
-                        {axisName} <span className="io__n num">{i + 1}</span>
-                        {uses > 0 && <span className="io__uses num">{uses}</span>}
-                      </span>
+                      <Name
+                        className="axis__name"
+                        alias={aliasOf("axis", i)}
+                        fallback={axisName}
+                        index={i + 1}
+                        uses={uses}
+                        editing={naming?.kind === "axis" && naming.index === i}
+                        onEdit={() => setNaming({ kind: "axis", index: i })}
+                        onCancel={() => setNaming(null)}
+                        onSave={(value) => void rename("axis", i, value)}
+                      />
                       <span className="axis__track">
                         <span
                           className="axis__fill"
@@ -254,10 +293,17 @@ export function InputMonitor({
                           degrees !== null ? " bub--active" : ""
                         }`}
                       />
-                      <span className="hat__name">
-                        Hat <span className="io__n num">{i + 1}</span>
-                        {uses > 0 && <span className="io__uses num">{uses}</span>}
-                      </span>
+                      <Name
+                        className="hat__name"
+                        alias={aliasOf("hat", i)}
+                        fallback="Hat"
+                        index={i + 1}
+                        uses={uses}
+                        editing={naming?.kind === "hat" && naming.index === i}
+                        onEdit={() => setNaming({ kind: "hat", index: i })}
+                        onCancel={() => setNaming(null)}
+                        onSave={(value) => void rename("hat", i, value)}
+                      />
                       {/* The direction in words as well as degrees: "225°" is
                           not something anybody checks a POV switch against. */}
                       <span className="hat__value num">
@@ -285,11 +331,18 @@ export function InputMonitor({
                       className={`bubbtn${down ? " bubbtn--down" : ""}${
                         uses > 0 ? " bubbtn--seen" : ""
                       }`}
-                      title={
-                        uses > 0
-                          ? `Button ${i + 1} — pressed ${uses} ${uses === 1 ? "time" : "times"}`
-                          : `Button ${i + 1} — not pressed yet`
-                      }
+                      title={`${aliasOf("button", i) ?? `Button ${i + 1}`} — ${
+                        uses > 0 ? `used ${uses} ${uses === 1 ? "time" : "times"}` : "not used yet"
+                      }. Click to name it.`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setNaming({ kind: "button", index: i })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setNaming({ kind: "button", index: i });
+                        }
+                      }}
                     >
                       {i + 1}
                       {uses > 0 && <span className="bubbtn__uses num">{uses}</span>}
@@ -297,6 +350,24 @@ export function InputMonitor({
                   );
                 })}
               </div>
+
+              {/* Naming happens below the grid: a thirty-pixel bubble is no
+                  place for a text field, and the number has to stay visible
+                  because the number is what a game's binding screen shows. */}
+              {naming?.kind === "button" && (
+                <NameField
+                  label={`Name for button ${naming.index + 1}`}
+                  value={aliasOf("button", naming.index) ?? ""}
+                  onCancel={() => setNaming(null)}
+                  onSave={(value) => void rename("button", naming.index, value)}
+                />
+              )}
+
+              <Legend
+                count={buttonCount}
+                nameOf={(i) => aliasOf("button", i)}
+                onPick={(i) => setNaming({ kind: "button", index: i })}
+              />
             </section>
           )}
 
@@ -321,6 +392,140 @@ export function InputMonitor({
         from a game — and it stops entirely while a session is running.
       </p>
     </div>
+  );
+}
+
+/**
+ * A control's name: what you call it, over what the hardware calls it.
+ *
+ * The number never goes away. Whatever you name it, the number is what a
+ * game's binding screen will show you, and matching the two is the entire
+ * point of this panel.
+ */
+function Name({
+  className,
+  alias,
+  fallback,
+  index,
+  uses,
+  editing,
+  onEdit,
+  onCancel,
+  onSave,
+}: {
+  className: string;
+  alias: string | undefined;
+  fallback: string;
+  index: number;
+  uses: number;
+  editing: boolean;
+  onEdit: () => void;
+  onCancel: () => void;
+  onSave: (value: string | null) => void;
+}) {
+  if (editing) {
+    return (
+      <span className={className}>
+        <NameField
+          label={`Name for ${alias ?? fallback} ${index}`}
+          value={alias ?? ""}
+          onCancel={onCancel}
+          onSave={onSave}
+        />
+      </span>
+    );
+  }
+
+  return (
+    <span className={className}>
+      <button className="io__rename" title="Click to name this control" onClick={onEdit}>
+        {alias ?? fallback} <span className="io__n num">{index}</span>
+        {/* The hardware's own name, kept where you named it something else —
+            so a row can still be matched against what a game reports. */}
+        {alias && <span className="io__raw">{fallback}</span>}
+      </button>
+      {uses > 0 && <span className="io__uses num">{uses}</span>}
+    </span>
+  );
+}
+
+/** One small form, used wherever a control is being named. */
+function NameField({
+  label,
+  value,
+  onSave,
+  onCancel,
+}: {
+  label: string;
+  value: string;
+  onSave: (value: string | null) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState(value);
+
+  return (
+    <form
+      className="rename"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave(draft);
+      }}
+    >
+      <input
+        className="rename__field"
+        value={draft}
+        autoFocus
+        aria-label={label}
+        placeholder="Brake, Upshift, Pit limiter…"
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onCancel();
+        }}
+      />
+      <button className="btn btn--tiny" type="submit">
+        Save
+      </button>
+      {value && (
+        <button className="btn btn--tiny btn--quiet" type="button" onClick={() => onSave(null)}>
+          Clear
+        </button>
+      )}
+    </form>
+  );
+}
+
+/**
+ * The buttons that have names, listed under the grid.
+ *
+ * A thirty-pixel bubble cannot hold "Pit limiter", and shrinking the text
+ * until it fits would make the number unreadable — which is the one thing on
+ * it that has to stay readable.
+ */
+function Legend({
+  count,
+  nameOf,
+  onPick,
+}: {
+  count: number;
+  nameOf: (index: number) => string | undefined;
+  onPick: (index: number) => void;
+}) {
+  const named = Array.from({ length: count }, (_, i) => i).filter((i) => nameOf(i));
+  if (named.length === 0) {
+    return <p className="hint">Click a button to give it a name — "Upshift", "Pit limiter".</p>;
+  }
+
+  return (
+    <ul className="legend">
+      {named.map((i) => (
+        <li key={i}>
+          <button className="legend__item" onClick={() => onPick(i)}>
+            <span className="legend__n num">{i + 1}</span>
+            {nameOf(i)}
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
 

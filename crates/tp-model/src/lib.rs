@@ -47,6 +47,7 @@ pub use catalog_games::{ConfigFormat, Derived, GameEntry, Unit};
 pub use datauri::{decode_image_data_uri, DecodedImage};
 pub use detect::rig_from_monitors;
 pub use device::*;
+pub use device::{input_alias_key, InputKind};
 pub use dinput::{format_guid, vid_pid_from_product_guid};
 pub use display::*;
 pub use fixture::Fixture;

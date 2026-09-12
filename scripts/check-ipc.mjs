@@ -28,7 +28,11 @@ for (const file of walk("src-tauri/src").filter((f) => f.endsWith(".rs"))) {
 }
 
 const client = readFileSync("src/ipc.ts", "utf8");
-const tsCommands = new Set([...client.matchAll(/invoke<[^>]*>\("(\w+)"/g)].map((m) => m[1]));
+// `[^(]*` rather than `[^>]*`: a generic argument can contain its own angle
+// brackets — `invoke<Record<string, string>>` — and stopping at the first `>`
+// made those calls invisible to this check. A guard with a blind spot is worse
+// than no guard, because it is trusted; this is the second one found here.
+const tsCommands = new Set([...client.matchAll(/invoke<[^(]*>\("(\w+)"/g)].map((m) => m[1]));
 
 const missingInTs = [...rustCommands].filter((c) => !tsCommands.has(c));
 const missingInRust = [...tsCommands].filter((c) => !rustCommands.has(c));

@@ -43,6 +43,13 @@ onboarded: boolean,
  */
 library: LibraryView, 
 /**
+ * What the user calls each individual control, keyed by
+ * `input_alias_key`. "Brake" and "Upshift" are what somebody thinks in;
+ * "axis 2" and "button 7" are what the hardware says, and the test panel
+ * is where those two get introduced to each other.
+ */
+inputAliases: { [key in string]?: string }, 
+/**
  * What the user calls each device, keyed by `DeviceRef::alias_key`.
  *
  * Kept here rather than on a profile because a name for a pedal set is a

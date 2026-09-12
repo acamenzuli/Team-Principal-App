@@ -234,3 +234,66 @@ mod alias_key_tests {
         assert_eq!(dev(None, None).alias_key(), "model:0eb7:183b");
     }
 }
+
+/// Which kind of control an input alias names.
+///
+/// Kept apart because the numbering restarts for each: button 1 and axis 1 are
+/// different things on the same device, and a game's binding screen numbers
+/// them that way too.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum InputKind {
+    Axis,
+    Button,
+    Hat,
+}
+
+impl InputKind {
+    fn tag(self) -> &'static str {
+        match self {
+            InputKind::Axis => "axis",
+            InputKind::Button => "button",
+            InputKind::Hat => "hat",
+        }
+    }
+}
+
+/// The key one control's name is stored against.
+///
+/// Built on the device's own alias key, so a name given to "button 3" follows
+/// the device the same way the device's name does — and two identical button
+/// boxes keep their own names for their own buttons rather than sharing one
+/// set.
+pub fn input_alias_key(device_key: &str, kind: InputKind, index: u32) -> String {
+    format!("{device_key}|{}|{index}", kind.tag())
+}
+
+#[cfg(test)]
+mod input_alias_tests {
+    use super::*;
+
+    const DEVICE: &str = "serial:346e:001e:39001F00";
+
+    #[test]
+    fn the_same_number_on_different_kinds_is_a_different_control() {
+        assert_ne!(
+            input_alias_key(DEVICE, InputKind::Button, 1),
+            input_alias_key(DEVICE, InputKind::Axis, 1),
+        );
+    }
+
+    #[test]
+    fn two_identical_devices_keep_their_own_names() {
+        let left = input_alias_key("path:\\\\?\\hid#a", InputKind::Button, 3);
+        let right = input_alias_key("path:\\\\?\\hid#b", InputKind::Button, 3);
+        assert_ne!(left, right);
+    }
+
+    #[test]
+    fn a_control_key_is_built_on_the_device_key() {
+        // So a device identified by serial keeps its control names across a
+        // replug, exactly as its own name does.
+        assert!(input_alias_key(DEVICE, InputKind::Hat, 0).starts_with(DEVICE));
+    }
+}

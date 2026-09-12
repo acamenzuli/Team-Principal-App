@@ -66,6 +66,11 @@ fifteen seconds unless you confirm it.** There's also a panic key
 Every wheel, pedal set and button box, live. Unplug something and watch it go
 red; plug it back in and it goes green on its own.
 
+**Name the controls too.** Click an axis, a hat, or any button in the test
+panel and call it what you call it — "Brake", "Upshift", "Pit limiter". The
+number stays visible beside the name, because the number is what a game's
+binding screen shows you, and matching those two is the whole job.
+
 **Rename** any of them by clicking its name. A rig with three identical button
 boxes is three identical rows until you say which is which, and only you can —
 the name is stored against the device (its serial, or the port it's in) and
