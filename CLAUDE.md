@@ -41,6 +41,13 @@ CI runs clippy on `stable`, which gains lints over time. Run `rustup update
 stable` before trusting a local clippy pass — an older toolchain passing means
 nothing about what CI will say.
 
+`cargo check --all-targets` compiles `src-tauri`'s tests without running them,
+and they can only run on Windows. A green cross-check therefore says nothing
+about whether they pass, which is exactly how a broken test reached CI twice
+in a row. This is the practical reason for the rule below about where pure
+logic lives: anything that can be got wrong should be somewhere it can be
+run.
+
 
 Run against fixtures instead of hardware:
 

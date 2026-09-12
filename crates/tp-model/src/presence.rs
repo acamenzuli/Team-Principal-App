@@ -13,7 +13,9 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{BindingDrift, DeviceStatus};
+use std::collections::HashMap;
+
+use crate::{BindingDrift, DetectedDevice, DeviceStatus};
 
 /// Everything observed about one device at one instant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
@@ -169,6 +171,91 @@ impl Debouncer {
             }
         }
     }
+}
+
+// ------------------------------------------------------------ publishing
+
+/// Run each device's status through its debouncer and return the list as the
+/// user should see it.
+///
+/// It deliberately does not decide whether to publish. Whether anything
+/// changed is answered by comparing this list against the last one published —
+/// a flag assembled here could only enumerate the reasons somebody thought of,
+/// and the reason missed was a device being renamed.
+///
+/// Split out from the thread so the interesting behaviour — a bounce not
+/// reaching the UI, a device disappearing, a new device appearing — is testable
+/// without threads, timers or hardware.
+pub fn debounce(
+    debouncers: &mut HashMap<String, Debouncer>,
+    scanned: Vec<DetectedDevice>,
+    now_ms: u64,
+    previous: &[DetectedDevice],
+) -> Vec<DetectedDevice> {
+    let mut seen: Vec<String> = Vec::with_capacity(scanned.len());
+
+    let published: Vec<DetectedDevice> = scanned
+        .into_iter()
+        .map(|mut d| {
+            let key = device_key(&d);
+            seen.push(key.clone());
+
+            match debouncers.get_mut(&key) {
+                Some(debouncer) => {
+                    debouncer.observe(d.status, now_ms);
+                    let settled = debouncer.status();
+
+                    // While a status is being held back, hold back the evidence
+                    // for it too. `hid_present`, the DirectInput slot and the
+                    // rest come straight off the scan and flap with the same
+                    // bounce the status does — publishing the settled status
+                    // beside instantaneous evidence would show "Connected" on a
+                    // row that also says it is absent from HID, which is a
+                    // contradiction rather than a delay.
+                    if settled != d.status {
+                        if let Some(held) = previous.iter().find(|p| device_key(p) == key) {
+                            let named = d.device.display_name.clone();
+                            let alias_key = d.alias_key.clone();
+                            let renamed = d.renamed;
+                            d = held.clone();
+                            // Naming is not evidence of presence, and a rename
+                            // during a bounce should still reach the screen.
+                            d.device.display_name = named;
+                            d.alias_key = alias_key;
+                            d.renamed = renamed;
+                        }
+                    }
+                    // Show the settled status, not the instantaneous one.
+                    d.status = settled;
+                }
+                None => {
+                    // First sighting: publish immediately. Debouncing a device
+                    // the user just plugged in would make the app feel slow at
+                    // exactly the moment they are watching it.
+                    debouncers.insert(key, Debouncer::new(d.status));
+                }
+            }
+            d
+        })
+        .collect();
+
+    // A device that stopped being reported is gone; drop its debouncer so a
+    // later reconnect starts clean rather than inheriting a stale window.
+    debouncers.retain(|k, _| seen.contains(k));
+
+    published
+}
+
+/// Identity for tracking a device across scans.
+///
+/// The instance path distinguishes two otherwise identical devices, which
+/// VID/PID alone cannot — and two identical un-serialled pedal sets is a real
+/// configuration, not a hypothetical one.
+pub fn device_key(d: &DetectedDevice) -> String {
+    d.device
+        .instance_path
+        .clone()
+        .unwrap_or_else(|| format!("{:04X}:{:04X}", d.device.vid, d.device.pid))
 }
 
 #[cfg(test)]
@@ -339,5 +426,174 @@ mod tests {
         // Absent is a status, not a binding problem, and saying both would be
         // two alarms for one cause.
         assert_eq!(detect_drift(Some(2), Some("{guid-a}"), None, None), None);
+    }
+
+    use crate::{DetectedDevice, DeviceRef};
+
+    fn device(path: &str, status: DeviceStatus) -> DetectedDevice {
+        DetectedDevice {
+            device: DeviceRef {
+                vid: 0x0EB7,
+                pid: 0x0E04,
+                serial: None,
+                instance_path: Some(path.into()),
+                display_name: "Test wheel".into(),
+            },
+            manufacturer: None,
+            raw_product_name: None,
+            status,
+            hid_present: status != DeviceStatus::Disconnected,
+            dinput_present: status == DeviceStatus::Connected,
+            dinput_slot: None,
+            dinput_instance_guid: None,
+            is_virtual: false,
+            vjoy: None,
+            binding_drift: None,
+            alias_key: crate::alias_key(0x0EB7, 0x0E04, None, Some(path)),
+            renamed: false,
+        }
+    }
+
+    /// Renamed, so a test can prove a name change is publishable.
+    fn renamed(path: &str, status: DeviceStatus, name: &str) -> DetectedDevice {
+        let mut d = device(path, status);
+        d.device.display_name = name.into();
+        d.renamed = true;
+        d
+    }
+
+    #[test]
+    fn a_new_device_is_published_at_once() {
+        // Debouncing something the user just plugged in would make the app feel
+        // slow at exactly the moment they are looking at it.
+        let mut d = HashMap::new();
+        let published = debounce(&mut d, vec![device("a", DeviceStatus::Connected)], 0, &[]);
+        assert_ne!(published, Vec::new(), "a first sighting is a change");
+        assert_eq!(published[0].status, DeviceStatus::Connected);
+    }
+
+    #[test]
+    fn a_bounce_does_not_reach_the_ui() {
+        let mut d = HashMap::new();
+        let first = debounce(&mut d, vec![device("a", DeviceStatus::Connected)], 0, &[]);
+
+        // Drops and returns well inside the settle window. Publication is
+        // decided by comparing with the last list, so "does not reach the UI"
+        // means exactly "produces the same list" — every field of it, not just
+        // the status.
+        let during = debounce(
+            &mut d,
+            vec![device("a", DeviceStatus::Disconnected)],
+            100,
+            &first,
+        );
+        assert_eq!(during, first, "a 100 ms dropout is a bounce, not an event");
+        assert_eq!(
+            during[0].status,
+            DeviceStatus::Connected,
+            "still shown as connected"
+        );
+        assert!(
+            during[0].hid_present,
+            "and not connected-but-absent-from-HID, which is a contradiction"
+        );
+
+        let back = debounce(
+            &mut d,
+            vec![device("a", DeviceStatus::Connected)],
+            300,
+            &during,
+        );
+        assert_eq!(back, first);
+    }
+
+    #[test]
+    fn a_real_disconnection_does_reach_the_ui() {
+        let mut d = HashMap::new();
+        let first = debounce(&mut d, vec![device("a", DeviceStatus::Connected)], 0, &[]);
+        let during = debounce(
+            &mut d,
+            vec![device("a", DeviceStatus::Disconnected)],
+            100,
+            &first,
+        );
+        let settled = debounce(
+            &mut d,
+            vec![device("a", DeviceStatus::Disconnected)],
+            1000,
+            &during,
+        );
+        assert_ne!(settled, first);
+        assert_eq!(settled[0].status, DeviceStatus::Disconnected);
+    }
+
+    #[test]
+    fn renaming_a_device_is_a_change_even_though_its_status_did_not_move() {
+        // The bug this replaced: publication was decided by status alone, so a
+        // rename was saved correctly and never appeared until something was
+        // unplugged. Nothing about the device moved — only what it is called.
+        let mut d = HashMap::new();
+        let before = debounce(&mut d, vec![device("a", DeviceStatus::Connected)], 0, &[]);
+        let after = debounce(
+            &mut d,
+            vec![renamed("a", DeviceStatus::Connected, "Left pedal box")],
+            50,
+            &before,
+        );
+
+        assert_ne!(before, after);
+        assert_eq!(after[0].device.display_name, "Left pedal box");
+        assert_eq!(
+            after[0].status,
+            DeviceStatus::Connected,
+            "and the rename did not disturb the settled status"
+        );
+    }
+
+    #[test]
+    fn a_device_that_vanishes_from_the_scan_clears_its_state() {
+        // Otherwise a reconnect inherits a half-elapsed settle window and the
+        // first status after replugging is decided by the old one.
+        let mut d = HashMap::new();
+        let before = debounce(&mut d, vec![device("a", DeviceStatus::Connected)], 0, &[]);
+        assert_eq!(d.len(), 1);
+
+        let published = debounce(&mut d, vec![], 1000, &before);
+        assert_ne!(published, before, "a device disappearing is a change");
+        assert!(published.is_empty());
+        assert!(d.is_empty(), "its debouncer went with it");
+    }
+
+    #[test]
+    fn identical_devices_are_tracked_separately() {
+        // Two of the same un-serialled pedal set is a real configuration. Keyed
+        // by VID/PID alone they would share one debouncer and one status.
+        let mut d = HashMap::new();
+        debounce(
+            &mut d,
+            vec![
+                device("port-a", DeviceStatus::Connected),
+                device("port-b", DeviceStatus::Connecting),
+            ],
+            0,
+            &[],
+        );
+        assert_eq!(d.len(), 2);
+    }
+
+    #[test]
+    fn a_steady_state_publishes_nothing() {
+        // The UI should not be woken four times a second to be told nothing
+        // happened — which, under the comparison rule, means a quiet scan must
+        // produce a list equal to the last one.
+        let mut d = HashMap::new();
+        let first = debounce(&mut d, vec![device("a", DeviceStatus::Connected)], 0, &[]);
+        let again = debounce(
+            &mut d,
+            vec![device("a", DeviceStatus::Connected)],
+            4000,
+            &first,
+        );
+        assert_eq!(first, again);
     }
 }

@@ -53,7 +53,7 @@ pub use ini::{Ini, KeyError as IniError};
 pub use ipc::*;
 pub use plan::{build_steps, expected_exe, launch_exe};
 pub use preferences::*;
-pub use presence::{detect_drift, Debouncer, Observation};
+pub use presence::{debounce, detect_drift, device_key, Debouncer, Observation};
 pub use profile::*;
 pub use rig::*;
 pub use topology::{
