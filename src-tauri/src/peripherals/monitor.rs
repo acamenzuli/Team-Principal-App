@@ -392,6 +392,37 @@ mod win {
         Ok(())
     }
 
+    /// The usage range a button cap covers.
+    ///
+    /// `HIDP_BUTTON_CAPS` holds a union, and `IsRange` says which half is
+    /// valid. When it is false the cap describes **one** usage, and what sits
+    /// where `UsageMax` would be is a reserved field — reading it anyway gives
+    /// a count computed from garbage, which is how a shifter came to declare
+    /// zero buttons. Most simple devices — shifters, button boxes, handbrakes
+    /// — declare their buttons this way, so this is the common case rather
+    /// than the exotic one.
+    unsafe fn button_range(cap: &HIDP_BUTTON_CAPS) -> (u16, u16) {
+        unsafe {
+            if cap.IsRange {
+                (cap.Anonymous.Range.UsageMin, cap.Anonymous.Range.UsageMax)
+            } else {
+                let usage = cap.Anonymous.NotRange.Usage;
+                (usage, usage)
+            }
+        }
+    }
+
+    /// The usage a value cap describes. Same union, same rule.
+    unsafe fn value_usage(cap: &HIDP_VALUE_CAPS) -> u16 {
+        unsafe {
+            if cap.IsRange {
+                cap.Anonymous.Range.UsageMin
+            } else {
+                cap.Anonymous.NotRange.Usage
+            }
+        }
+    }
+
     /// What the device declares it has, for the panel to draw at rest.
     ///
     /// Both the first announcement and the one after a session ends need this,
@@ -409,13 +440,12 @@ mod win {
                 .iter()
                 // A closure inside an `unsafe fn` does not inherit its unsafe
                 // context, so the union read is spelled out here.
-                .map(|c| tp_model::axis_name(unsafe { c.Anonymous.Range.UsageMin }).to_string())
+                .map(|c| tp_model::axis_name(unsafe { value_usage(c) }).to_string())
                 .collect(),
             buttons: buttons
                 .iter()
                 .map(|c| {
-                    let (min, max) =
-                        unsafe { (c.Anonymous.Range.UsageMin, c.Anonymous.Range.UsageMax) };
+                    let (min, max) = unsafe { button_range(c) };
                     (max.saturating_sub(min) as u32) + 1
                 })
                 .sum(),
@@ -446,10 +476,10 @@ mod win {
 
         let hats: Vec<HIDP_VALUE_CAPS> = out
             .iter()
-            .filter(|c| c.UsagePage == 0x01 && unsafe { c.Anonymous.Range.UsageMin } == HAT)
+            .filter(|c| c.UsagePage == 0x01 && unsafe { value_usage(c) } == HAT)
             .copied()
             .collect();
-        out.retain(|c| tp_model::is_axis(c.UsagePage, unsafe { c.Anonymous.Range.UsageMin }));
+        out.retain(|c| tp_model::is_axis(c.UsagePage, unsafe { value_usage(c) }));
         (out, hats)
     }
 
@@ -480,7 +510,7 @@ mod win {
         let axes: Vec<AxisReading> = values
             .iter()
             .filter_map(|cap| {
-                let usage = cap.Anonymous.Range.UsageMin;
+                let usage = value_usage(cap);
                 let mut raw = 0u32;
                 // NTSTATUS rather than a Result, so it cannot be `?`-ed
                 // straight into the surrounding Option.
@@ -516,7 +546,7 @@ mod win {
 
         let mut pressed = Vec::new();
         for cap in buttons {
-            let (min, max) = (cap.Anonymous.Range.UsageMin, cap.Anonymous.Range.UsageMax);
+            let (min, max) = button_range(cap);
             let count = (max.saturating_sub(min) as usize) + 1;
             let mut usages = vec![0u16; count];
             let mut length = count as u32;
@@ -544,7 +574,7 @@ mod win {
         let hats: Vec<Option<u16>> = hat_caps
             .iter()
             .map(|cap| {
-                let usage = cap.Anonymous.Range.UsageMin;
+                let usage = value_usage(cap);
                 let mut raw = 0u32;
                 if HidP_GetUsageValue(
                     HidP_Input,
