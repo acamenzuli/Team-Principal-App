@@ -197,7 +197,10 @@ mod tests {
             RestartResult::NotBack,
             RestartResult::BadArguments,
         ] {
-            assert_eq!(RestartResult::from_exit_code(result.exit_code()), Some(result));
+            assert_eq!(
+                RestartResult::from_exit_code(result.exit_code()),
+                Some(result)
+            );
         }
     }
 

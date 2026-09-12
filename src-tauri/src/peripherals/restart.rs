@@ -75,7 +75,9 @@ pub fn reconnect(instance_path: &str, vid: u16, pid: u16) -> AppResult<Reconnect
 
 #[cfg(not(windows))]
 pub fn reconnect(_instance_path: &str, _vid: u16, _pid: u16) -> AppResult<ReconnectOutcome> {
-    Err(AppError::Config("restarting a device is only possible on Windows".into()))
+    Err(AppError::Config(
+        "restarting a device is only possible on Windows".into(),
+    ))
 }
 
 /// The helper's whole life: restart one node and exit with the verdict.
@@ -246,7 +248,9 @@ mod win {
         let mut size = 0u32;
         let _ = SetupDiGetDeviceInterfaceDetailW(set, &interface, None, 0, Some(&mut size), None);
         if size == 0 {
-            return Err(AppError::Config("Windows reports nothing about this device path".into()));
+            return Err(AppError::Config(
+                "Windows reports nothing about this device path".into(),
+            ));
         }
         let mut buffer = vec![0u8; size as usize];
         let detail = buffer.as_mut_ptr() as *mut SP_DEVICE_INTERFACE_DETAIL_DATA_W;
@@ -317,7 +321,11 @@ mod win {
                 if enabled == CR_SUCCESS {
                     break;
                 }
-                tracing::warn!(attempt, code = enabled.0, "could not start the device again yet");
+                tracing::warn!(
+                    attempt,
+                    code = enabled.0,
+                    "could not start the device again yet"
+                );
                 std::thread::sleep(ENABLE_RETRY);
                 enabled = CM_Enable_DevNode(node, 0);
             }
@@ -420,8 +428,8 @@ mod win {
         let exit_code = unsafe {
             let waited = WaitForSingleObject(info.hProcess, HELPER_TIMEOUT_MS);
             let mut code = 0u32;
-            let exited = waited == WAIT_OBJECT_0
-                && GetExitCodeProcess(info.hProcess, &mut code).is_ok();
+            let exited =
+                waited == WAIT_OBJECT_0 && GetExitCodeProcess(info.hProcess, &mut code).is_ok();
             let _ = CloseHandle(info.hProcess);
             exited.then_some(code)
         };
