@@ -63,6 +63,8 @@ import type { RectMeans } from "./bindings/RectMeans";
 import type { WindowResult } from "./bindings/WindowResult";
 import type { LoadedPreferences } from "./bindings/LoadedPreferences";
 import type { Preferences } from "./bindings/Preferences";
+import type { LibraryMode } from "./bindings/LibraryMode";
+import type { LibraryView } from "./bindings/LibraryView";
 import type { RigModel } from "./bindings/RigModel";
 import type { RigSolutionInfo } from "./bindings/RigSolutionInfo";
 import type { RigWarningInfo } from "./bindings/RigWarningInfo";
@@ -143,6 +145,8 @@ export type {
   MonitorPitch,
   ParsedLength,
   Preferences,
+  LibraryMode,
+  LibraryView,
   PixelRect,
   RigModel,
   RigSolutionInfo,

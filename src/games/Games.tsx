@@ -9,6 +9,8 @@ import {
   setAutoApply,
   setGameArt,
   type CaptureResult,
+  type LibraryMode,
+  type LibraryView,
   type OpenWindow,
   type ProfileCard,
 } from "../ipc";
@@ -31,7 +33,13 @@ import "./games.css";
  *   automatic placement that is wrong happens every launch and is not obvious
  *   what did it.
  */
-export function Games() {
+export function Games({
+  view,
+  onView,
+}: {
+  view: LibraryView;
+  onView: (next: LibraryView) => void;
+}) {
   const [cards, setCards] = useState<ProfileCard[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [racing, setRacing] = useState<ProfileCard | null>(null);
@@ -169,7 +177,42 @@ export function Games() {
           </p>
         )}
 
-        <div className="lib">
+        {/* How you look at your own library is your business: a wall of
+            covers at 4K and a wall at 1080p want different answers, and thirty
+            titles want a list. */}
+        <div className="lib__view">
+          <div className="seg" role="group" aria-label="How to show the library">
+            {(["grid", "list"] as LibraryMode[]).map((mode) => (
+              <button
+                key={mode}
+                className={`seg__btn${view.mode === mode ? " seg__btn--on" : ""}`}
+                aria-pressed={view.mode === mode}
+                onClick={() => onView({ ...view, mode })}
+              >
+                {mode === "grid" ? "Covers" : "List"}
+              </button>
+            ))}
+          </div>
+
+          <label className="lib__size">
+            <span className="hint">Size</span>
+            <input
+              type="range"
+              min={ART_MIN}
+              max={ART_MAX}
+              step={4}
+              value={view.artPx}
+              aria-label="Cover size"
+              onChange={(e) => onView({ ...view, artPx: Number(e.target.value) })}
+            />
+            <span className="num hint">{view.artPx}px</span>
+          </label>
+        </div>
+
+        <div
+          className={`lib${view.mode === "list" ? " lib--list" : ""}`}
+          style={{ ["--art" as string]: `${view.artPx}px` }}
+        >
           {sorted.map((card) => (
             <GameCard
               key={card.profile.id}
@@ -179,6 +222,7 @@ export function Games() {
               onToggleAuto={(v) => void toggleAuto(card, v)}
               onCopyLayout={() => void copyLayout(card)}
               onArt={(dataUri) => void chooseArt(card, dataUri)}
+              compact={view.mode === "list"}
               capturing={capturingFor === card.profile.id}
             />
           ))}
@@ -251,6 +295,7 @@ function GameCard({
   onToggleAuto,
   onCopyLayout,
   onArt,
+  compact,
   capturing,
 }: {
   card: ProfileCard;
@@ -259,6 +304,7 @@ function GameCard({
   onToggleAuto: (enabled: boolean) => void;
   onCopyLayout: () => void;
   onArt: (dataUri: string | null) => void;
+  compact: boolean;
   capturing: boolean;
 }) {
   const { profile, installed, art, installPath, platform } = card;
@@ -266,7 +312,7 @@ function GameCard({
   const artInput = useRef<HTMLInputElement>(null);
 
   return (
-    <article className={`card${installed ? "" : " card--gone"}`}>
+    <article className={`card${installed ? "" : " card--gone"}${compact ? " card--compact" : ""}`}>
       <div className="card__art">
         {art ? (
           <img src={art} alt="" />
@@ -567,3 +613,12 @@ function monogram(name: string): string {
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("");
 }
+
+/**
+ * The slider's range, matching the clamp the backend applies on save.
+ *
+ * Small enough to fit thirty titles on a screen, large enough to recognise a
+ * cover from a driving position — which is further away than a desk.
+ */
+const ART_MIN = 56;
+const ART_MAX = 320;

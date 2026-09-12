@@ -87,10 +87,15 @@ until you're on track.
 and when it checked.
 
 Cover art comes off your own disk: Steam already downloaded it, so there's no
-network call and no list of your games going anywhere. Epic caches nothing
-usable and a game added by hand was never in a store, so those have no art to
-find — **Add art** on the card lets you point at any picture, and it's copied
-into the app's own folder so it can't disappear when you tidy up.
+network call and no list of your games going anywhere. Where there's no store
+art — Epic caches nothing usable, and iRacing, rFactor 2 and anything added by
+hand were never in a store — the game's own icon is used instead. It isn't a
+cover, but it's the picture that title uses everywhere else on your machine.
+**Add art** on the card overrides either with any picture you like, copied into
+the app's own folder so it can't disappear when you tidy up.
+
+**Covers or a list**, and a slider for how big. A wall of covers at 4K and a
+wall at 1080p want different answers, and thirty titles want a list.
 
 Every sim you have installed gets a profile automatically. Steam and Epic are
 found on their own; anything else you can add by hand.

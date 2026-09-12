@@ -54,6 +54,8 @@ pub fn load() -> (Preferences, Option<String>) {
 pub fn save(prefs: &Preferences) -> AppResult<Preferences> {
     let mut prefs = prefs.clone();
     prefs.schema_version = tp_model::PREFERENCES_SCHEMA_VERSION;
+    // A hand-edited file should not be able to ask for 20,000-pixel covers.
+    prefs.library = prefs.library.clamped();
     prefs
         .validate()
         .map_err(|e| AppError::Config(e.to_string()))?;

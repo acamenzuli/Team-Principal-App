@@ -2,7 +2,10 @@
 
 .lib {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  /* The column width follows the cover size, so dragging the slider widens
+     the cards rather than leaving them with a bigger picture and nowhere to
+     put the text. */
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--art, 100px) + 230px), 1fr));
   gap: var(--s4);
   margin-top: var(--s4);
 }
@@ -525,4 +528,91 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ---------------------------------------------------------- library view */
+
+.lib__view {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  margin-top: var(--s4);
+}
+
+.seg {
+  display: inline-flex;
+  background: var(--ground-deep);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.seg__btn {
+  padding: var(--s2) var(--s4);
+  background: none;
+  border: 0;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: var(--size-sm);
+  cursor: pointer;
+}
+
+.seg__btn--on {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.lib__size {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.lib__size input[type="range"] {
+  width: 180px;
+  accent-color: var(--accent);
+}
+
+/* The cover width is one number, set on the container, so the slider moves the
+   whole library at once rather than each card deciding for itself. */
+.card {
+  grid-template-columns: var(--art, 100px) 1fr;
+}
+
+/* List mode: one row each, thumbnail still there. A name on its own is not
+   how anybody recognises a game they own. */
+.lib--list {
+  grid-template-columns: 1fr;
+  gap: var(--s2);
+}
+
+.card--compact {
+  grid-template-columns: var(--art, 100px) 1fr;
+  align-items: center;
+  padding: var(--s3);
+}
+
+.card--compact .card__facts,
+.card--compact .card__auto {
+  display: none;
+}
+
+.card--compact .card__body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  flex-wrap: wrap;
+}
+
+.card--compact .card__name {
+  margin: 0;
+}
+
+/* Covers stay portrait in the grid; in a row a tall cover would set the row
+   height, so it becomes a square crop. */
+.card--compact .card__art {
+  aspect-ratio: 1 / 1;
 }

@@ -47,6 +47,11 @@ pub struct Preferences {
     /// recover from a corrupt file.
     #[serde(default)]
     pub onboarded: bool,
+    /// How the games library is drawn. A preference, not profile data — it
+    /// says how you like looking at your library, which has nothing to do with
+    /// any one game.
+    #[serde(default)]
+    pub library: LibraryView,
     /// What the user calls each device, keyed by `DeviceRef::alias_key`.
     ///
     /// Kept here rather than on a profile because a name for a pedal set is a
@@ -69,6 +74,7 @@ impl Default for Preferences {
             start_minimised: false,
             updates: UpdatePolicy::default(),
             onboarded: false,
+            library: LibraryView::default(),
             device_aliases: BTreeMap::new(),
         }
     }
@@ -506,6 +512,53 @@ pub enum UpdatePolicy {
     Ask,
     /// Never check at all.
     Never,
+}
+
+/// How the games library is drawn.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryView {
+    pub mode: LibraryMode,
+    /// Cover width in pixels, for the grid. A slider rather than three preset
+    /// sizes: a wall of boxes at 4K and a wall at 1080p want different
+    /// answers, and only the person looking at it knows which.
+    pub art_px: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "snake_case")]
+pub enum LibraryMode {
+    /// Covers, big enough to recognise across a room.
+    #[default]
+    Grid,
+    /// One line each, with a thumbnail. What you want at thirty titles.
+    List,
+}
+
+impl Default for LibraryView {
+    fn default() -> Self {
+        Self {
+            mode: LibraryMode::default(),
+            art_px: 100,
+        }
+    }
+}
+
+impl LibraryView {
+    /// The range the slider offers, and the clamp applied to anything arriving
+    /// from outside it. A hand-edited preferences file should not be able to
+    /// produce a library of 20,000-pixel covers.
+    pub const MIN_ART_PX: u32 = 56;
+    pub const MAX_ART_PX: u32 = 320;
+
+    pub fn clamped(self) -> Self {
+        Self {
+            art_px: self.art_px.clamp(Self::MIN_ART_PX, Self::MAX_ART_PX),
+            ..self
+        }
+    }
 }
 
 /// Where an install has got to.

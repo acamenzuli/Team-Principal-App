@@ -204,7 +204,15 @@ export function App() {
         {view === "home" && <Home onGo={setView} />}
         {view === "rig" && <Dashboard />}
         {view === "devices" && <Peripherals />}
-        {view === "games" && <Games />}
+        {view === "games" &&
+          (prefs ? (
+            <Games
+              view={prefs.library}
+              onView={(library) => void updatePrefs({ ...prefs, library })}
+            />
+          ) : (
+            <p className="note">Loading…</p>
+          ))}
         {view === "adapters" && <Adapters />}
         {view === "windows" && <WindowControl />}
         {view === "screen" &&

@@ -699,7 +699,7 @@ pub fn game_library() -> AppResult<Vec<tp_model::ProfileCard>> {
             // between drives, and Steam's art cache fills in later.
             if let Some(existing) = profiles.iter_mut().find(|p| matches_game(p, game)) {
                 let path = game.install_path.display().to_string();
-                let art = crate::art::find(&game.source).map(|p| p.display().to_string());
+                let art = art_for(existing, Some(game));
                 if existing.game.install_path.as_deref() != Some(path.as_str())
                     || (existing.game.art_path.is_none() && art.is_some())
                 {
@@ -817,18 +817,57 @@ pub fn set_game_art(
     Ok(card(profile, &crate::launcher::discover()))
 }
 
+/// A picture for a game, in order of how well it represents it.
+///
+/// 1. Whatever the user chose. Their choice is never overridden by a scan.
+/// 2. Store art, from Steam's local cache.
+/// 3. The game's own icon, out of its executable.
+///
+/// Three is what fills the blanks: Epic caches no usable art, a game added by
+/// hand was never in a store, and iRacing and rFactor 2 predate both. An icon
+/// is not a cover, but it is the picture that title uses everywhere else on
+/// this machine, which makes it the one somebody recognises.
+fn art_for(
+    profile: &tp_model::Profile,
+    found: Option<&crate::launcher::InstalledGame>,
+) -> Option<String> {
+    if let Some(chosen) = profile
+        .game
+        .art_path
+        .as_deref()
+        .filter(|p| std::path::Path::new(p).is_file())
+    {
+        return Some(chosen.to_string());
+    }
+
+    if let Some(game) = found {
+        if let Some(store) = crate::art::find(&game.source) {
+            return Some(store.display().to_string());
+        }
+    }
+
+    // The executable: named by an Epic manifest, or by the profile itself when
+    // the game was added by hand.
+    let exe = found
+        .and_then(|g| g.exe.clone())
+        .or_else(|| match &profile.game.launch {
+            tp_model::LaunchMethod::Executable { path, .. } => Some(std::path::PathBuf::from(path)),
+            _ => None,
+        })
+        .filter(|p| p.is_file())?;
+
+    crate::art::cache_icon(&profile.id.to_string(), &exe).map(|p| p.display().to_string())
+}
+
 fn card(
     profile: tp_model::Profile,
     found: &[crate::launcher::InstalledGame],
 ) -> tp_model::ProfileCard {
     let installed = found.iter().any(|g| matches_game(&profile, g));
-    let art = profile
-        .game
-        .art_path
-        .as_deref()
-        .map(std::path::Path::new)
+    let art = art_for(&profile, found.iter().find(|g| matches_game(&profile, g)))
+        .map(std::path::PathBuf::from)
         .filter(|p| p.is_file())
-        .and_then(crate::art::as_data_uri);
+        .and_then(|p| crate::art::as_data_uri(&p));
 
     tp_model::ProfileCard {
         installed,

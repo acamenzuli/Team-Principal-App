@@ -17,6 +17,11 @@ pub struct InstalledGame {
     pub name: String,
     pub install_path: PathBuf,
     pub source: GameSource,
+    /// The executable, where the launcher names one. Epic's manifests do;
+    /// Steam's library index does not. Used for the game's own icon when no
+    /// store art exists, which is every Epic title and every game added by
+    /// hand.
+    pub exe: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -90,6 +95,9 @@ fn games_in_library(library: &Path) -> Vec<InstalledGame> {
                 name: app.name,
                 install_path,
                 source: GameSource::Steam { app_id: app.app_id },
+                // Steam's library index names no executable, and it does not
+                // need to: Steam has already cached the cover art.
+                exe: None,
             })
         })
         .collect()
@@ -174,10 +182,20 @@ pub fn epic_games() -> Vec<InstalledGame> {
                 .unwrap_or(&app_name)
                 .to_string();
 
+            // Epic names the executable; Steam does not. Relative to the
+            // install folder, and only kept when it is really there — a
+            // manifest describing a game somebody deleted by hand is common.
+            let exe = json
+                .get("LaunchExecutable")
+                .and_then(|v| v.as_str())
+                .map(|rel| install_path.join(rel))
+                .filter(|p| p.is_file());
+
             install_path.is_dir().then_some(InstalledGame {
                 name,
                 install_path,
                 source: GameSource::Epic { app_name },
+                exe,
             })
         })
         .collect()

@@ -185,6 +185,160 @@ pub fn clear_chosen(profile_id: &str) {
     }
 }
 
+/// A game's own icon, as cover art, for the games no launcher has a picture of.
+///
+/// Steam's cache covers Steam. Epic caches nothing usable, a game added by
+/// hand was never in a store, and iRacing and rFactor 2 predate both — so
+/// those cards were blank, and "not all games have art" was the accurate
+/// description of that.
+///
+/// The executable has an icon. It is not a cover, but it is the picture that
+/// title uses everywhere else on the machine, which makes it the thing
+/// somebody actually recognises. It is read from the file directly: no
+/// download, no store lookup, nothing that stops working offline.
+#[cfg(windows)]
+pub fn icon_png(exe_path: &Path) -> Option<Vec<u8>> {
+    use windows::core::HSTRING;
+    use windows::Win32::Graphics::Gdi::{
+        DeleteObject, GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFO,
+        BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
+    };
+    use windows::Win32::UI::Shell::SHDefExtractIconW;
+    use windows::Win32::UI::WindowsAndMessaging::{DestroyIcon, GetIconInfo, HICON, ICONINFO};
+
+    // 256 is the largest size Windows stores, and the one worth asking for: a
+    // 32-pixel icon stretched across a cover is worse than a monogram.
+    const WANTED: i32 = 256;
+
+    // SAFETY: every handle and bitmap obtained below is released on every path.
+    unsafe {
+        let wide = HSTRING::from(exe_path.as_os_str());
+        let mut icon = HICON::default();
+        // Index 0: the executable's primary icon, which is the one Explorer
+        // shows. A negative index would mean a resource id, which is not
+        // knowable from outside the file.
+        if SHDefExtractIconW(&wide, 0, 0, Some(&mut icon), None, WANTED as u32).is_err() {
+            return None;
+        }
+        if icon.is_invalid() {
+            return None;
+        }
+
+        let result = icon_bytes(icon);
+        let _ = DestroyIcon(icon);
+        return result;
+
+        unsafe fn icon_bytes(icon: HICON) -> Option<Vec<u8>> {
+            let mut info = ICONINFO::default();
+            if GetIconInfo(icon, &mut info).is_err() {
+                return None;
+            }
+            // Both bitmaps are owned by the caller of GetIconInfo.
+            let colour = info.hbmColor;
+            let mask = info.hbmMask;
+
+            let mut bitmap = BITMAP::default();
+            let read = GetObjectW(
+                colour.into(),
+                std::mem::size_of::<BITMAP>() as i32,
+                Some(&mut bitmap as *mut _ as *mut std::ffi::c_void),
+            );
+            let (width, height) = (bitmap.bmWidth, bitmap.bmHeight);
+            if read == 0 || width <= 0 || height <= 0 {
+                let _ = DeleteObject(colour.into());
+                let _ = DeleteObject(mask.into());
+                return None;
+            }
+
+            let mut header = BITMAPINFO {
+                bmiHeader: BITMAPINFOHEADER {
+                    biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                    biWidth: width,
+                    // Negative: top-down, so the rows come out in the order a
+                    // PNG wants rather than upside down.
+                    biHeight: -height,
+                    biPlanes: 1,
+                    biBitCount: 32,
+                    biCompression: BI_RGB.0,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
+            let mut pixels = vec![0u8; (width * height * 4) as usize];
+            let dc = GetDC(None);
+            let copied = GetDIBits(
+                dc,
+                colour,
+                0,
+                height as u32,
+                Some(pixels.as_mut_ptr() as *mut std::ffi::c_void),
+                &mut header,
+                DIB_RGB_COLORS,
+            );
+            ReleaseDC(None, dc);
+            let _ = DeleteObject(colour.into());
+            let _ = DeleteObject(mask.into());
+
+            if copied == 0 {
+                return None;
+            }
+
+            // BGRA to RGBA. An icon whose alpha channel is entirely zero is an
+            // older one that carries its transparency in the mask instead;
+            // rather than read the mask, treat it as opaque — a solid icon
+            // beats an invisible one.
+            let opaque = pixels.iter().skip(3).step_by(4).all(|&a| a == 0);
+            for px in pixels.chunks_exact_mut(4) {
+                px.swap(0, 2);
+                if opaque {
+                    px[3] = 255;
+                }
+            }
+
+            encode_png(&pixels, width as u32, height as u32)
+        }
+    }
+}
+
+/// RGBA bytes to a PNG in memory.
+#[cfg(windows)]
+fn encode_png(rgba: &[u8], width: u32, height: u32) -> Option<Vec<u8>> {
+    let mut out = Vec::new();
+    {
+        let mut encoder = png::Encoder::new(&mut out, width, height);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().ok()?;
+        writer.write_image_data(rgba).ok()?;
+    }
+    Some(out)
+}
+
+#[cfg(not(windows))]
+pub fn icon_png(_exe_path: &Path) -> Option<Vec<u8>> {
+    None
+}
+
+/// Extract a game's icon and keep it, returning where it went.
+///
+/// Cached rather than extracted per scan: pulling an icon out of a 300 MB
+/// executable on every refresh of the library screen would be work nobody
+/// asked for, repeated forever.
+pub fn cache_icon(profile_id: &str, exe_path: &Path) -> Option<PathBuf> {
+    let dir = chosen_dir().join("icons");
+    let path = dir.join(format!("{profile_id}.png"));
+    if path.is_file() {
+        return Some(path);
+    }
+
+    let bytes = icon_png(exe_path)?;
+    std::fs::create_dir_all(&dir).ok()?;
+    std::fs::write(&path, &bytes).ok()?;
+    tracing::info!(exe = %exe_path.display(), bytes = bytes.len(), "cached a game icon as art");
+    Some(path)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
