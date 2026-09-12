@@ -699,3 +699,138 @@ mod tests {
         assert_eq!(first, again);
     }
 }
+
+// ------------------------------------------------------------ history
+
+/// One thing that happened to one device.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct DeviceEvent {
+    /// When, as RFC 3339. Stored rather than formatted so the UI can show it
+    /// in the viewer's own locale and timezone.
+    pub at: String,
+    /// Absent when the device was first seen — there is no previous state to
+    /// have come from, and inventing one would read as a change that did not
+    /// happen.
+    pub from: Option<DeviceStatus>,
+    pub to: DeviceStatus,
+}
+
+/// What changed between two published lists.
+///
+/// Computed from what was *published* rather than what was scanned, so the
+/// history says what the person saw. A bounce the debouncer swallowed never
+/// reached the screen and does not belong in a record of what happened.
+/// The clock is passed in rather than read, which keeps this crate free of a
+/// time dependency and makes the result deterministic in a test.
+pub fn transitions(
+    previous: &[DetectedDevice],
+    published: &[DetectedDevice],
+    at: &str,
+) -> Vec<(String, DeviceEvent)> {
+    let mut out = Vec::new();
+
+    for device in published {
+        let key = device_key(device);
+        let was = previous
+            .iter()
+            .find(|p| device_key(p) == key)
+            .map(|p| p.status);
+
+        if was == Some(device.status) {
+            continue;
+        }
+
+        out.push((
+            key,
+            DeviceEvent {
+                at: at.to_string(),
+                from: was,
+                to: device.status,
+            },
+        ));
+    }
+
+    out
+}
+
+#[cfg(test)]
+mod history_tests {
+    use super::*;
+    use crate::{DetectedDevice, DeviceRef};
+
+    const NOW: &str = "2026-09-12T08:30:00Z";
+
+    fn device(path: &str, status: DeviceStatus) -> DetectedDevice {
+        DetectedDevice {
+            device: DeviceRef {
+                vid: 1,
+                pid: 2,
+                serial: None,
+                instance_path: Some(path.into()),
+                display_name: "Wheel".into(),
+            },
+            manufacturer: None,
+            raw_product_name: None,
+            status,
+            hid_present: status != DeviceStatus::Disconnected,
+            dinput_present: status == DeviceStatus::Connected,
+            dinput_slot: None,
+            dinput_instance_guid: None,
+            is_virtual: false,
+            vjoy: None,
+            binding_drift: None,
+            alias_key: crate::alias_key(1, 2, None, Some(path)),
+            renamed: false,
+        }
+    }
+
+    #[test]
+    fn a_first_sighting_has_nothing_to_have_come_from() {
+        let events = transitions(&[], &[device("a", DeviceStatus::Connected)], NOW);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].1.from, None);
+        assert_eq!(events[0].1.to, DeviceStatus::Connected);
+    }
+
+    #[test]
+    fn a_disconnection_records_both_ends() {
+        let before = vec![device("a", DeviceStatus::Connected)];
+        let after = vec![device("a", DeviceStatus::Disconnected)];
+        let events = transitions(&before, &after, NOW);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].1.from, Some(DeviceStatus::Connected));
+        assert_eq!(events[0].1.to, DeviceStatus::Disconnected);
+    }
+
+    #[test]
+    fn nothing_happening_records_nothing() {
+        let list = vec![device("a", DeviceStatus::Connected)];
+        assert!(transitions(&list, &list, NOW).is_empty());
+    }
+
+    #[test]
+    fn each_device_is_recorded_against_itself() {
+        let before = vec![
+            device("a", DeviceStatus::Connected),
+            device("b", DeviceStatus::Connected),
+        ];
+        let after = vec![
+            device("a", DeviceStatus::Connected),
+            device("b", DeviceStatus::Disconnected),
+        ];
+        let events = transitions(&before, &after, NOW);
+        assert_eq!(events.len(), 1, "only the one that moved");
+        assert!(events[0].0.contains('b'));
+    }
+
+    #[test]
+    fn a_reconnection_is_its_own_entry() {
+        let gone = vec![device("a", DeviceStatus::Disconnected)];
+        let back = vec![device("a", DeviceStatus::Connected)];
+        let events = transitions(&gone, &back, NOW);
+        assert_eq!(events[0].1.from, Some(DeviceStatus::Disconnected));
+        assert_eq!(events[0].1.to, DeviceStatus::Connected);
+    }
+}

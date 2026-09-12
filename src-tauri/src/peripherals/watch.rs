@@ -23,7 +23,14 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Emitter};
-use tp_model::{debounce, Catalog, Debouncer, DetectedDevice};
+use tp_model::{debounce, transitions, Catalog, Debouncer, DetectedDevice, DeviceEvent};
+
+/// How much history to keep per device.
+///
+/// A cable that drops every few minutes produces a long list and the recent
+/// end is the useful one. Two hundred entries is days of ordinary use and
+/// minutes of a genuinely faulty cable — which is exactly when somebody looks.
+const HISTORY: usize = 200;
 
 /// Managed state.
 ///
@@ -48,11 +55,21 @@ pub struct Watcher {
     /// Set when a person asked for the scan, as opposed to the timer or a
     /// hotplug notification.
     asked: Arc<AtomicBool>,
+    /// What has happened to each device, newest last, keyed as `device_key`.
+    history: Arc<Mutex<HashMap<String, Vec<DeviceEvent>>>>,
 }
 
 impl Watcher {
     pub fn latest(&self) -> Vec<DetectedDevice> {
         self.latest.lock().map(|g| g.clone()).unwrap_or_default()
+    }
+
+    /// What has happened to one device since the app started.
+    pub fn history(&self, key: &str) -> Vec<DeviceEvent> {
+        self.history
+            .lock()
+            .map(|h| h.get(key).cloned().unwrap_or_default())
+            .unwrap_or_default()
     }
 
     /// Ask for a rescan now — used by an explicit Rescan in the UI.
@@ -72,10 +89,13 @@ pub fn start(app: AppHandle) -> Watcher {
     let (wake, wakes) = mpsc::channel::<()>();
     let latest = Arc::new(Mutex::new(Vec::new()));
     let asked = Arc::new(AtomicBool::new(false));
+    let history: Arc<Mutex<HashMap<String, Vec<DeviceEvent>>>> =
+        Arc::new(Mutex::new(HashMap::new()));
     let watcher = Watcher {
         latest: latest.clone(),
         wake: wake.clone(),
         asked: asked.clone(),
+        history: history.clone(),
     };
 
     std::thread::Builder::new()
@@ -121,6 +141,26 @@ pub fn start(app: AppHandle) -> Watcher {
                         // device list is worse than an extra event.
                         Err(_) => true,
                     };
+
+                // Recorded from what was *published*, so the history says what
+                // the person saw: a bounce the debouncer swallowed never
+                // reached the screen and does not belong in a record of what
+                // happened.
+                for (key, event) in transitions(&previous, &published, &crate::now_iso8601()) {
+                    tracing::info!(
+                        device = %key,
+                        from = ?event.from,
+                        to = ?event.to,
+                        "device status changed"
+                    );
+                    if let Ok(mut log) = history.lock() {
+                        let entries = log.entry(key).or_default();
+                        entries.push(event);
+                        if entries.len() > HISTORY {
+                            entries.remove(0);
+                        }
+                    }
+                }
 
                 if changed {
                     if let Ok(mut guard) = latest.lock() {

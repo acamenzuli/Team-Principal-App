@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
+  deviceHistory,
   onInput,
   onInputStatus,
   startInputMonitor,
   stopInputMonitor,
+  type DeviceEvent,
   type InputFrame,
   type InputStatus,
 } from "../ipc";
@@ -285,12 +287,95 @@ export function InputMonitor({
         </>
       )}
 
+      <History instancePath={instancePath} />
+
       <p className="hint">
         This reads the device's HID reports without acquiring it, so it cannot take input away
         from a game — and it stops entirely while a session is running.
       </p>
     </div>
   );
+}
+
+/**
+ * Every connection and disconnection this device has had, collapsed.
+ *
+ * Collapsed because it is the answer to a question you only sometimes have —
+ * "did that drop out, or did I imagine it" — and a wall of timestamps above
+ * the live readings would bury the thing you opened the panel for.
+ *
+ * Loaded when opened rather than kept live: it changes when a cable moves,
+ * which is not often, and re-reading on every frame would be work nobody asked
+ * for sixty times a second.
+ */
+function History({ instancePath }: { instancePath: string }) {
+  const [events, setEvents] = useState<DeviceEvent[] | null>(null);
+  const [open, setOpen] = useState(false);
+
+  const load = () =>
+    deviceHistory(instancePath)
+      .then(setEvents)
+      .catch(() => setEvents([]));
+
+  return (
+    <details
+      className="hist"
+      open={open}
+      onToggle={(e) => {
+        const isOpen = (e.target as HTMLDetailsElement).open;
+        setOpen(isOpen);
+        if (isOpen) void load();
+      }}
+    >
+      <summary className="hist__summary">
+        Connection history
+        {events !== null && <span className="hist__count num">{events.length}</span>}
+      </summary>
+
+      {events === null && <p className="note">Reading…</p>}
+
+      {events !== null && events.length === 0 && (
+        <p className="note">
+          Nothing recorded. History starts when the app does, so a device that has simply been
+          plugged in the whole time has one entry at most.
+        </p>
+      )}
+
+      {events !== null && events.length > 0 && (
+        <ol className="hist__list">
+          {/* Newest first: the reason anybody opens this is something that
+              just happened. */}
+          {[...events].reverse().map((event, i) => (
+            <li className="hist__row" key={`${event.at}-${i}`}>
+              <span className="hist__when num">{when(event.at)}</span>
+              <span className={`hist__what hist__what--${event.to}`}>{describeEvent(event)}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      <button className="btn btn--tiny btn--quiet" onClick={() => void load()}>
+        Refresh
+      </button>
+    </details>
+  );
+}
+
+/** What happened, in the words somebody would use for it. */
+function describeEvent(event: DeviceEvent): string {
+  if (event.from === null) {
+    return event.to === "connected" ? "Found, connected" : `Found, ${readable(event.to)}`;
+  }
+  return `${readable(event.from)} → ${readable(event.to)}`;
+}
+
+const readable = (status: DeviceEvent["to"]) =>
+  status === "connected" ? "connected" : status === "connecting" ? "connecting" : "disconnected";
+
+/** The stored time is RFC 3339; shown in the viewer's own timezone. */
+function when(at: string): string {
+  const date = new Date(at);
+  return Number.isNaN(date.getTime()) ? at : date.toLocaleTimeString();
 }
 
 /** A hat's direction in words. Degrees alone is not how anybody checks a POV. */

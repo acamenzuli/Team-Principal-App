@@ -102,6 +102,24 @@ pub fn set_device_alias(
     Ok(saved)
 }
 
+/// What has happened to one device since the app started.
+///
+/// Connections and disconnections as they were *shown*, not as they were
+/// scanned: a bounce the debouncer swallowed never reached the screen and does
+/// not belong in a record of what happened. It answers the question a flaky
+/// cable raises — "did that drop out, or did I imagine it" — which is not
+/// answerable from a list that only shows the present.
+#[tauri::command]
+pub fn device_history(
+    key: String,
+    watch: State<'_, crate::peripherals::watch::PeripheralWatch>,
+) -> Vec<tp_model::DeviceEvent> {
+    match &watch.0 {
+        Some(w) => w.history(&key),
+        None => Vec::new(),
+    }
+}
+
 /// The virtual desktop's bounding box and its dead regions.
 ///
 /// Separate from `list_monitors` because it is derived rather than detected:

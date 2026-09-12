@@ -280,3 +280,81 @@
   border-color: var(--accent);
   color: var(--accent-ink);
 }
+
+/* -------------------------------------------------- connection history */
+
+.hist {
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: 1px solid var(--rule);
+}
+
+.hist__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  cursor: pointer;
+  font-size: var(--size-sm);
+  color: var(--ink-dim);
+  list-style: none;
+}
+
+/* The native marker is a black triangle in most themes; this one follows the
+   text colour and turns when the section opens. */
+.hist__summary::-webkit-details-marker {
+  display: none;
+}
+
+.hist__summary::before {
+  content: "▸";
+  color: var(--ink-faint);
+  transition: transform 120ms ease;
+}
+
+.hist[open] .hist__summary::before {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hist__summary::before {
+    transition: none;
+  }
+}
+
+.hist__count {
+  color: var(--ink-faint);
+}
+
+.hist__list {
+  list-style: none;
+  margin: var(--s3) 0;
+  padding: 0;
+  /* Long enough to read a morning's worth, short enough to keep the panel's
+     controls reachable without scrolling past it. */
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.hist__row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: var(--s3);
+  padding: var(--s1) 0;
+  font-size: var(--size-sm);
+}
+
+.hist__when {
+  color: var(--ink-faint);
+}
+
+.hist__what--connected {
+  color: var(--pass);
+}
+
+.hist__what--connecting {
+  color: var(--warn);
+}
+
+.hist__what--disconnected {
+  color: var(--fail);
+}

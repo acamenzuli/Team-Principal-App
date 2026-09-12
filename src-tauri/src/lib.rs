@@ -241,6 +241,7 @@ pub fn run() {
             ipc::list_devices,
             ipc::refresh_devices,
             ipc::set_device_alias,
+            ipc::device_history,
             ipc::start_input_monitor,
             ipc::stop_input_monitor,
             ipc::start_preflight,

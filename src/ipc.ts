@@ -38,6 +38,7 @@ import type { BestFitInfo } from "./bindings/BestFitInfo";
 import type { CurveResult } from "./bindings/CurveResult";
 import type { DesktopLayoutInfo } from "./bindings/DesktopLayoutInfo";
 import type { DetectedDevice } from "./bindings/DetectedDevice";
+import type { DeviceEvent } from "./bindings/DeviceEvent";
 import type { GlassLevel } from "./bindings/GlassLevel";
 import type { InputFrame } from "./bindings/InputFrame";
 import type { InputStatus } from "./bindings/InputStatus";
@@ -114,6 +115,7 @@ export type {
   CurveResult,
   DesktopLayoutInfo,
   DetectedDevice,
+  DeviceEvent,
   DeviceStatus,
   FixAction,
   GlassLevel,
@@ -224,6 +226,15 @@ export const refreshDevices = () => invoke<void>("refresh_devices");
  */
 export const setDeviceAlias = (key: string, name: string | null) =>
   invoke<Preferences>("set_device_alias", { key, name });
+
+/**
+ * What has happened to one device since the app started.
+ *
+ * Keyed by the device's interface path, the same identity the watch tracks it
+ * by. Connections and disconnections as they were *shown* — a bounce the
+ * debouncer swallowed never reached the screen and is not in here.
+ */
+export const deviceHistory = (key: string) => invoke<DeviceEvent[]>("device_history", { key });
 
 /**
  * Subscribe to peripheral changes.

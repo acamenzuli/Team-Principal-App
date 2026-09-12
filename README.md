@@ -78,6 +78,11 @@ of its controls you have proved, so a dead pedal is obvious rather than
 something you infer. If the device can't be read at all, the panel says why
 instead of waiting in silence.
 
+Each device keeps a **connection history**, collapsed under its test panel:
+every disconnection and reconnection with a timestamp. It answers the question
+a flaky cable raises — *did that drop out, or did I imagine it* — which a list
+showing only the present cannot.
+
 It also spots when Windows quietly reshuffles your controller order — which is
 what silently breaks your bindings in games and is almost impossible to notice
 until you're on track.
