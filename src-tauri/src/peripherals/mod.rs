@@ -19,6 +19,7 @@ pub mod hid;
 pub mod monitor;
 #[cfg(windows)]
 pub mod notify;
+pub mod restart;
 pub mod vjoy;
 pub mod watch;
 

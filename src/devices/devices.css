@@ -31,6 +31,44 @@
   margin-top: var(--s4);
 }
 
+/* ------------------------------------------------------------- reconnect */
+
+/* Test and Reconnect side by side. The column has no heading, so the buttons
+   are the only thing that says what it is for, and two of them stacked would
+   double the row height for every device. */
+.devices__act {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+/* How the last Reconnect ended, directly under the row it was pressed on. The
+   colour of the edge is the whole of the verdict: green happened, red did not
+   and says what to do next, grey was declined and touched nothing. */
+.devices__outcome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  margin: 0;
+  padding: var(--s3) var(--s4);
+  border-left: 2px solid var(--pass);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--ground-raised);
+  color: var(--ink-dim);
+  font-size: var(--size-sm);
+  max-width: 80ch;
+}
+
+.devices__outcome--quiet {
+  border-left-color: var(--rule-strong);
+}
+
+.devices__outcome--fail {
+  border-left-color: var(--fail);
+  color: var(--ink);
+}
+
 /* ---------------------------------------------------------- input monitor */
 
 /* The expanded row. It carries no padding of its own so the panel inside it

@@ -165,6 +165,70 @@ pub fn device_history(
     }
 }
 
+/// Restart one device in Windows — what unplugging it and plugging it back in
+/// does, without touching the cable.
+///
+/// It needs administrator rights, which this app deliberately does not have,
+/// so a second copy of the app is started elevated to do it: one UAC prompt
+/// per press. Declining the prompt is an answer, not an error. What comes back
+/// is only whether it happened; the device itself reappears through
+/// `peripherals://changed` like any other arrival, and that is the read-back.
+///
+/// Async because the whole thing takes seconds and a prompt, and a command
+/// that is not async runs on the main thread.
+#[tauri::command]
+pub async fn reconnect_device(
+    instance_path: String,
+    watch: State<'_, crate::peripherals::watch::PeripheralWatch>,
+) -> AppResult<tp_model::ReconnectOutcome> {
+    let Some(watcher) = watch.0.clone() else {
+        return Err(AppError::Config(
+            "there is no hardware to restart when running against fixtures".into(),
+        ));
+    };
+
+    // Looked up in the list rather than trusted from the caller, so the IDs
+    // that decide how far up the device tree to go are the scanned ones.
+    let device = watcher
+        .latest()
+        .into_iter()
+        .find(|d| d.device.instance_path.as_deref() == Some(instance_path.as_str()))
+        .ok_or_else(|| AppError::Config("this device is not in the list; rescan first".into()))?;
+
+    if device.is_virtual {
+        return Err(AppError::Config(
+            "a vJoy device is software, and there is no cable to pull. Restart its feeder \
+             instead."
+                .into(),
+        ));
+    }
+    if device.status == tp_model::DeviceStatus::Disconnected {
+        return Err(AppError::Config(
+            "it is not plugged in at the moment, so there is nothing to restart".into(),
+        ));
+    }
+    // Not mid-race. Nothing here can steal input, but restarting a device a
+    // game is reading takes it away from the game for a few seconds, and that
+    // is the one thing this app must never do to a peripheral.
+    if crate::peripherals::monitor::is_suspended() {
+        return Err(AppError::Config(
+            "not while a session is running: the game would lose the device mid-race".into(),
+        ));
+    }
+
+    let (vid, pid) = (device.device.vid, device.device.pid);
+    let outcome = tauri::async_runtime::spawn_blocking(move || {
+        crate::peripherals::restart::reconnect(&instance_path, vid, pid)
+    })
+    .await
+    .map_err(|e| AppError::Config(format!("the restart thread ended unexpectedly: {e}")))??;
+
+    // Whatever happened, the list should say what is true now, and say it
+    // promptly rather than on the next reconcile.
+    watcher.poke();
+    Ok(outcome)
+}
+
 /// The virtual desktop's bounding box and its dead regions.
 ///
 /// Separate from `list_monitors` because it is derived rather than detected:

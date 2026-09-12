@@ -39,6 +39,7 @@ import type { CurveResult } from "./bindings/CurveResult";
 import type { DesktopLayoutInfo } from "./bindings/DesktopLayoutInfo";
 import type { DetectedDevice } from "./bindings/DetectedDevice";
 import type { DeviceEvent } from "./bindings/DeviceEvent";
+import type { ReconnectOutcome } from "./bindings/ReconnectOutcome";
 import type { GlassLevel } from "./bindings/GlassLevel";
 import type { InputFrame } from "./bindings/InputFrame";
 import type { InputKind } from "./bindings/InputKind";
@@ -118,6 +119,7 @@ export type {
   DetectedDevice,
   DeviceEvent,
   DeviceStatus,
+  ReconnectOutcome,
   FixAction,
   GlassLevel,
   InputFrame,
@@ -237,6 +239,19 @@ export const setDeviceAlias = (key: string, name: string | null) =>
  * debouncer swallowed never reached the screen and is not in here.
  */
 export const deviceHistory = (key: string) => invoke<DeviceEvent[]>("device_history", { key });
+
+/**
+ * Restart one device in Windows: what unplugging it and plugging it back in
+ * does, without touching the cable.
+ *
+ * Takes seconds and shows a UAC prompt, because the restart needs
+ * administrator rights the app itself does not have. Declining the prompt
+ * resolves as `"declined"`; everything that went wrong rejects with a sentence
+ * saying what to do next. The device going and coming back arrives on
+ * onDevicesChanged like any other, which is how you know it really happened.
+ */
+export const reconnectDevice = (instancePath: string) =>
+  invoke<ReconnectOutcome>("reconnect_device", { instancePath });
 
 /** The names given to one device's controls, keyed by `input_alias_key`. */
 export const inputAliases = (deviceKey: string) =>

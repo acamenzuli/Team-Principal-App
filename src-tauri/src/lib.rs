@@ -92,6 +92,11 @@ pub struct Cli {
     /// `--minimised`: come up out of the way. What the Windows startup entry
     /// passes, so a boot start does not take the screen.
     pub minimised: bool,
+    /// `--restart-device <instance id>`: restart one device and exit. What the
+    /// app starts a second, elevated copy of itself with when Reconnect is
+    /// pressed, because the restart needs administrator rights and the app
+    /// itself deliberately has none. See `peripherals::restart`.
+    pub restart_device: Option<String>,
 }
 
 impl Cli {
@@ -110,6 +115,10 @@ impl Cli {
                 // Both spellings: the registry entry writes one and people
                 // typing it by hand will use the other.
                 "--minimised" | "--minimized" => cli.minimised = true,
+                peripherals::restart::HELPER_FLAG => {
+                    cli.restart_device = args.get(i + 1).cloned();
+                    i += 1;
+                }
                 _ => {}
             }
             i += 1;
@@ -132,6 +141,17 @@ pub fn run() {
     }
 
     let _log_guard = logging::init(logging::app_data_dir().join("logs"));
+
+    // The elevated helper. Its whole life is one device restart, and it exits
+    // before anything else — no providers, no window, no watch thread — with
+    // the verdict as its exit status. `exit` runs no destructors, so the log
+    // guard is dropped by hand first; otherwise the lines that say what
+    // happened are the lines that get lost.
+    if let Some(instance_id) = cli.restart_device.as_deref() {
+        let code = peripherals::restart::helper_main(instance_id);
+        drop(_log_guard);
+        std::process::exit(code);
+    }
 
     // Checked before anything reads a monitor rectangle. See the module docs
     // for why a wrong answer here poisons every geometry value in the app.
@@ -242,6 +262,7 @@ pub fn run() {
             ipc::refresh_devices,
             ipc::set_device_alias,
             ipc::device_history,
+            ipc::reconnect_device,
             ipc::set_input_alias,
             ipc::input_aliases,
             ipc::start_input_monitor,

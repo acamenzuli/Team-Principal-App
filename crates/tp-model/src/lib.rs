@@ -27,6 +27,7 @@ pub mod plan;
 pub mod preferences;
 pub mod presence;
 pub mod profile;
+pub mod restart;
 pub mod rig;
 pub mod topology;
 pub mod units;
@@ -60,6 +61,7 @@ pub use presence::{
     debounce, detect_drift, device_key, transitions, Debouncer, DeviceEvent, Observation,
 };
 pub use profile::*;
+pub use restart::{node_to_restart, ReconnectOutcome, RestartResult};
 pub use rig::*;
 pub use topology::{
     describe as describe_topology_change, preview as preview_topology,

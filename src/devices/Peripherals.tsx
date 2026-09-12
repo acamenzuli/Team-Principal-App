@@ -6,11 +6,29 @@ import {
   asIpcError,
   listDevices,
   onDevicesChanged,
+  reconnectDevice,
   refreshDevices,
   setDeviceAlias,
   type DetectedDevice,
+  type ReconnectOutcome,
 } from "../ipc";
 import "./devices.css";
+
+/**
+ * How the last press of Reconnect ended for one device. Kept per device and
+ * shown under its row, because "it failed" at the top of the page does not say
+ * which of three button boxes it was talking about.
+ */
+type Reconnected = {
+  outcome: ReconnectOutcome | "failed";
+  at: Date;
+  /** What to do next. Only a failure has one. */
+  message?: string;
+};
+
+const RECONNECT_HINT =
+  "Restart it in Windows — what unplugging it and plugging it back in does, without " +
+  "touching the cable. Windows asks for an administrator's OK first.";
 
 /**
  * Peripherals.
@@ -26,6 +44,10 @@ export function Peripherals() {
   const [scannedAt, setScannedAt] = useState<Date | null>(null);
   const [watching, setWatching] = useState<DetectedDevice | null>(null);
   const [rescanning, setRescanning] = useState(false);
+  // The device being restarted, by path. One at a time — the backend refuses
+  // a second — so every other Reconnect waits rather than queues.
+  const [reconnecting, setReconnecting] = useState<string | null>(null);
+  const [reconnected, setReconnected] = useState<Record<string, Reconnected>>({});
 
   const load = useCallback(async () => {
     try {
@@ -54,6 +76,27 @@ export function Peripherals() {
     });
     return () => unlisten?.();
   }, [load]);
+
+  const reconnect = async (d: DetectedDevice) => {
+    const path = d.device.instancePath;
+    if (path === null) return;
+    // The test panel holds the device open. Closed first, so the restart is
+    // not fighting this app for the very thing it is restarting — and so the
+    // panel is not left reporting a failure for a device that is fine.
+    if (watching?.device.instancePath === path) setWatching(null);
+    setReconnecting(path);
+    try {
+      const outcome = await reconnectDevice(path);
+      setReconnected((prev) => ({ ...prev, [path]: { outcome, at: new Date() } }));
+    } catch (e) {
+      setReconnected((prev) => ({
+        ...prev,
+        [path]: { outcome: "failed", at: new Date(), message: asIpcError(e).message },
+      }));
+    } finally {
+      setReconnecting(null);
+    }
+  };
 
   return (
     <div className="devices">
@@ -98,6 +141,9 @@ export function Peripherals() {
                 const open =
                   d.device.instancePath !== null &&
                   watching?.device.instancePath === d.device.instancePath;
+                // What the last Reconnect on this device came to, if anything.
+                const note =
+                  d.device.instancePath === null ? undefined : reconnected[d.device.instancePath];
 
                 return (
                   <Fragment key={d.device.instancePath ?? `${d.device.vid}-${d.device.pid}`}>
@@ -142,13 +188,33 @@ export function Peripherals() {
                       </td>
                       <td>
                         {d.device.instancePath ? (
-                          <button
-                            className="btn btn--quiet"
-                            aria-expanded={open}
-                            onClick={() => setWatching(open ? null : d)}
-                          >
-                            {open ? "Hide" : "Test"}
-                          </button>
+                          <div className="devices__act">
+                            <button
+                              className="btn btn--quiet"
+                              aria-expanded={open}
+                              onClick={() => setWatching(open ? null : d)}
+                            >
+                              {open ? "Hide" : "Test"}
+                            </button>
+                            {/* vJoy is software: there is no cable to pull, so
+                                there is nothing a restart could do for it. */}
+                            {!d.isVirtual && (
+                              <button
+                                className="btn btn--quiet"
+                                disabled={reconnecting !== null || d.status === "disconnected"}
+                                title={
+                                  d.status === "disconnected"
+                                    ? "Not plugged in, so there is nothing to restart"
+                                    : RECONNECT_HINT
+                                }
+                                onClick={() => void reconnect(d)}
+                              >
+                                {reconnecting === d.device.instancePath
+                                  ? "Reconnecting…"
+                                  : "Reconnect"}
+                              </button>
+                            )}
+                          </div>
                         ) : (
                           // No device path means nothing to open, and a button
                           // here would be a promise the app cannot keep.
@@ -161,6 +227,28 @@ export function Peripherals() {
                         )}
                       </td>
                     </tr>
+
+                    {/* How the last Reconnect ended, under the row it was
+                        pressed on. A failure says what to do next and stays
+                        until dismissed; the row above going red and green
+                        again is the evidence for a success. */}
+                    {note && (
+                      <tr className="devices__expanded">
+                        <td colSpan={7}>
+                          <ReconnectNote
+                            result={note}
+                            onDismiss={() => {
+                              const path = d.device.instancePath;
+                              setReconnected((prev) =>
+                                Object.fromEntries(
+                                  Object.entries(prev).filter(([key]) => key !== path),
+                                ),
+                              );
+                            }}
+                          />
+                        </td>
+                      </tr>
+                    )}
 
                     {/* Directly under the row it belongs to, not at the foot of
                         the table: a panel that opens somewhere else reads as
@@ -294,6 +382,35 @@ function DeviceName({
         <span className="devices__raw">{device.rawProductName}</span>
       )}
     </button>
+  );
+}
+
+/**
+ * How the last Reconnect ended, in a line, with the next step when there is
+ * one.
+ *
+ * A success is deliberately modest: the row above going red and then green
+ * again is the proof, and this only says when. A declined prompt is not a
+ * failure and is not coloured like one — nothing happened, which is what was
+ * asked for.
+ */
+function ReconnectNote({ result, onDismiss }: { result: Reconnected; onDismiss: () => void }) {
+  const when = result.at.toLocaleTimeString();
+  const tone =
+    result.outcome === "failed" ? "fail" : result.outcome === "declined" ? "quiet" : "ok";
+  return (
+    <p className={`devices__outcome devices__outcome--${tone}`}>
+      <span>
+        {result.outcome === "restarted" &&
+          `Restarted at ${when} — Windows reports it running again.`}
+        {result.outcome === "declined" &&
+          `Nothing changed — the administrator prompt was declined at ${when}.`}
+        {result.outcome === "failed" && `Not reconnected — ${result.message}`}
+      </span>
+      <button className="btn btn--tiny btn--quiet" type="button" onClick={onDismiss}>
+        Dismiss
+      </button>
+    </p>
   );
 }
 

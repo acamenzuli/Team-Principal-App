@@ -88,6 +88,16 @@ every disconnection and reconnection with a timestamp. It answers the question
 a flaky cable raises — *did that drop out, or did I imagine it* — which a list
 showing only the present cannot.
 
+**Reconnect** restarts a device in Windows — what unplugging it and plugging it
+back in does, without reaching for the cable. It is for the peripheral that
+enumerates fine and does nothing until it has been replugged. Windows asks for
+an administrator's OK each time, because stopping a device needs one and the
+app itself deliberately runs without; decline it and nothing is touched. Watch
+the row go red and green again — that is the evidence it happened, and the
+connection history records it. It does not cut power to the port, since no
+Windows API can, so a device whose firmware has locked up still needs the cable
+— and the app says so rather than claiming a restart it cannot see.
+
 It also spots when Windows quietly reshuffles your controller order — which is
 what silently breaks your bindings in games and is almost impossible to notice
 until you're on track.
