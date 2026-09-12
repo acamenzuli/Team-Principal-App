@@ -128,19 +128,20 @@ jobs:
       # update itself to, so testing a change does not mean downloading an
       # artifact and running an installer by hand each time.
       #
-      # Three things have to line up for that, and all three are set here rather
-      # than committed:
+      # Two things have to line up for that, and neither is committed:
       #
       # * **A version newer than the last one.** The updater compares versions
       #   and offers nothing otherwise. The run number is monotonic, which is
       #   the only property needed of it.
-      # * **The test endpoint.** The committed one is `releases/latest` — the
-      #   stable channel, which deliberately excludes these builds. This channel
-      #   is a single release tagged `dev` whose assets are replaced on every
-      #   push, so the URL never changes and old builds do not pile up.
       # * **Updater artifacts**, which make the build sign the installer. That
       #   needs the private key, so without the secret this step does nothing
       #   and the job carries on producing the plain artifact as before.
+      #
+      # The endpoint is *not* set here. It is committed, and it points at this
+      # same release — so every build ever made, however it was built, checks
+      # the one place builds are published. A build that points somewhere else
+      # is a build that can never update, and working out which one you are
+      # holding is not a thing anybody should have to do.
       - name: Prepare the test channel
         id: channel
         if: github.ref_name == 'claude/sim-racing-launcher-display-i60v81'
@@ -177,8 +178,6 @@ jobs:
           $version = "0.1.${{ github.run_number }}"
           $config = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
           $config.version = $version
-          $config.plugins.updater.endpoints =
-            @("https://github.com/${{ github.repository }}/releases/download/dev/latest.json")
           $config.bundle | Add-Member -NotePropertyName createUpdaterArtifacts -NotePropertyValue $true -Force
           $config | ConvertTo-Json -Depth 20 | Set-Content src-tauri/tauri.conf.json
 

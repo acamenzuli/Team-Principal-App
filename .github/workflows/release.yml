@@ -60,10 +60,17 @@ jobs:
       # The public key is not set here: it is committed in tauri.conf.json, so
       # every build — this one, CI's, and a local one — carries the same key and
       # can verify the same releases. See scripts/updater-key.mjs.
-      - name: Turn on updater artifacts
+      # A real release follows `releases/latest`, not the test channel the
+      # committed config points at. Switched here rather than committed,
+      # because during development every build should check the one place
+      # development builds are published — and that is the whole point of the
+      # committed value.
+      - name: Point at the stable channel and turn on updater artifacts
         shell: pwsh
         run: |
           $config = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          $config.plugins.updater.endpoints =
+            @("https://github.com/${{ github.repository }}/releases/latest/download/latest.json")
           if (-not $config.plugins.updater.pubkey -or
               $config.plugins.updater.pubkey -eq "UNCONFIGURED") {
             Write-Error "No updater public key in tauri.conf.json. Run: node scripts/updater-key.mjs"

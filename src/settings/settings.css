@@ -299,3 +299,9 @@
   font-size: var(--size-sm);
   word-break: break-all;
 }
+
+/* The build number, stated plainly rather than tucked into a corner. */
+.settings__build {
+  font-size: var(--size-readout);
+  color: var(--ink);
+}

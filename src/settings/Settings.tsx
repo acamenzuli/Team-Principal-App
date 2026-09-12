@@ -297,6 +297,13 @@ function Updates({
         />
       </Row>
 
+      {/* The build you are running, stated plainly. During testing the only
+          question that matters when something looks wrong is whether the fix
+          is even in the build — and that should never take a conversation. */}
+      <Row label="This build">
+        <span className="num settings__build">{version ? `v${version}` : "…"}</span>
+      </Row>
+
       <div className="settings__actions">
         <button
           className="btn btn--quiet"

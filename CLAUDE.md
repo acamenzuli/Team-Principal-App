@@ -21,11 +21,20 @@ every push — formatting, clippy, the platform-neutral tests, the IPC contract,
 the frontend build, about two minutes — and the Windows job runs **on request
 only**: Actions -> CI -> Run workflow.
 
-That request is also what produces an installer as a run artifact, and what
-replaces the **Test channel** release (tag `dev`) that installed copies update
-themselves to. The test channel needs the `TAURI_SIGNING_PRIVATE_KEY` secret;
-without it the job warns, says so in the run summary, and builds a plain
-installer. See `docs/RELEASING.md`.
+That request replaces the one build there is: the release tagged `dev`, at
+
+    https://github.com/acamenzuli/Team-Principal-App/releases/download/dev/TeamPrincipal-setup.exe
+
+**One build, one link, one endpoint.** The updater endpoint is committed and
+points at that same release, so every build ever made — CI's, a local one, one
+from six weeks ago — checks the one place builds are published. There is no
+second channel to be on the wrong side of during development; a real release
+switches to `releases/latest`, and that switch happens in the release workflow
+rather than in the committed config.
+
+Signing needs the `TAURI_SIGNING_PRIVATE_KEY` secret; without it the job warns,
+says so in the run summary, and builds a plain installer that cannot update.
+See `docs/RELEASING.md`.
 
 Ask for that build when there is something to install — not after every
 change.
