@@ -121,7 +121,11 @@ pub struct Debouncer {
 }
 
 impl Debouncer {
-    pub const DEFAULT_SETTLE_MS: u64 = 750;
+    /// Long enough to swallow the bounce a USB device makes while it
+    /// enumerates, short enough that pulling a cable out looks immediate.
+    /// Measured in how it feels to unplug something while watching the screen,
+    /// which is the only test that matters for this number.
+    pub const DEFAULT_SETTLE_MS: u64 = 400;
 
     pub fn new(initial: DeviceStatus) -> Self {
         Self {
@@ -141,6 +145,16 @@ impl Debouncer {
 
     pub fn status(&self) -> DeviceStatus {
         self.stable
+    }
+
+    /// Is a change waiting out its settle window?
+    ///
+    /// The caller needs this to know when to look again. A pending change is
+    /// only promoted by a *later* observation, so a watcher that then sleeps
+    /// on its ordinary timer makes every disconnection take as long as that
+    /// timer — the settle window was never the slow part.
+    pub fn settling(&self) -> bool {
+        self.pending.is_some()
     }
 
     /// Feed an observation. Returns the new status only when it actually
@@ -373,17 +387,23 @@ mod tests {
 
     // ------------------------------------------------------------- debounce
 
+    /// The settle window, named rather than typed out, so tuning it is a
+    /// one-line change and not a test rewrite. These tests are about the rule,
+    /// not about any particular number of milliseconds.
+    const W: u64 = Debouncer::DEFAULT_SETTLE_MS;
+
     #[test]
     fn a_bounce_never_reaches_the_ui() {
         // Arrives, drops, arrives again, all inside the settle window. This is
         // what a real USB device does, and the user should see one transition.
         let mut d = Debouncer::new(Disconnected);
         assert_eq!(d.observe(Connected, 0), None);
-        assert_eq!(d.observe(Disconnected, 100), None);
-        assert_eq!(d.observe(Connected, 200), None);
-        assert_eq!(d.observe(Connected, 400), None);
-        // Only once the candidate has held for the full window.
-        assert_eq!(d.observe(Connected, 951), Some(Connected));
+        assert_eq!(d.observe(Disconnected, W / 8), None);
+        assert_eq!(d.observe(Connected, W / 4), None);
+        assert_eq!(d.observe(Connected, W / 2), None);
+        // Only once the candidate has held for the full window, measured from
+        // the last time it changed.
+        assert_eq!(d.observe(Connected, W / 4 + W + 1), Some(Connected));
         assert_eq!(d.status(), Connected);
     }
 
@@ -391,12 +411,8 @@ mod tests {
     fn a_settled_change_does_come_through() {
         let mut d = Debouncer::new(Disconnected);
         assert_eq!(d.observe(Connected, 0), None);
-        assert_eq!(d.observe(Connected, 749), None, "not yet");
-        assert_eq!(
-            d.observe(Connected, 750),
-            Some(Connected),
-            "exactly at the window"
-        );
+        assert_eq!(d.observe(Connected, W - 1), None, "not yet");
+        assert_eq!(d.observe(Connected, W), Some(Connected), "at the window");
     }
 
     #[test]
@@ -405,10 +421,14 @@ mod tests {
         // observation away from reporting the flicker.
         let mut d = Debouncer::new(Connected);
         assert_eq!(d.observe(Disconnected, 0), None);
-        assert_eq!(d.observe(Connected, 100), None, "cancels");
-        assert_eq!(d.observe(Disconnected, 200), None, "window restarts");
-        assert_eq!(d.observe(Disconnected, 800), None, "600 ms is not enough");
-        assert_eq!(d.observe(Disconnected, 951), Some(Disconnected));
+        assert_eq!(d.observe(Connected, W / 4), None, "cancels");
+        assert_eq!(d.observe(Disconnected, W / 2), None, "window restarts");
+        assert_eq!(
+            d.observe(Disconnected, W),
+            None,
+            "and the restart is what is timed from"
+        );
+        assert_eq!(d.observe(Disconnected, W / 2 + W + 1), Some(Disconnected));
     }
 
     #[test]
@@ -417,9 +437,18 @@ mod tests {
         // let Connecting's elapsed time promote Connected early.
         let mut d = Debouncer::new(Disconnected);
         assert_eq!(d.observe(Connecting, 0), None);
-        assert_eq!(d.observe(Connected, 700), None, "new candidate, new window");
-        assert_eq!(d.observe(Connected, 1300), None, "only 600 ms so far");
-        assert_eq!(d.observe(Connected, 1450), Some(Connected));
+        let switched = W - 1;
+        assert_eq!(
+            d.observe(Connected, switched),
+            None,
+            "new candidate, new window"
+        );
+        assert_eq!(
+            d.observe(Connected, switched + W - 1),
+            None,
+            "Connecting's elapsed time does not count towards Connected"
+        );
+        assert_eq!(d.observe(Connected, switched + W), Some(Connected));
     }
 
     #[test]

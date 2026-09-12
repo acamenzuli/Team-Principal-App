@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   deviceHistory,
+  onDeviceEvent,
   onInput,
   onInputStatus,
   startInputMonitor,
@@ -47,10 +48,20 @@ export function InputMonitor({
   // state: they are written on every frame and only ever read during the
   // render that frame causes.
   const panel = useRef<HTMLDivElement>(null);
-  const movedAxes = useRef<Set<number>>(new Set());
+  // How many times each control has been used, not merely whether it has.
+  // "It went green once and stopped" is a panel that answers the first
+  // question and then goes blind: a stick that works and a stick that worked
+  // ten minutes ago look identical. A count that keeps climbing is proof the
+  // thing is still alive, every time you touch it.
+  const axisUses = useRef<Map<number, number>>(new Map());
+  const buttonUses = useRef<Map<number, number>>(new Map());
+  const hatUses = useRef<Map<number, number>>(new Map());
   const restAxes = useRef<Map<number, number>>(new Map());
-  const usedButtons = useRef<Set<number>>(new Set());
-  const usedHats = useRef<Set<number>>(new Set());
+  /// Whether each control was active on the previous frame, so a use is
+  /// counted on the edge rather than once per frame while it is held.
+  const axisActive = useRef<Set<number>>(new Set());
+  const buttonActive = useRef<Set<number>>(new Set());
+  const hatActive = useRef<Set<number>>(new Set());
 
   // Opening a panel has to be visible. On a long device list the row being
   // tested can sit below the fold, and a panel that appears off-screen is
@@ -77,20 +88,22 @@ export function InputMonitor({
       const [stopFrames, stopStatus] = await Promise.all([
         onInput((next) => {
           if (next.instancePath !== instancePath) return;
+
           next.axes.forEach((a, i) => {
             const rest = restAxes.current.get(i);
-            if (rest === undefined) restAxes.current.set(i, a.unipolar);
+            if (rest === undefined) {
+              restAxes.current.set(i, a.unipolar);
+              return;
+            }
             // Five per cent of travel. Below that is noise from a
-            // potentiometer sitting still, and a tick that appears on its own
+            // potentiometer sitting still, and a count that climbs on its own
             // proves nothing.
-            else if (Math.abs(a.unipolar - rest) > 0.05) movedAxes.current.add(i);
+            bump(axisUses, axisActive, i, Math.abs(a.unipolar - rest) > 0.05);
           });
-          next.buttons.forEach((down, i) => {
-            if (down) usedButtons.current.add(i);
-          });
-          next.hats.forEach((degrees, i) => {
-            if (degrees !== null) usedHats.current.add(i);
-          });
+
+          next.buttons.forEach((down, i) => bump(buttonUses, buttonActive, i, down));
+          next.hats.forEach((degrees, i) => bump(hatUses, hatActive, i, degrees !== null));
+
           setFrame(next);
         }),
         onInputStatus((next) => {
@@ -121,10 +134,13 @@ export function InputMonitor({
       cancelled = true;
       unlisteners.forEach((f) => f());
       void stopInputMonitor(instancePath);
-      movedAxes.current.clear();
+      axisUses.current.clear();
+      buttonUses.current.clear();
+      hatUses.current.clear();
       restAxes.current.clear();
-      usedButtons.current.clear();
-      usedHats.current.clear();
+      axisActive.current.clear();
+      buttonActive.current.clear();
+      hatActive.current.clear();
     };
   }, [instancePath]);
 
@@ -139,7 +155,7 @@ export function InputMonitor({
   const buttonCount = declared?.buttons ?? frame?.buttons.length ?? 0;
   const hatCount = declared?.hats ?? frame?.hats.length ?? 0;
 
-  const exercised = movedAxes.current.size + usedButtons.current.size + usedHats.current.size;
+  const exercised = axisUses.current.size + buttonUses.current.size + hatUses.current.size;
   const total = axisNames.length + buttonCount + hatCount;
 
   return (
@@ -188,19 +204,23 @@ export function InputMonitor({
               <div className="axes">
                 {axisNames.map((axisName, i) => {
                   const reading = frame?.axes[i];
-                  const moved = movedAxes.current.has(i);
+                  const uses = axisUses.current.get(i) ?? 0;
+                  const active = axisActive.current.has(i);
                   const live = reading !== undefined;
                   return (
-                    <div className={`axis${moved ? " axis--seen" : ""}`} key={`${axisName}-${i}`}>
-                      {/* The bubble lights the moment a value arrives and stays
-                          lit once the control has been moved, so a glance says
-                          both "this is reporting" and "this one is proven". */}
+                    <div className={`axis${uses > 0 ? " axis--seen" : ""}`} key={`${axisName}-${i}`}>
+                      {/* Dim until something reports, outlined while values are
+                          arriving, filled while this control is actually being
+                          moved right now, and green once it has been proven. */}
                       <span
-                        className={`bub${live ? " bub--live" : ""}${moved ? " bub--seen" : ""}`}
-                        aria-label={moved ? "moved" : "not moved yet"}
+                        className={`bub${live ? " bub--live" : ""}${uses > 0 ? " bub--seen" : ""}${
+                          active ? " bub--active" : ""
+                        }`}
+                        aria-label={active ? "moving" : uses > 0 ? "moved" : "not moved yet"}
                       />
                       <span className="axis__name">
                         {axisName} <span className="io__n num">{i + 1}</span>
+                        {uses > 0 && <span className="io__uses num">{uses}</span>}
                       </span>
                       <span className="axis__track">
                         <span
@@ -226,16 +246,17 @@ export function InputMonitor({
               <div className="hats">
                 {Array.from({ length: hatCount }, (_, i) => {
                   const degrees = frame?.hats[i] ?? null;
-                  const used = usedHats.current.has(i);
+                  const uses = hatUses.current.get(i) ?? 0;
                   return (
                     <div className="hat" key={i}>
                       <span
-                        className={`bub${degrees !== null ? " bub--live" : ""}${
-                          used ? " bub--seen" : ""
+                        className={`bub${uses > 0 ? " bub--seen" : ""}${
+                          degrees !== null ? " bub--active" : ""
                         }`}
                       />
                       <span className="hat__name">
                         Hat <span className="io__n num">{i + 1}</span>
+                        {uses > 0 && <span className="io__uses num">{uses}</span>}
                       </span>
                       {/* The direction in words as well as degrees: "225°" is
                           not something anybody checks a POV switch against. */}
@@ -257,16 +278,21 @@ export function InputMonitor({
               <div className="buttons">
                 {Array.from({ length: buttonCount }, (_, i) => {
                   const down = frame?.buttons[i] ?? false;
-                  const used = usedButtons.current.has(i);
+                  const uses = buttonUses.current.get(i) ?? 0;
                   return (
                     <span
                       key={i}
                       className={`bubbtn${down ? " bubbtn--down" : ""}${
-                        used ? " bubbtn--seen" : ""
+                        uses > 0 ? " bubbtn--seen" : ""
                       }`}
-                      title={`Button ${i + 1}${used ? " — pressed during this test" : ""}`}
+                      title={
+                        uses > 0
+                          ? `Button ${i + 1} — pressed ${uses} ${uses === 1 ? "time" : "times"}`
+                          : `Button ${i + 1} — not pressed yet`
+                      }
                     >
                       {i + 1}
+                      {uses > 0 && <span className="bubbtn__uses num">{uses}</span>}
                     </span>
                   );
                 })}
@@ -280,8 +306,9 @@ export function InputMonitor({
                 {exercised} of {total}
               </span>{" "}
               proven. Every control this device declares is listed above, numbered as the device
-              numbers them — which is the numbering a game will show you. Work through them and
-              anything still unlit is the thing to report.
+              numbers them — which is the numbering a game will show you. The number beside each
+              is how many times you have used it, so a control that has gone quiet is as visible
+              as one that never worked.
             </p>
           )}
         </>
@@ -310,23 +337,32 @@ export function InputMonitor({
  */
 function History({ instancePath }: { instancePath: string }) {
   const [events, setEvents] = useState<DeviceEvent[] | null>(null);
-  const [open, setOpen] = useState(false);
 
-  const load = () =>
+  // Loaded once and then kept live. A list you have to press a button to
+  // refresh is wrong most of the time you are looking at it — and the moment
+  // worth watching is the one where you wiggle the cable.
+  useEffect(() => {
+    let live = true;
     deviceHistory(instancePath)
-      .then(setEvents)
-      .catch(() => setEvents([]));
+      .then((h) => live && setEvents(h))
+      .catch(() => live && setEvents([]));
+
+    let unlisten: (() => void) | undefined;
+    void onDeviceEvent((key, event) => {
+      if (key === instancePath) setEvents((current) => [...(current ?? []), event]);
+    }).then((f) => {
+      if (!live) f();
+      else unlisten = f;
+    });
+
+    return () => {
+      live = false;
+      unlisten?.();
+    };
+  }, [instancePath]);
 
   return (
-    <details
-      className="hist"
-      open={open}
-      onToggle={(e) => {
-        const isOpen = (e.target as HTMLDetailsElement).open;
-        setOpen(isOpen);
-        if (isOpen) void load();
-      }}
-    >
+    <details className="hist">
       <summary className="hist__summary">
         Connection history
         {events !== null && <span className="hist__count num">{events.length}</span>}
@@ -353,10 +389,6 @@ function History({ instancePath }: { instancePath: string }) {
           ))}
         </ol>
       )}
-
-      <button className="btn btn--tiny btn--quiet" onClick={() => void load()}>
-        Refresh
-      </button>
     </details>
   );
 }
@@ -376,6 +408,29 @@ const readable = (status: DeviceEvent["to"]) =>
 function when(at: string): string {
   const date = new Date(at);
   return Number.isNaN(date.getTime()) ? at : date.toLocaleTimeString();
+}
+
+/**
+ * Count a use on the edge, not once per frame.
+ *
+ * Holding a button down produces thirty frames a second; counting each of them
+ * would turn a press into a meaningless number that climbs while you rest your
+ * thumb. A use is one activation, from released to pressed.
+ */
+function bump(
+  uses: React.MutableRefObject<Map<number, number>>,
+  active: React.MutableRefObject<Set<number>>,
+  index: number,
+  isActive: boolean,
+) {
+  if (isActive) {
+    if (!active.current.has(index)) {
+      active.current.add(index);
+      uses.current.set(index, (uses.current.get(index) ?? 0) + 1);
+    }
+  } else {
+    active.current.delete(index);
+  }
 }
 
 /** A hat's direction in words. Degrees alone is not how anybody checks a POV. */

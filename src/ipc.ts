@@ -237,6 +237,21 @@ export const setDeviceAlias = (key: string, name: string | null) =>
 export const deviceHistory = (key: string) => invoke<DeviceEvent[]>("device_history", { key });
 
 /**
+ * Something happening to a device, as it happens.
+ *
+ * Carries the device key and the event, so a history on screen appends rather
+ * than being re-fetched — and rather than being stale until somebody presses
+ * a button.
+ */
+export function onDeviceEvent(
+  handler: (key: string, event: DeviceEvent) => void,
+): Promise<UnlistenFn> {
+  return listen<[string, DeviceEvent]>("peripherals://history", (e) =>
+    handler(e.payload[0], e.payload[1]),
+  );
+}
+
+/**
  * Subscribe to peripheral changes.
  *
  * The backend watches for device arrival and removal at the OS level and

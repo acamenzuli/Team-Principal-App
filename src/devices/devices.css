@@ -358,3 +358,43 @@
 .hist__what--disconnected {
   color: var(--fail);
 }
+
+/* Being used right now. Distinct from "has been used": one is a live reading,
+   the other is a fact about the session, and a panel that conflates them
+   cannot tell you a control has gone quiet. */
+.bub--active {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* How many times. Beside the name rather than replacing it, because the name
+   is what you match against the game's binding screen. */
+.io__uses {
+  margin-left: var(--s2);
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--ground-deep);
+  color: var(--ink-dim);
+  font-size: 11px;
+}
+
+.bubbtn {
+  position: relative;
+}
+
+.bubbtn__uses {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--pass);
+  color: var(--accent-ink);
+  font-size: 9px;
+  line-height: 1;
+}

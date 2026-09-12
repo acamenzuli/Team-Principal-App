@@ -43,8 +43,24 @@ pub struct PeripheralWatch(pub Option<Watcher>);
 /// The event the frontend listens for.
 pub const EVENT: &str = "peripherals://changed";
 
+/// One thing having happened to one device, as it happens.
+///
+/// Published as well as recorded so a history on screen fills itself in. A
+/// list you have to press a button to refresh is a list that is wrong most of
+/// the time you are looking at it.
+pub const HISTORY_EVENT: &str = "peripherals://history";
+
 /// How often to reconcile things that emit no event.
 const RECONCILE: Duration = Duration::from_secs(4);
+
+/// How soon to look again while a status change is waiting out its settle
+/// window.
+///
+/// A pending change is promoted by the *next* observation, so without this the
+/// wait is the settle window plus however long until the next reconcile —
+/// which made unplugging a wheel take up to four seconds to show, and that had
+/// nothing to do with debouncing.
+const SETTLING: Duration = Duration::from_millis(120);
 
 #[derive(Clone)]
 pub struct Watcher {
@@ -154,11 +170,15 @@ pub fn start(app: AppHandle) -> Watcher {
                         "device status changed"
                     );
                     if let Ok(mut log) = history.lock() {
-                        let entries = log.entry(key).or_default();
-                        entries.push(event);
+                        let entries = log.entry(key.clone()).or_default();
+                        entries.push(event.clone());
                         if entries.len() > HISTORY {
                             entries.remove(0);
                         }
+                    }
+
+                    if let Err(e) = app.emit(HISTORY_EVENT, &(key, event)) {
+                        tracing::debug!(error = %e, "could not publish a device event");
                     }
                 }
 
@@ -171,8 +191,16 @@ pub fn start(app: AppHandle) -> Watcher {
                     }
                 }
 
+                // Look again promptly while anything is mid-change, and
+                // slowly when the rig is sitting still.
+                let next = if debouncers.values().any(|d| d.settling()) {
+                    SETTLING
+                } else {
+                    RECONCILE
+                };
+
                 // Wake early on a hotplug notification, otherwise reconcile.
-                match wakes.recv_timeout(RECONCILE) {
+                match wakes.recv_timeout(next) {
                     Ok(()) | Err(RecvTimeoutError::Timeout) => {}
                     Err(RecvTimeoutError::Disconnected) => break,
                 }
