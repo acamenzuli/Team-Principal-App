@@ -104,7 +104,8 @@ export function InputMonitor({
       unlisteners.push(stopFrames, stopStatus);
 
       try {
-        await startInputMonitor(instancePath);
+        // The structure arrives here, not on an event.
+        setStatus(await startInputMonitor(instancePath));
       } catch (e) {
         setStatus({
           kind: "failed",

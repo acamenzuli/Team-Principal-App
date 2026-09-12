@@ -380,8 +380,15 @@ export const placeWindow = (args: {
 
 export const stopWatchingWindow = () => invoke<void>("stop_watching_window");
 
+/**
+ * Start watching a device, and get back what it has.
+ *
+ * The declared axes, buttons and hats come back from this call rather than on
+ * an event, so the panel's structure does not depend on an event arriving at
+ * the right moment. A device that cannot be opened fails here.
+ */
 export const startInputMonitor = (instancePath: string) =>
-  invoke<void>("start_input_monitor", { instancePath });
+  invoke<InputStatus>("start_input_monitor", { instancePath });
 
 /**
  * Stop watching one device.

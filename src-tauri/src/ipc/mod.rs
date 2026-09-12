@@ -385,13 +385,20 @@ pub fn start_input_monitor(
     app: tauri::AppHandle,
     active: State<'_, crate::peripherals::monitor::ActiveMonitor>,
     instance_path: String,
-) -> AppResult<()> {
+) -> AppResult<tp_model::InputStatus> {
+    // Opened and read here, and *returned*, rather than published as an event.
+    // What the panel draws — which axes, how many buttons, how many hats — is
+    // then a value the caller holds. An event can be missed; a return value
+    // cannot, and a device that cannot be opened says so here rather than
+    // leaving a panel waiting for frames that were never coming.
+    let described = crate::peripherals::monitor::describe(&instance_path)?;
+
     let monitor = crate::peripherals::monitor::start(app, instance_path);
     match active.0.lock() {
         // Dropping the previous monitor stops its thread.
         Ok(mut slot) => {
             *slot = Some(monitor);
-            Ok(())
+            Ok(described)
         }
         Err(_) => Err(AppError::Config(
             "the input monitor is in a bad state".into(),

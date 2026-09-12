@@ -79,6 +79,19 @@ impl Drop for Monitor {
 #[derive(Default)]
 pub struct ActiveMonitor(pub std::sync::Mutex<Option<Monitor>>);
 
+/// What the device has, read synchronously so the caller holds it as a value.
+#[cfg(windows)]
+pub fn describe(instance_path: &str) -> crate::error::AppResult<InputStatus> {
+    win::describe(instance_path)
+}
+
+#[cfg(not(windows))]
+pub fn describe(_instance_path: &str) -> crate::error::AppResult<InputStatus> {
+    Err(crate::error::AppError::Config(
+        "live input is only available on Windows".into(),
+    ))
+}
+
 #[cfg(windows)]
 pub fn start(app: AppHandle, instance_path: String) -> Monitor {
     let stop = Arc::new(AtomicBool::new(false));
@@ -147,6 +160,61 @@ mod win {
 
     use super::{publish, AxisReading, InputFrame, InputStatus, EVENT, MIN_INTERVAL_MS};
     use crate::error::{AppError, AppResult};
+
+    /// Open the device, read its descriptor, close it, and say what it has.
+    ///
+    /// Synchronous and returned from the command rather than published as an
+    /// event. The panel's *structure* — which axes, how many buttons, how many
+    /// hats — is then a value the caller holds, not something it has to be
+    /// told. An event can be missed; a return value cannot.
+    pub fn describe(path: &str) -> AppResult<InputStatus> {
+        // SAFETY: the handle and the preparsed data are released on every path.
+        unsafe {
+            let wide = HSTRING::from(path);
+            let device = CreateFileW(
+                &wide,
+                GENERIC_READ.0,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                None,
+                OPEN_EXISTING,
+                FILE_FLAG_OVERLAPPED,
+                None,
+            )
+            .map_err(|e| AppError::Win32 {
+                operation: "open the device".into(),
+                code: e.code().0 as u32,
+                message: e.message(),
+            })?;
+
+            let result = describe_open(path, device);
+            let _ = CloseHandle(device);
+            result
+        }
+    }
+
+    unsafe fn describe_open(path: &str, device: HANDLE) -> AppResult<InputStatus> {
+        let mut preparsed = PHIDP_PREPARSED_DATA::default();
+        if !HidD_GetPreparsedData(device, &mut preparsed) {
+            return Err(AppError::Config(
+                "this device reports no HID descriptor".into(),
+            ));
+        }
+
+        let mut caps = HIDP_CAPS::default();
+        let ok = HidP_GetCaps(preparsed, &mut caps).is_ok();
+        let described = if ok && caps.InputReportByteLength > 0 {
+            let (values, hats) = value_caps(preparsed, &caps);
+            let buttons = button_caps(preparsed, &caps);
+            Ok(listening(path, &values, &buttons, &hats))
+        } else {
+            Err(AppError::Config(
+                "this device sends no input reports".into(),
+            ))
+        };
+
+        let _ = HidD_FreePreparsedData(preparsed);
+        described
+    }
 
     pub fn run(app: &AppHandle, path: &str, stop: &AtomicBool) -> AppResult<()> {
         // SAFETY: every handle opened below is closed before returning, on all
