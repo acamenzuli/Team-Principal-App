@@ -394,7 +394,12 @@
   place-items: center;
   border-radius: 7px;
   background: var(--pass);
-  color: var(--accent-ink);
+  /* Not `--accent-ink`: that one tracks whatever accent the user picked, and
+     goes white when the accent is dark — which is white on green. This badge
+     sits on the status green, which never changes, so its ink does not
+     either. */
+  color: #0b0d0f;
+  font-weight: 600;
   font-size: 9px;
   line-height: 1;
 }
