@@ -194,7 +194,7 @@ pub fn debounce(
 ) -> Vec<DetectedDevice> {
     let mut seen: Vec<String> = Vec::with_capacity(scanned.len());
 
-    let published: Vec<DetectedDevice> = scanned
+    let mut published: Vec<DetectedDevice> = scanned
         .into_iter()
         .map(|mut d| {
             let key = device_key(&d);
@@ -239,9 +239,49 @@ pub fn debounce(
         })
         .collect();
 
-    // A device that stopped being reported is gone; drop its debouncer so a
-    // later reconnect starts clean rather than inheriting a stale window.
-    debouncers.retain(|k, _| seen.contains(k));
+    // A device that has stopped being reported is *shown as gone*, not removed.
+    //
+    // Enumeration only returns what is plugged in, so a device that is
+    // unplugged simply stops appearing — and a row quietly vanishing from a
+    // table is not something anybody notices. "Unplug it and watch it go red"
+    // is the behaviour worth having, because the question this page answers is
+    // whether you can race right now, and the answer changed.
+    //
+    // It goes through the same debouncer as everything else, so a cable that
+    // wobbles for 300 ms does not paint the screen red and back.
+    for gone in previous {
+        let key = device_key(gone);
+        if seen.contains(&key) {
+            continue;
+        }
+
+        let debouncer = debouncers
+            .entry(key)
+            .or_insert_with(|| Debouncer::new(DeviceStatus::Disconnected));
+        debouncer.observe(DeviceStatus::Disconnected, now_ms);
+
+        let mut row = gone.clone();
+        row.status = debouncer.status();
+        // Absent means absent: the evidence has to agree with the status, or
+        // the row reads "Disconnected, slot 3", which is a contradiction.
+        if row.status == DeviceStatus::Disconnected {
+            row.hid_present = false;
+            row.dinput_present = false;
+            row.dinput_slot = None;
+            row.dinput_instance_guid = None;
+        }
+        published.push(row);
+    }
+
+    // One order, decided here, because the list is now two sources joined:
+    // what was scanned and what is missing from it.
+    published.sort_by(|a, b| {
+        a.device
+            .display_name
+            .to_lowercase()
+            .cmp(&b.device.display_name.to_lowercase())
+            .then_with(|| a.device.instance_path.cmp(&b.device.instance_path))
+    });
 
     published
 }
@@ -551,17 +591,79 @@ mod tests {
     }
 
     #[test]
-    fn a_device_that_vanishes_from_the_scan_clears_its_state() {
-        // Otherwise a reconnect inherits a half-elapsed settle window and the
-        // first status after replugging is decided by the old one.
+    fn unplugging_a_device_turns_its_row_red_rather_than_deleting_it() {
+        // Enumeration only returns what is plugged in, so an unplugged device
+        // simply stops appearing — and a row quietly vanishing from a table is
+        // not something anybody notices. The question this page answers is
+        // whether you can race right now, and that answer just changed.
         let mut d = HashMap::new();
         let before = debounce(&mut d, vec![device("a", DeviceStatus::Connected)], 0, &[]);
-        assert_eq!(d.len(), 1);
 
-        let published = debounce(&mut d, vec![], 1000, &before);
-        assert_ne!(published, before, "a device disappearing is a change");
-        assert!(published.is_empty());
-        assert!(d.is_empty(), "its debouncer went with it");
+        // Gone from the scan. Inside the settle window it is still shown as it
+        // was, because a cable that wobbles is not a disconnection.
+        let during = debounce(&mut d, vec![], 100, &before);
+        assert_eq!(during.len(), 1, "the row is still there");
+        assert_eq!(during[0].status, DeviceStatus::Connected, "not yet");
+
+        // Still gone once the window has passed: now it is red.
+        let settled = debounce(&mut d, vec![], 1000, &during);
+        assert_eq!(settled.len(), 1);
+        assert_eq!(settled[0].status, DeviceStatus::Disconnected);
+        assert_ne!(settled, before, "and that reaches the UI");
+    }
+
+    #[test]
+    fn a_disconnected_row_does_not_claim_a_directinput_slot() {
+        // "Disconnected, slot 3" is a contradiction: the evidence has to agree
+        // with the status or the row is telling two stories.
+        let mut d = HashMap::new();
+        let mut connected = device("a", DeviceStatus::Connected);
+        connected.dinput_slot = Some(3);
+        connected.dinput_instance_guid = Some("{guid}".into());
+
+        let before = debounce(&mut d, vec![connected], 0, &[]);
+        debounce(&mut d, vec![], 100, &before);
+        let settled = debounce(&mut d, vec![], 1000, &before);
+
+        assert_eq!(settled[0].status, DeviceStatus::Disconnected);
+        assert!(!settled[0].hid_present);
+        assert!(!settled[0].dinput_present);
+        assert_eq!(settled[0].dinput_slot, None);
+        assert_eq!(settled[0].dinput_instance_guid, None);
+    }
+
+    #[test]
+    fn plugging_it_back_in_turns_it_green_again() {
+        let mut d = HashMap::new();
+        let before = debounce(&mut d, vec![device("a", DeviceStatus::Connected)], 0, &[]);
+        // Two scans: the first starts the settle window, the second finds it
+        // still absent once the window has passed.
+        let going = debounce(&mut d, vec![], 100, &before);
+        let gone = debounce(&mut d, vec![], 1000, &going);
+        assert_eq!(gone[0].status, DeviceStatus::Disconnected);
+
+        // Back in the scan. It takes one settle window to go green, and that
+        // is the point rather than a delay to apologise for: a device coming
+        // back *is* the bounce case — present, gone, present again while it
+        // enumerates — and painting the row green on the first sighting is how
+        // a list ends up flickering.
+        let returning = debounce(
+            &mut d,
+            vec![device("a", DeviceStatus::Connected)],
+            2000,
+            &gone,
+        );
+        assert_eq!(returning.len(), 1, "one row, not a second copy");
+
+        let back = debounce(
+            &mut d,
+            vec![device("a", DeviceStatus::Connected)],
+            3000,
+            &returning,
+        );
+        assert_eq!(back.len(), 1);
+        assert_eq!(back[0].status, DeviceStatus::Connected);
+        assert!(back[0].hid_present, "with its evidence back too");
     }
 
     #[test]

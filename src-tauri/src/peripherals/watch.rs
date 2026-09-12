@@ -66,13 +66,19 @@ pub fn start(app: AppHandle) -> Watcher {
         wake: wake.clone(),
     };
 
-    // Device arrival and removal, from the OS rather than from a timer.
-    #[cfg(windows)]
-    let _notification = super::notify::register(wake.clone());
-
     std::thread::Builder::new()
         .name("peripheral-watch".into())
         .spawn(move || {
+            // Device arrival and removal, from the OS rather than from a timer.
+            //
+            // Registered *inside* the thread and held for its lifetime. It used
+            // to be a local in this function, which returns immediately — so
+            // the registration was dropped, and dropping it unregisters. Every
+            // hotplug notification since has gone nowhere, leaving the
+            // four-second reconcile as the only thing that ever noticed a
+            // device being unplugged.
+            #[cfg(windows)]
+            let _notification = super::notify::register(wake.clone());
             let catalog = Catalog::seeded();
             let mut debouncers: HashMap<String, Debouncer> = HashMap::new();
             let started = Instant::now();
