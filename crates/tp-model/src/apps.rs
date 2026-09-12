@@ -173,3 +173,106 @@ mod tests {
         assert_eq!(list.len(), 2);
     }
 }
+
+/// Which executable in a game's folder is the game.
+///
+/// Used only to borrow an icon, never to launch anything — a wrong guess costs
+/// a wrong picture, not a wrong process. Steam's library index names no
+/// executable and Epic's manifests do, so this covers the Steam titles whose
+/// store art was never cached: a dedicated server, a demo, anything delisted.
+///
+/// Preference order is "the one named after the game", then the largest, on
+/// the grounds that the launcher stub next to a 200 MB binary is rarely the
+/// thing with the icon worth having.
+pub fn pick_exe(candidates: &[(String, u64)], game_name: &str) -> Option<String> {
+    fn squash(s: &str) -> String {
+        s.chars()
+            .filter(|c| c.is_alphanumeric())
+            .flat_map(char::to_lowercase)
+            .collect()
+    }
+
+    let wanted = squash(game_name);
+    let stem = |name: &str| squash(name.strip_suffix(".exe").unwrap_or(name));
+
+    if !wanted.is_empty() {
+        if let Some((name, _)) = candidates.iter().find(|(n, _)| stem(n) == wanted) {
+            return Some(name.clone());
+        }
+        // "Assetto Corsa Competizione" ships "AC2-Win64-Shipping.exe"; the
+        // useful relationship is usually one containing the other.
+        if let Some((name, _)) = candidates
+            .iter()
+            .filter(|(n, _)| {
+                let s = stem(n);
+                !s.is_empty() && (wanted.contains(&s) || s.contains(&wanted))
+            })
+            .max_by_key(|(_, size)| *size)
+        {
+            return Some(name.clone());
+        }
+    }
+
+    candidates
+        .iter()
+        .max_by_key(|(_, size)| *size)
+        .map(|(name, _)| name.clone())
+}
+
+#[cfg(test)]
+mod pick_exe_tests {
+    use super::pick_exe;
+
+    fn candidates() -> Vec<(String, u64)> {
+        vec![
+            ("UnityCrashHandler64.exe".to_string(), 1_000_000),
+            ("AC2.exe".to_string(), 2_000_000),
+            ("AssettoCorsaCompetizione.exe".to_string(), 40_000_000),
+        ]
+    }
+
+    #[test]
+    fn the_one_named_after_the_game_wins() {
+        assert_eq!(
+            pick_exe(&candidates(), "Assetto Corsa Competizione").as_deref(),
+            Some("AssettoCorsaCompetizione.exe")
+        );
+    }
+
+    #[test]
+    fn punctuation_and_case_do_not_matter() {
+        let list = vec![("Dirt-Rally_2.0.exe".to_string(), 10)];
+        assert_eq!(
+            pick_exe(&list, "DiRT Rally 2.0").as_deref(),
+            Some("Dirt-Rally_2.0.exe")
+        );
+    }
+
+    #[test]
+    fn with_no_name_match_the_largest_wins() {
+        // The crash handler and the launcher stub are both smaller than the
+        // thing whose icon anybody would recognise.
+        let list = vec![
+            ("launcher.exe".to_string(), 500_000),
+            ("game64.exe".to_string(), 80_000_000),
+        ];
+        assert_eq!(pick_exe(&list, "Some Sim").as_deref(), Some("game64.exe"));
+    }
+
+    #[test]
+    fn nothing_to_choose_from_is_nothing_rather_than_a_panic() {
+        assert_eq!(pick_exe(&[], "Anything"), None);
+    }
+
+    #[test]
+    fn a_partial_name_match_beats_a_bigger_unrelated_binary() {
+        let list = vec![
+            ("Unrelated.exe".to_string(), 90_000_000),
+            ("LeMansUltimate.exe".to_string(), 5_000_000),
+        ];
+        assert_eq!(
+            pick_exe(&list, "Le Mans Ultimate").as_deref(),
+            Some("LeMansUltimate.exe")
+        );
+    }
+}

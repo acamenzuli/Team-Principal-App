@@ -40,7 +40,7 @@ pub use adapter::{
     AdapterPlan, AdapterPreview, AppliedAdapterInfo, BackupInfo, Confidence, ConfigGroup,
     ConfigInspection, Edit, FileDiff, FileEdits, MissingKey, ValueChange,
 };
-pub use apps::{app_from_path, offerable, tidy as tidy_apps, RunningApp};
+pub use apps::{app_from_path, offerable, pick_exe, tidy as tidy_apps, RunningApp};
 pub use axes::{axis_name, hat_degrees, is_axis, normalise, normalise_unipolar};
 pub use catalog::{Catalog, CatalogEntry, DeviceKind};
 pub use catalog_games::{ConfigFormat, Derived, GameEntry, Unit};

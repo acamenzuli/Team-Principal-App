@@ -211,9 +211,30 @@ export function Games({
 
         <div
           className={`lib${view.mode === "list" ? " lib--list" : ""}`}
-          style={{ ["--art" as string]: `${view.artPx}px` }}
+          style={{
+            ["--art" as string]: `${view.artPx}px`,
+            // A row wants a thumbnail, not a cover: the same slider, scaled
+            // down and clamped, so dragging it still does something sensible
+            // in both views rather than producing 200-pixel-tall rows.
+            ["--thumb" as string]: `${Math.min(96, Math.max(36, Math.round(view.artPx / 2.5)))}px`,
+          }}
         >
-          {sorted.map((card) => (
+          {view.mode === "list" &&
+            sorted.map((card) => (
+              <GameRow
+                key={card.profile.id}
+                card={card}
+                onRace={() => setRacing(card)}
+                onEdit={() => setEditing(card)}
+                onToggleAuto={(v) => void toggleAuto(card, v)}
+                onCopyLayout={() => void copyLayout(card)}
+                onArt={(dataUri) => void chooseArt(card, dataUri)}
+                capturing={capturingFor === card.profile.id}
+              />
+            ))}
+
+          {view.mode === "grid" &&
+            sorted.map((card) => (
             <GameCard
               key={card.profile.id}
               card={card}
@@ -222,7 +243,6 @@ export function Games({
               onToggleAuto={(v) => void toggleAuto(card, v)}
               onCopyLayout={() => void copyLayout(card)}
               onArt={(dataUri) => void chooseArt(card, dataUri)}
-              compact={view.mode === "list"}
               capturing={capturingFor === card.profile.id}
             />
           ))}
@@ -288,14 +308,22 @@ export function Games({
   );
 }
 
-function GameCard({
+/**
+ * One game, as a row.
+ *
+ * Not the cover card squeezed flat: a row is a different job. Every value sits
+ * in the same column on every row, so the eye runs down "which of these is
+ * installed" or "which have a saved layout" instead of hunting through
+ * twenty-three repeated blocks. Columns are fixed or fractional — never sized
+ * by their contents — because a column that resizes per row is not a column.
+ */
+function GameRow({
   card,
   onRace,
   onEdit,
   onToggleAuto,
   onCopyLayout,
   onArt,
-  compact,
   capturing,
 }: {
   card: ProfileCard;
@@ -304,7 +332,6 @@ function GameCard({
   onToggleAuto: (enabled: boolean) => void;
   onCopyLayout: () => void;
   onArt: (dataUri: string | null) => void;
-  compact: boolean;
   capturing: boolean;
 }) {
   const { profile, installed, art, installPath, platform } = card;
@@ -312,7 +339,111 @@ function GameCard({
   const artInput = useRef<HTMLInputElement>(null);
 
   return (
-    <article className={`card${installed ? "" : " card--gone"}${compact ? " card--compact" : ""}`}>
+    <article className={`row${installed ? "" : " row--gone"}`}>
+      <button
+        className="row__art"
+        title={art ? "Change the picture" : "Add a picture"}
+        onClick={() => artInput.current?.click()}
+      >
+        {art ? (
+          <img src={art} alt="" />
+        ) : (
+          <span className="row__monogram" aria-hidden="true">
+            {monogram(profile.name)}
+          </span>
+        )}
+      </button>
+      <input
+        ref={artInput}
+        className="visually-hidden"
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => onArt(String(reader.result));
+          reader.readAsDataURL(file);
+        }}
+      />
+
+      <div className="row__id">
+        <h3 className="row__name">{profile.name}</h3>
+        <span className="row__where num" title={installPath ?? undefined}>
+          {installed ? (installPath ?? platform) : "not on this machine"}
+        </span>
+      </div>
+
+      <span className="row__from">{platform}</span>
+
+      <span className="row__checks">{summarise(card)}</span>
+
+      {/* The same switch as the card, and disabled for the same reason: a
+          rectangle has to have been seen working before it can be replayed. */}
+      <label
+        className={`row__auto${saved ? "" : " row__auto--locked"}`}
+        title={
+          saved
+            ? "Place the window automatically"
+            : "Run the game how you like it, press Copy current layout, and this switches itself on"
+        }
+      >
+        <input
+          type="checkbox"
+          checked={profile.windowPlan.autoApply}
+          disabled={!saved}
+          onChange={(e) => onToggleAuto(e.target.checked)}
+        />
+        <span className="toggle__track" aria-hidden="true">
+          <span className="toggle__knob" />
+        </span>
+        <span className="row__autolabel">Auto</span>
+      </label>
+
+      <div className="row__actions">
+        <button className="btn btn--tiny" disabled={!installed} onClick={onRace}>
+          Let's race
+        </button>
+        <button
+          className="btn btn--tiny btn--quiet"
+          disabled={capturing}
+          title="Run the game in the layout you want, then press this"
+          onClick={onCopyLayout}
+        >
+          {capturing ? "Reading…" : "Copy layout"}
+        </button>
+        <button className="btn btn--tiny btn--quiet" onClick={onEdit}>
+          Edit
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function GameCard({
+  card,
+  onRace,
+  onEdit,
+  onToggleAuto,
+  onCopyLayout,
+  onArt,
+  capturing,
+}: {
+  card: ProfileCard;
+  onRace: () => void;
+  onEdit: () => void;
+  onToggleAuto: (enabled: boolean) => void;
+  onCopyLayout: () => void;
+  onArt: (dataUri: string | null) => void;
+  capturing: boolean;
+}) {
+  const { profile, installed, art, installPath, platform } = card;
+  const saved = profile.windowPlan.rect.kind === "explicit";
+  const artInput = useRef<HTMLInputElement>(null);
+
+  return (
+    <article className={`card${installed ? "" : " card--gone"}`}>
       <div className="card__art">
         {art ? (
           <img src={art} alt="" />

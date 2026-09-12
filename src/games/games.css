@@ -411,10 +411,19 @@
   right: var(--s2);
   bottom: var(--s2);
   display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: var(--s1);
-  justify-content: center;
   opacity: 0;
   transition: opacity 120ms ease;
+}
+
+/* Stacked and never wrapped. Side by side they overlapped each other on a
+   narrow cover, because two buttons whose text wraps are taller than the strip
+   they sit in. */
+.card__artpick .btn {
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .card:hover .card__artpick,
@@ -440,6 +449,289 @@
   clip-path: inset(50%);
   white-space: nowrap;
   border: 0;
+}
+
+/* -------------------------------------------------- picking running software */
+
+.pe__actions {
+  display: flex;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  margin-top: var(--s3);
+}
+
+.picker {
+  margin-top: var(--s4);
+  padding: var(--s4);
+  background: var(--ground-raised);
+  border: 1px solid var(--accent-edge);
+  border-radius: var(--radius);
+}
+
+.picker__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  margin-bottom: var(--s3);
+}
+
+.picker__title {
+  margin: 0;
+  font-size: var(--size-row);
+  font-weight: 600;
+}
+
+.picker__filter {
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  background: var(--ground-deep);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font: inherit;
+}
+
+.picker__list {
+  list-style: none;
+  margin: var(--s3) 0 0;
+  padding: 0;
+  /* Tall enough to scan, short enough that the buttons under it stay put. */
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.picker__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  width: 100%;
+  padding: var(--s2) var(--s3);
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.picker__row:hover:not(:disabled) {
+  background: var(--accent-wash);
+}
+
+.picker__row:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.picker__name {
+  flex: 0 0 auto;
+  font-weight: 500;
+}
+
+.picker__path {
+  flex: 1;
+  font-size: var(--size-sm);
+  color: var(--ink-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------- library view */
+
+.lib__view {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  margin-top: var(--s4);
+}
+
+.seg {
+  display: inline-flex;
+  background: var(--ground-deep);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.seg__btn {
+  padding: var(--s2) var(--s4);
+  background: none;
+  border: 0;
+  color: var(--ink-dim);
+  font: inherit;
+  font-size: var(--size-sm);
+  cursor: pointer;
+}
+
+.seg__btn--on {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.lib__size {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.lib__size input[type="range"] {
+  width: 180px;
+  accent-color: var(--accent);
+}
+
+/* The cover width is one number, set on the container, so the slider moves the
+   whole library at once rather than each card deciding for itself. */
+.card {
+  grid-template-columns: var(--art, 100px) 1fr;
+}
+
+/* ------------------------------------------------------------ list mode */
+
+.lib--list {
+  grid-template-columns: 1fr;
+  gap: 1px;
+}
+
+/* Every row shares one column definition, so values line up down the page.
+   Fixed and fractional units only: a column sized by its contents is not a
+   column, it is twenty-three different columns that happen to be stacked.
+   The thumbnail follows the size slider, scaled down — a row wants a
+   thumbnail, not a cover. */
+.row {
+  display: grid;
+  grid-template-columns:
+    var(--thumb, 56px)
+    minmax(180px, 2fr)
+    100px
+    minmax(120px, 1fr)
+    88px
+    auto;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s2) var(--s3);
+  background: var(--data-bg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+}
+
+.row:hover {
+  border-color: var(--rule);
+  background: var(--ground-raised);
+}
+
+.row--gone .row__art,
+.row--gone .row__id {
+  opacity: 0.45;
+}
+
+.row__art {
+  width: var(--thumb, 56px);
+  height: var(--thumb, 56px);
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--ground-deep);
+  overflow: hidden;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.row__art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.row__art:hover {
+  border-color: var(--accent-edge);
+}
+
+.row__monogram {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+
+.row__id {
+  min-width: 0;
+}
+
+.row__name {
+  margin: 0;
+  font-size: var(--size-row);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The folder, which is long and the least important thing here — it gets the
+   truncation rather than pushing the columns about. */
+.row__where {
+  display: block;
+  font-size: var(--size-sm);
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row__from,
+.row__checks {
+  font-size: var(--size-sm);
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row__auto {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  cursor: pointer;
+}
+
+.row__auto--locked {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.row__auto input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.row__autolabel {
+  font-size: var(--size-sm);
+  color: var(--ink-dim);
+}
+
+.row__actions {
+  display: flex;
+  gap: var(--s2);
+  justify-content: flex-end;
+}
+
+/* Narrow windows: the columns that are context rather than identity go first,
+   because a row that scrolls sideways is worse than a row that says less. */
+@media (max-width: 1100px) {
+  .row {
+    grid-template-columns: var(--thumb, 56px) minmax(140px, 1fr) 88px auto;
+  }
+
+  .row__from,
+  .row__checks {
+    display: none;
+  }
 }
 
 /* -------------------------------------------------- picking running software */

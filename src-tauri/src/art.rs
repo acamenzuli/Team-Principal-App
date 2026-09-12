@@ -32,11 +32,17 @@ use crate::launcher::GameSource;
 ///
 /// Portrait before landscape because the card is portrait; `header.jpg` is the
 /// last resort because every game has one and it is the wrong shape.
-const NAMES: [&str; 4] = [
+const NAMES: [&str; 7] = [
     "library_600x900.jpg",
     "library_600x900_2x.jpg",
     "library_capsule.jpg",
+    "library_capsule_2x.jpg",
     "header.jpg",
+    // Landscape, and the wrong shape for the card — but a wrong shape beats a
+    // blank, and a great many apps on Steam that are not games (a dedicated
+    // server, a demo, a benchmark) have only these.
+    "library_hero.jpg",
+    "logo.png",
 ];
 
 /// Find cover art for a game, or nothing.
@@ -318,6 +324,34 @@ fn encode_png(rgba: &[u8], width: u32, height: u32) -> Option<Vec<u8>> {
 #[cfg(not(windows))]
 pub fn icon_png(_exe_path: &Path) -> Option<Vec<u8>> {
     None
+}
+
+/// The executable in a folder whose icon is worth borrowing.
+///
+/// Only the top level is looked at. A game's launcher sits there; the engine's
+/// internals are in subfolders, and walking a 90 GB install to find a picture
+/// would be absurd.
+pub fn exe_in(folder: &Path, game_name: &str) -> Option<PathBuf> {
+    let entries = std::fs::read_dir(folder).ok()?;
+    let candidates: Vec<(String, u64)> = entries
+        .filter_map(Result::ok)
+        .filter_map(|e| {
+            let path = e.path();
+            let is_exe = path
+                .extension()
+                .and_then(|x| x.to_str())
+                .is_some_and(|x| x.eq_ignore_ascii_case("exe"));
+            if !is_exe {
+                return None;
+            }
+            let name = path.file_name()?.to_str()?.to_string();
+            Some((name, e.metadata().ok()?.len()))
+        })
+        .collect();
+
+    // Which one is the game is decided in tp-model, where it is tested against
+    // the names real sims actually ship.
+    tp_model::pick_exe(&candidates, game_name).map(|name| folder.join(name))
 }
 
 /// Extract a game's icon and keep it, returning where it went.

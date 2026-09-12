@@ -871,15 +871,27 @@ fn art_for(
         }
     }
 
-    // The executable: named by an Epic manifest, or by the profile itself when
-    // the game was added by hand.
+    // The executable: named by an Epic manifest, by the profile itself when the
+    // game was added by hand, or — for a Steam title whose art was never
+    // cached, which is every dedicated server, demo and benchmark — found in
+    // the install folder.
     let exe = found
         .and_then(|g| g.exe.clone())
         .or_else(|| match &profile.game.launch {
             tp_model::LaunchMethod::Executable { path, .. } => Some(std::path::PathBuf::from(path)),
             _ => None,
         })
-        .filter(|p| p.is_file())?;
+        .filter(|p| p.is_file())
+        .or_else(|| {
+            let folder = found.map(|g| g.install_path.clone()).or_else(|| {
+                profile
+                    .game
+                    .install_path
+                    .as_deref()
+                    .map(std::path::PathBuf::from)
+            })?;
+            crate::art::exe_in(&folder, &profile.name)
+        })?;
 
     crate::art::cache_icon(&profile.id.to_string(), &exe).map(|p| p.display().to_string())
 }
