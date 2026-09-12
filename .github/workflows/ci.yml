@@ -1,9 +1,23 @@
 name: CI
 
+# The Linux checks run on every push: they take about two minutes and catch
+# formatting, clippy, the platform-neutral tests, a stale IPC contract and a
+# frontend that does not compile.
+#
+# The Windows job — the build, the installer, the test-channel release — does
+# not. It takes nine minutes, and waiting nine minutes to find out what a local
+# build tells you in one is the wrong loop. Ask for it when you want an
+# installer: Actions -> CI -> Run workflow.
 on:
   push:
     branches: ["**"]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      windows:
+        description: "Build the Windows installer and publish the test channel"
+        type: boolean
+        default: true
 
 env:
   CARGO_TERM_COLOR: always
@@ -73,6 +87,11 @@ jobs:
   # produce an installer.
   windows:
     name: Windows build
+    # On request only. Everything it protects that can be checked without
+    # Windows is checked above, in two minutes rather than nine; what is left
+    # is the linked binary, the DPI assertion and the installer, and those are
+    # wanted when somebody is about to install something.
+    if: github.event_name == 'workflow_dispatch' && inputs.windows
     runs-on: windows-latest
     # Needed to publish the test-channel release below. Nothing else in
     # this workflow writes to the repository.

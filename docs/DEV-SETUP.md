@@ -90,6 +90,43 @@ npm run tauri dev
 First build compiles the whole Rust dependency tree and takes several minutes.
 Subsequent builds are seconds.
 
+## 9. The daily loop
+
+Changes are written in the cloud session and pushed to
+`claude/sim-racing-launcher-display-i60v81`. Getting them onto the rig is a
+pull and a build:
+
+```powershell
+git pull
+npm run tauri dev
+```
+
+An incremental build is seconds, and `tauri dev` reloads the frontend on save
+without restarting the app. That is the loop — not downloading an installer
+from a CI run, which takes nine minutes to produce something a local build
+gives you in one.
+
+Before saying a change works, run what CI would have run:
+
+```powershell
+cargo test --workspace          # includes the tests that only exist on Windows
+npm run build                   # typecheck and bundle the frontend
+```
+
+`cargo test --workspace` is the important one here. Most of the suite is
+platform-neutral and runs in the cloud session, but the tests inside
+`src-tauri` — the DPI assertion among them — can only run on this machine.
+
+### When you want an installer
+
+The Windows job does not run on every push. Ask for it:
+
+**Actions → CI → Run workflow**, on the development branch.
+
+That builds the installer, uploads it as a run artifact, and — once the
+signing secret exists — replaces the test-channel release that installed
+copies update themselves to.
+
 ## Why native Windows, not WSL or the cloud
 
 | Needs | Cloud (Linux) | WSL | Native Windows |

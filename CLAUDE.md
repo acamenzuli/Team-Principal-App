@@ -15,15 +15,20 @@ Setup: `docs/DEV-SETUP.md`.
 
 Branch: `claude/sim-racing-launcher-display-i60v81`.
 
-CI also builds a Windows installer on every push and uploads it as a run
-artifact, so the app can be put on the rig without a toolchain there. Actions
-tab -> newest run -> Artifacts -> `team-principal-installer`.
+**The loop is: push, pull, build locally.** A local incremental build takes
+about a minute; the Windows CI job takes nine. So CI runs its Linux checks on
+every push — formatting, clippy, the platform-neutral tests, the IPC contract,
+the frontend build, about two minutes — and the Windows job runs **on request
+only**: Actions -> CI -> Run workflow.
 
-Pushes to the development branch also publish the **Test channel** release
-(tag `dev`), which installed copies update themselves to. Install that once and
-the artifact download stops being part of the loop. It needs the
-`TAURI_SIGNING_PRIVATE_KEY` secret; without it CI warns and builds a plain
+That request is also what produces an installer as a run artifact, and what
+replaces the **Test channel** release (tag `dev`) that installed copies update
+themselves to. The test channel needs the `TAURI_SIGNING_PRIVATE_KEY` secret;
+without it the job warns, says so in the run summary, and builds a plain
 installer. See `docs/RELEASING.md`.
+
+Ask for that build when there is something to install — not after every
+change.
 
 ## Commands
 
