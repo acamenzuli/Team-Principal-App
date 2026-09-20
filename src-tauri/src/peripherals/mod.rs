@@ -23,6 +23,7 @@ pub mod restart;
 pub mod vjoy;
 pub mod watch;
 
+use tp_model::modes::ScannedIdentity;
 use tp_model::{Catalog, DetectedDevice, Observation};
 
 use crate::error::AppResult;
@@ -46,18 +47,35 @@ pub fn enumerate(
     // by, and it is at least stable within a single scan.
     let mut taken: std::collections::HashMap<(u16, u16), usize> = std::collections::HashMap::new();
 
+    // Which of these are parts of one device — an Asetek wheel in legacy
+    // mode is four collections with one serial — decided over the whole scan,
+    // because a part is only a part when its siblings are there.
+    let identities: Vec<ScannedIdentity> = hid_devices
+        .iter()
+        .map(|d| ScannedIdentity {
+            vid: d.vid,
+            pid: d.pid,
+            serial: d.serial.as_deref(),
+            instance_path: d.instance_path.as_str(),
+        })
+        .collect();
+    let sections = tp_model::sections(&identities);
+
     let mut out: Vec<DetectedDevice> = hid_devices
         .iter()
-        .map(|d| {
+        .zip(sections)
+        .map(|(d, section)| {
             let is_virtual = vjoy::is_vjoy_device(d.vid, d.pid);
             // The user's own name wins over the catalog and over Windows —
             // `best_name` has taken one since it was written, and this is
-            // where it finally gets one.
+            // where it finally gets one. A part of a split device is named
+            // on its own, which is what the section in the key is for.
             let alias_key = tp_model::alias_key(
                 d.vid,
                 d.pid,
                 d.serial.as_deref(),
                 Some(d.instance_path.as_str()),
+                section.as_ref().map(|s| s.id.as_str()),
             );
             let alias = aliases.get(&alias_key).map(String::as_str);
             let display_name = catalog.best_name(d.vid, d.pid, alias, d.product.as_deref());
@@ -98,6 +116,8 @@ pub fn enumerate(
                 binding_drift: None,
                 renamed: alias.is_some(),
                 alias_key,
+                mode: tp_model::mode_of(d.vid, d.pid, section.as_ref()),
+                section,
             }
         })
         .collect();

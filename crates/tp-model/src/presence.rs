@@ -518,8 +518,10 @@ mod tests {
             is_virtual: false,
             vjoy: None,
             binding_drift: None,
-            alias_key: crate::alias_key(0x0EB7, 0x0E04, None, Some(path)),
+            alias_key: crate::alias_key(0x0EB7, 0x0E04, None, Some(path), None),
             renamed: false,
+            section: None,
+            mode: None,
         }
     }
 
@@ -810,8 +812,10 @@ mod history_tests {
             is_virtual: false,
             vjoy: None,
             binding_drift: None,
-            alias_key: crate::alias_key(1, 2, None, Some(path)),
+            alias_key: crate::alias_key(1, 2, None, Some(path), None),
             renamed: false,
+            section: None,
+            mode: None,
         }
     }
 

@@ -5,6 +5,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::{DeviceMode, DeviceSection};
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
@@ -57,6 +59,16 @@ pub struct DetectedDevice {
     /// catalog's or Windows'. Drives whether there is anything to reset.
     #[serde(default)]
     pub renamed: bool,
+    /// Set when Windows lists this device as several controllers and this row
+    /// is one of them — an Asetek wheel in legacy input mode is four. Each
+    /// part is named on its own and bound to on its own.
+    #[serde(default)]
+    pub section: Option<DeviceSection>,
+    /// Which presentation the device is using, for the makes that have more
+    /// than one. `None` for everything else: a device that always looks the
+    /// same is in no mode at all.
+    #[serde(default)]
+    pub mode: Option<DeviceMode>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -164,9 +176,24 @@ pub struct DeviceEvent {
 ///   to whatever is plugged in there next.
 /// * **Model**, for a device with neither. Then the name belongs to every
 ///   device of that model, which is the most that can be said.
-pub fn alias_key(vid: u16, pid: u16, serial: Option<&str>, instance_path: Option<&str>) -> String {
+///
+/// `section` is the part of a device that Windows lists as several — the
+/// `mi_01&col03` of an Asetek wheel in legacy mode. A serial identifies the
+/// wheel, not the part, so the part goes into the key beside it: four rows
+/// with one serial are four names, not one name written four times. A path
+/// already carries its collection number and needs nothing added.
+pub fn alias_key(
+    vid: u16,
+    pid: u16,
+    serial: Option<&str>,
+    instance_path: Option<&str>,
+    section: Option<&str>,
+) -> String {
     if let Some(serial) = serial.map(str::trim).filter(|s| !s.is_empty()) {
-        return format!("serial:{vid:04x}:{pid:04x}:{serial}");
+        return match section {
+            Some(section) => format!("serial:{vid:04x}:{pid:04x}:{serial}:{section}"),
+            None => format!("serial:{vid:04x}:{pid:04x}:{serial}"),
+        };
     }
     if let Some(path) = instance_path.map(str::trim).filter(|s| !s.is_empty()) {
         // Windows is inconsistent about the case of interface paths between
@@ -184,6 +211,7 @@ impl DeviceRef {
             self.pid,
             self.serial.as_deref(),
             self.instance_path.as_deref(),
+            None,
         )
     }
 }
@@ -232,6 +260,39 @@ mod alias_key_tests {
     #[test]
     fn with_neither_the_name_belongs_to_the_model() {
         assert_eq!(dev(None, None).alias_key(), "model:0eb7:183b");
+    }
+
+    #[test]
+    fn each_part_of_a_split_device_has_its_own_name() {
+        // An Asetek wheel in legacy mode: one serial, four collections. The
+        // name given to the rotaries must not land on the paddles.
+        let whole = alias_key(0x2433, 0xF402, Some("E081000993"), Some("p"), None);
+        let top = alias_key(
+            0x2433,
+            0xF402,
+            Some("E081000993"),
+            Some("p"),
+            Some("mi_01&col03"),
+        );
+        let bottom = alias_key(
+            0x2433,
+            0xF402,
+            Some("E081000993"),
+            Some("p"),
+            Some("mi_01&col04"),
+        );
+        assert_ne!(top, bottom);
+        assert_ne!(top, whole, "a part is not the whole wheel in normal mode");
+        assert_eq!(top, "serial:2433:f402:E081000993:mi_01&col03");
+    }
+
+    #[test]
+    fn an_un_serialled_part_is_already_told_apart_by_its_path() {
+        let path = r"\\?\hid#vid_1234&pid_0001&col02#7&1a&0&0001";
+        assert_eq!(
+            alias_key(0x1234, 1, None, Some(path), Some("col02")),
+            alias_key(0x1234, 1, None, Some(path), None)
+        );
     }
 }
 

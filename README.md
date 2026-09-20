@@ -76,6 +76,15 @@ boxes is three identical rows until you say which is which, and only you can —
 the name is stored against the device (its serial, or the port it's in) and
 follows it between games and across restarts.
 
+**Legacy input mode.** An Asetek wheel has more inputs than some games will
+take from one device — Automobilista 2 stops at 32 — so RaceHub can split it
+into several controllers. Each part is its own row here, tagged *legacy mode ·
+part 2 of 4* with its collection number under the name, and each is named and
+tested on its own, because that is how a game sees them. Switch back and the
+wheel is one row again, tagged *normal mode*. The parts that exist only in the
+other mode do not sit there showing disconnected, because nothing was
+unplugged.
+
 **Test** opens a panel under that device showing every axis and button it has,
 before you touch anything. Move a pedal and its bar moves and gets a tick;
 press a button and it lights and stays outlined. A running tally says how many

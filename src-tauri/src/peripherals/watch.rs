@@ -23,7 +23,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Emitter};
-use tp_model::{debounce, transitions, Catalog, Debouncer, DetectedDevice, DeviceEvent};
+use tp_model::{
+    debounce, transitions, without_other_mode, Catalog, Debouncer, DetectedDevice, DeviceEvent,
+};
 
 /// How much history to keep per device.
 ///
@@ -141,6 +143,12 @@ pub fn start(app: AppHandle) -> Watcher {
                 let now_ms = started.elapsed().as_millis() as u64;
                 let previous = latest.lock().map(|g| g.clone()).unwrap_or_default();
                 let published = debounce(&mut debouncers, scanned, now_ms, &previous);
+                // A wheel that has changed mode is not a wheel with three
+                // parts unplugged. Applied after the debounce so a part that
+                // is merely bouncing is still held, and before the history
+                // is written so the parts of the other mode never record a
+                // disconnection that did not happen.
+                let published = without_other_mode(published);
 
                 // Publish when what the user would see differs from what they
                 // last saw. The rule used to be "when a status changed", which

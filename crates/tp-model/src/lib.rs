@@ -23,6 +23,7 @@ pub mod fixture;
 pub mod graph;
 pub mod ini;
 pub mod ipc;
+pub mod modes;
 pub mod plan;
 pub mod preferences;
 pub mod presence;
@@ -55,6 +56,7 @@ pub use fixture::Fixture;
 pub use graph::{GraphError, Scheduler, StepView};
 pub use ini::{Ini, KeyError as IniError};
 pub use ipc::*;
+pub use modes::{mode_of, sections, without_other_mode, DeviceMode, DeviceSection};
 pub use plan::{build_steps, expected_exe, launch_exe};
 pub use preferences::*;
 pub use presence::{

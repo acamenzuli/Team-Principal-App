@@ -174,6 +174,7 @@ export function Peripherals() {
                       </td>
                       <td>
                         {d.isVirtual && <span className="tag">vJoy</span>}
+                        <ModeTag device={d} />
                         {!d.dinputPresent && (
                           <span className="tag tag--warn" title="Games cannot see it yet">
                             ▲ not in DirectInput
@@ -377,12 +378,76 @@ function DeviceName({
     >
       {device.device.displayName}
       {/* What Windows calls it, kept visible under a name you chose — so a
-          renamed row can still be matched against what a game will show. */}
-      {device.rawProductName && device.rawProductName !== device.device.displayName && (
-        <span className="devices__raw">{device.rawProductName}</span>
-      )}
+          renamed row can still be matched against what a game will show. A
+          part of a split device also shows its collection, because four parts
+          of one wheel carry the same Windows name and that number is the only
+          thing on the row that says which is which. */}
+      {rawLine(device) && <span className="devices__raw">{rawLine(device)}</span>}
     </button>
   );
+}
+
+function rawLine(device: DetectedDevice): string {
+  const raw =
+    device.rawProductName && device.rawProductName !== device.device.displayName
+      ? device.rawProductName
+      : null;
+  return [raw, device.section?.id ?? null].filter((s) => s !== null).join(" · ");
+}
+
+/**
+ * Which presentation a device is using, when it has more than one.
+ *
+ * An Asetek wheel in legacy input mode is listed as several controllers, one
+ * per share of its inputs — what games with a per-device input limit need,
+ * and what Automobilista 2 needs. Each part is a row, named and tested on its
+ * own; the tag says which part this is. A wheel in normal mode is one row,
+ * and says so, because a single row could otherwise be read as three parts
+ * having gone missing. A split device from a maker with no such mode is
+ * simply in parts.
+ */
+function ModeTag({ device }: { device: DetectedDevice }) {
+  const part = device.section;
+  if (device.mode === "legacy" && part) {
+    return (
+      <span
+        className="tag tag--legacy"
+        title={
+          `Legacy input mode: the wheel presents its inputs as ${part.count} separate ` +
+          `controllers, each within the 32-input limit some games have. This is part ` +
+          `${part.index}, collection ${part.id}. Name and test each part on its own; ` +
+          `games see them separately too. Switch modes in RaceHub.`
+        }
+      >
+        legacy mode · part {part.index} of {part.count}
+      </span>
+    );
+  }
+  if (device.mode === "normal") {
+    return (
+      <span
+        className="tag"
+        title={
+          "Normal input mode: one controller carrying every input. Games that take at " +
+          "most 32 inputs from one device — Automobilista 2 — need legacy input mode, " +
+          "switched in RaceHub."
+        }
+      >
+        normal mode
+      </span>
+    );
+  }
+  if (part) {
+    return (
+      <span
+        className="tag"
+        title={`Windows lists this device as ${part.count} controllers. This is collection ${part.id}.`}
+      >
+        part {part.index} of {part.count}
+      </span>
+    );
+  }
+  return null;
 }
 
 /**

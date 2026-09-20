@@ -31,6 +31,13 @@
   margin-top: var(--s4);
 }
 
+/* A wheel in legacy input mode is four rows, and the tag is what says so.
+   Accent rather than warning: it is a fact about the device, not a fault. */
+.tag--legacy {
+  color: var(--accent);
+  border-color: currentColor;
+}
+
 /* ------------------------------------------------------------- reconnect */
 
 /* Test and Reconnect side by side. The column has no heading, so the buttons
