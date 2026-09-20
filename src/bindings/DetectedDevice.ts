@@ -17,7 +17,7 @@ rawProductName: string | null, status: DeviceStatus,
  */
 hidPresent: boolean, 
 /**
- * Listed by DirectInput â i.e. games can actually see it.
+ * Listed by DirectInput — i.e. games can actually see it.
  */
 dinputPresent: boolean, 
 /**
@@ -36,7 +36,7 @@ isVirtual: boolean, vjoy: VJoyInfo | null,
 bindingDrift: BindingDrift | null, 
 /**
  * What a user-given name for this device is stored against. On the wire so
- * the UI can ask for a rename without reimplementing the identity rules â
+ * the UI can ask for a rename without reimplementing the identity rules —
  * two implementations of "which device is this" would disagree eventually,
  * and the symptom would be a name silently attaching to the wrong pedals.
  *
