@@ -22,3 +22,8 @@ dist-ssr
 # and is committed on purpose; this is the private half, and a copy of it in
 # the repository would let anyone sign an update that every install accepts.
 .updater-key/
+
+# The Voice Lab development home: uv, a managed Python, a multi-gigabyte
+# CUDA environment, model weights and a sandbox copy of the CrewChief sounds
+# folder. Selected with TP_VOICELAB_HOME; never committed.
+.voicelab-dev/

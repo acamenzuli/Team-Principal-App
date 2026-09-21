@@ -1,0 +1,74 @@
+[project]
+name = "voicelab-service"
+version = "0.2.0"
+description = "Team Principal Voice Lab — the local voice service (TTS, QC, CrewChief pack install)"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = { text = "Proprietary" }
+dependencies = [
+    # The default engine. MIT. It pins torch==2.6.0 itself; the pins are
+    # repeated here because `tool.uv.sources` only steers direct
+    # dependencies, and torch has to come from the CUDA index.
+    "chatterbox-tts==0.1.7",
+    "torch==2.6.0",
+    "torchaudio==2.6.0",
+    # The service.
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "websockets>=12",
+    "pydantic>=2.7",
+    # Audio.
+    "soundfile>=0.12",
+    "numpy>=1.24,<2",
+    "pyloudnorm>=0.1.1",
+    "silero-vad>=5.1",
+    "sounddevice>=0.5",
+    "scipy>=1.11",
+    # Quality control.
+    "faster-whisper>=1.1",
+    # Model downloads, resumable.
+    "huggingface-hub>=0.24",
+    # resemble-perth (the watermarker chatterbox applies) imports
+    # `pkg_resources`, which only setuptools provides and a uv environment
+    # does not carry by default.
+    "setuptools>=70,<81",
+]
+
+[project.scripts]
+voicelab-service = "voicelab.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/voicelab"]
+
+[tool.uv]
+# The app is Windows-only, and so is this lockfile: one platform keeps the
+# lock small and `uv sync` from doing work for machines that will never run it.
+environments = ["sys_platform == 'win32'"]
+
+# Two of chatterbox-tts's declared dependencies that the service never
+# imports, excluded with the marker-that-never-matches idiom uv documents:
+#
+# * pykakasi is GPL-3.0 and used only for Japanese text, imported lazily
+#   behind a try/except that logs and carries on. A commercial product's
+#   environment does not need it.
+# * gradio is their demo UI: 54 MB plus pandas and friends, for nothing.
+override-dependencies = [
+    "pykakasi ; sys_platform == 'never'",
+    "gradio ; sys_platform == 'never'",
+]
+
+# CUDA builds of torch come from PyTorch's own index, never PyPI (whose
+# Windows wheels are CPU-only). `explicit` keeps that index from being
+# consulted for anything else.
+[tool.uv.sources]
+torch = { index = "pytorch-cu126" }
+torchaudio = { index = "pytorch-cu126" }
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
