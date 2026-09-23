@@ -153,6 +153,31 @@ checklist finished.
 When you're done racing, it puts everything back: game settings restored,
 utilities closed.
 
+### Voice Lab
+**Your own voice, as the crew chief.**
+
+Read about twenty lines out loud — calm ones, urgent ones, a couple of
+celebrations — and the app builds a complete CrewChief voice pack from them:
+the chief, the spotter, the radio check, and the phrases that say your name.
+
+The phrases come from **your** CrewChief install, not a list baked into this
+app, so the pack matches the one you already have.
+
+**Every clip is checked before it goes in.** A second model listens to what
+was made and compares it with what was asked for; anything that does not
+match is made again. What still disagrees is listed with the audio, so you
+can hear it and decide — nothing is quietly kept or quietly dropped.
+
+Start with the **preview**: the phrases you hear in the first minutes of a
+race. About a quarter of an hour, and you can go racing with it. The rest can
+run overnight — and it **pauses on its own when you start a session**,
+because the game should have the graphics card.
+
+Needs an NVIDIA card with 8 GB. Python and the models are *not* in the
+installer — the tab downloads them into the app's own folder when you ask,
+and **Remove Voice Lab** gives the space back. Nothing you record leaves this
+machine.
+
 ### Game Settings
 Writes your rig's measurements into each sim's own settings file.
 
@@ -269,13 +294,22 @@ Nothing is written anywhere else, and nothing leaves your machine.
 
 ## Honest status
 
-**Everything described above is built. None of it has been run on real hardware
-yet.**
+**Everything described above is built. Most of it has not been run on real
+hardware yet.**
 
 The parts that can be tested without a rig — the maths, the file editing, the
-planning — are covered by 396 tests that run on every change. The parts that
+planning — are covered by 493 tests that run on every change, plus 24 in the voice
+service. The parts that
 touch Windows itself — moving windows, changing displays, reading wheels — are
 written and check out, but have never met an actual monitor or wheel.
+
+The **Voice Lab** is the exception: it has been run end to end on this
+machine. A 765-clip preview generated in sixteen minutes, 749 of them passed
+the transcript check, and the pack installed into a copy of a real CrewChief
+sounds folder and uninstalled again without touching anything that was
+already there. What has *not* been tested is a real voice — the runs used the
+engine's own sample voice — and CrewChief actually playing the result in a
+race.
 
 That's the next step, and it's why the version number starts with a zero.
 
@@ -289,6 +323,7 @@ That's the next step, and it's why the version number starts with a zero.
 | [RELEASING.md](docs/RELEASING.md) | Signing keys, certificates, cutting a release |
 | [0003-rig-model.md](docs/design/0003-rig-model.md) | **The rig model, and the geometry it drives** |
 | [0008-display-control.md](docs/design/0008-display-control.md) | Why changing the desktop is survivable |
+| [0009-voice-lab.md](docs/design/0009-voice-lab.md) | The Voice Lab: the service, the optional module, the quality gate |
 | [adapters/README.md](docs/adapters/README.md) | How a game gets supported, and the rules for it |
 | [0001-stack.md](docs/design/0001-stack.md) | Tauri vs Electron, DPI, elevation, signing |
 | [0002-repo-structure.md](docs/design/0002-repo-structure.md) | Crate and module layout |

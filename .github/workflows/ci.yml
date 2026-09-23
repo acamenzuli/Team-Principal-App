@@ -98,7 +98,14 @@ jobs:
     # Windows is checked above, in two minutes rather than nine; what is left
     # is the linked binary, the DPI assertion and the installer, and those are
     # wanted when somebody is about to install something.
-    if: github.event_name == 'workflow_dispatch' && inputs.windows
+    #
+    # Two ways to ask. **Actions -> CI -> Run workflow** is the one to use.
+    # `[windows]` in a commit message is the same request made from a machine
+    # that cannot reach the Actions page — it needs no token, and it keeps the
+    # rule intact: an ordinary push still does not build.
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.windows)
+      || (github.event_name == 'push' && contains(github.event.head_commit.message, '[windows]'))
     runs-on: windows-latest
     # Needed to publish the test-channel release below. Nothing else in
     # this workflow writes to the repository.
@@ -182,7 +189,19 @@ jobs:
             exit 0
           }
 
-          $version = "0.1.${{ github.run_number }}"
+          # major.minor comes from the manifest, the patch from the run
+          # number. Hard-coding "0.1" here meant that bumping the minor
+          # version in every file the repository stores it in still shipped a
+          # 0.1.x test build — and the updater compares versions, so an
+          # installed 0.2.0 would have gone on reporting "up to date" against
+          # every build after it.
+          $base = (Select-String -Path Cargo.toml -Pattern '^version = "(\d+)\.(\d+)\.' |
+                   Select-Object -First 1).Matches[0]
+          if (-not $base) {
+            Write-Error "Could not read the version from Cargo.toml."
+            exit 1
+          }
+          $version = "$($base.Groups[1].Value).$($base.Groups[2].Value).${{ github.run_number }}"
           $config = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
           $config.version = $version
           $config.bundle | Add-Member -NotePropertyName createUpdaterArtifacts -NotePropertyValue $true -Force
