@@ -19,6 +19,11 @@ use crate::error::{AppError, AppResult};
 use crate::launcher::run::Request;
 use crate::providers::Providers;
 
+// Not re-exported: `generate_handler!` needs the hidden items the
+// `#[tauri::command]` macro generates beside each function, and a `pub use`
+// does not carry those. The registration in `lib.rs` names the full path.
+pub mod voicelab;
+
 #[tauri::command]
 pub fn app_info(providers: State<'_, Providers>) -> AppInfo {
     let awareness = crate::dpi_awareness();

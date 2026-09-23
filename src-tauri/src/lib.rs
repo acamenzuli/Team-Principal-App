@@ -28,6 +28,7 @@ pub mod settings;
 pub mod snapshots;
 pub mod startup;
 pub mod updates;
+pub mod voicelab;
 pub mod window;
 
 /// Which milestone this build represents. Shown in the UI and in diagnostics so
@@ -186,6 +187,22 @@ pub fn run() {
             app.manage(launcher::run::ActiveRun::default());
             app.manage(display::confirm::PendingChange::default());
 
+            // The Voice Lab's service supervisor. It owns a child process
+            // holding several gigabytes of VRAM, so it is stopped when idle
+            // and — through its Job Object — cannot outlive this one.
+            let supervisor = std::sync::Arc::new(voicelab::service::Supervisor::default());
+            app.manage(ipc::voicelab::VoiceLabState::new(supervisor));
+            {
+                let handle = app.handle().clone();
+                std::thread::Builder::new()
+                    .name("voicelab-idle".into())
+                    .spawn(move || loop {
+                        std::thread::sleep(std::time::Duration::from_secs(60));
+                        ipc::voicelab::tick(&handle);
+                    })
+                    .ok();
+            }
+
             // The panic hotkey owns its own thread and message loop. Registered
             // last so everything it might need already exists, and kept alive
             // for the life of the process.
@@ -318,6 +335,13 @@ pub fn run() {
             ipc::fit_rig,
             ipc::parse_length,
             ipc::solve_curvature,
+            ipc::voicelab::voicelab_requirements,
+            ipc::voicelab::voicelab_module,
+            ipc::voicelab::voicelab_install_module,
+            ipc::voicelab::voicelab_remove_module,
+            ipc::voicelab::voicelab_service,
+            ipc::voicelab::voicelab_start_service,
+            ipc::voicelab::voicelab_stop_service,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Team Principal");

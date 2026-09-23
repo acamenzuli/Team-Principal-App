@@ -27,3 +27,7 @@ dist-ssr
 # CUDA environment, model weights and a sandbox copy of the CrewChief sounds
 # folder. Selected with TP_VOICELAB_HOME; never committed.
 .voicelab-dev/
+
+# Python bytecode and test caches from the voice service.
+__pycache__/
+.pytest_cache/

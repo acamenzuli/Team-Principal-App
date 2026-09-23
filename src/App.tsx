@@ -11,6 +11,7 @@ import { Recovery } from "./onboarding/Recovery";
 import { ScreenSetup } from "./screen/ScreenSetup";
 import { Settings } from "./settings/Settings";
 import { WindowControl } from "./windowctl/WindowControl";
+import { VoiceLab } from "./voicelab/VoiceLab";
 import { UpdateStrip } from "./updates/UpdateStrip";
 import {
   appInfo,
@@ -26,7 +27,16 @@ import {
 } from "./ipc";
 import "./app.css";
 
-type View = "home" | "rig" | "screen" | "devices" | "games" | "adapters" | "windows" | "settings";
+type View =
+  | "home"
+  | "rig"
+  | "screen"
+  | "devices"
+  | "games"
+  | "adapters"
+  | "windows"
+  | "voice"
+  | "settings";
 
 export function App() {
   const [info, setInfo] = useState<AppInfo | null>(null);
@@ -155,6 +165,9 @@ export function App() {
           <Tab id="windows" current={view} onSelect={setView}>
             Windows
           </Tab>
+          <Tab id="voice" current={view} onSelect={setView}>
+            Voice Lab
+          </Tab>
           <Tab id="settings" current={view} onSelect={setView}>
             Settings
           </Tab>
@@ -215,6 +228,12 @@ export function App() {
           ))}
         {view === "adapters" && <Adapters />}
         {view === "windows" && <WindowControl />}
+        {view === "voice" &&
+          (prefs ? (
+            <VoiceLab prefs={prefs} onChange={updatePrefs} />
+          ) : (
+            <p className="note">Loading…</p>
+          ))}
         {view === "screen" &&
           (prefs ? <ScreenSetup unit={prefs.units} /> : <p className="note">Loading…</p>)}
         {view === "settings" &&

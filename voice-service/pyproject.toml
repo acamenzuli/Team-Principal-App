@@ -72,3 +72,9 @@ torchaudio = { index = "pytorch-cu126" }
 name = "pytorch-cu126"
 url = "https://download.pytorch.org/whl/cu126"
 explicit = true
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

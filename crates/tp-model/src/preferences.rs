@@ -67,6 +67,11 @@ pub struct Preferences {
     /// rig, and they are the one who has to recognise the row.
     #[serde(default)]
     pub device_aliases: BTreeMap<String, String>,
+    /// The Voice Lab. A whole section rather than loose fields, and every
+    /// one of them defaulted, so a preferences file written by an older
+    /// build loads unchanged and needs no migration.
+    #[serde(default)]
+    pub voice_lab: crate::voicelab::VoiceLabSettings,
 }
 
 impl Default for Preferences {
@@ -83,6 +88,7 @@ impl Default for Preferences {
             library: LibraryView::default(),
             device_aliases: BTreeMap::new(),
             input_aliases: BTreeMap::new(),
+            voice_lab: crate::voicelab::VoiceLabSettings::default(),
         }
     }
 }

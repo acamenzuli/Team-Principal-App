@@ -3921,8 +3921,10 @@ name = "team-principal"
 version = "0.1.0"
 dependencies = [
  "png 0.17.16",
+ "reqwest",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",

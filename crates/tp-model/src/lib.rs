@@ -33,6 +33,7 @@ pub mod rig;
 pub mod topology;
 pub mod units;
 pub mod vdf;
+pub mod voicelab;
 pub mod window;
 pub mod xml;
 
@@ -71,6 +72,12 @@ pub use topology::{
     TopologyPreview, TopologyProblem,
 };
 pub use units::*;
+pub use voicelab::{
+    check_requirements, make_token, nvidia_driver_from_windows, parse_driver,
+    parse_service_announcement, race_pauses_generation, uv_download_url, GpuInfo, GpuVendor,
+    ModuleStage, ModuleStatus, ServiceInfo, ServiceState, VoiceLabRequirements, VoiceLabSettings,
+    PYTHON_VERSION, UV_SHA256, UV_VERSION,
+};
 pub use window::{
     borderless_ex_style, borderless_style, capture, client_from_outer, has_drifted, is_borderless,
     outer_from_client, pick_capture, pick_target, title_matches, CaptureChoice, CapturedLayout,

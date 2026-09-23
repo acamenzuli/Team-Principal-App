@@ -1075,6 +1075,15 @@ fn publish_state(app: &AppHandle, state: ReadyState) {
     if let Err(e) = app.emit(STATE_EVENT, &state) {
         tracing::debug!(error = %e, "could not publish the launch state");
     }
+    // One GPU, two things that want it. A voice pack being generated pauses
+    // while a session is in flight and picks up again afterwards; the rule
+    // itself is `tp_model::race_pauses_generation`, tested there.
+    use tauri::Manager;
+    if let Some(voicelab) = app.try_state::<crate::ipc::voicelab::VoiceLabState>() {
+        voicelab
+            .supervisor
+            .set_racing(app, tp_model::race_pauses_generation(state));
+    }
 }
 
 /// Evaluate a gate, resolving peripheral checks against the watch thread.

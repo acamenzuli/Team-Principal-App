@@ -45,6 +45,14 @@ import type { InputFrame } from "./bindings/InputFrame";
 import type { InputKind } from "./bindings/InputKind";
 import type { InputStatus } from "./bindings/InputStatus";
 import type { LicenceState } from "./bindings/LicenceState";
+import type { GpuInfo } from "./bindings/GpuInfo";
+import type { GpuVendor } from "./bindings/GpuVendor";
+import type { ModuleStage } from "./bindings/ModuleStage";
+import type { ModuleStatus } from "./bindings/ModuleStatus";
+import type { ServiceInfo } from "./bindings/ServiceInfo";
+import type { ServiceState } from "./bindings/ServiceState";
+import type { VoiceLabRequirements } from "./bindings/VoiceLabRequirements";
+import type { VoiceLabSettings } from "./bindings/VoiceLabSettings";
 import type { Tier } from "./bindings/Tier";
 import type { FixAction } from "./bindings/FixAction";
 import type { InstalledGameInfo } from "./bindings/InstalledGameInfo";
@@ -128,6 +136,14 @@ export type {
   InstalledGameInfo,
   LicenceState,
   Tier,
+  GpuInfo,
+  GpuVendor,
+  ModuleStage,
+  ModuleStatus,
+  ServiceInfo,
+  ServiceState,
+  VoiceLabRequirements,
+  VoiceLabSettings,
   IpcError,
   Necessity,
   PendingSession,
@@ -610,6 +626,51 @@ export const revealFile = (path: string) => invoke<void>("reveal_file", { path }
  * JavaScript, so anything the UI can see, anyone can read.
  */
 export const licenceState = () => invoke<LicenceState>("licence_state");
+
+// ----------------------------------------------------------------- voice lab
+
+/**
+ * What this machine has, and whether it is enough to run the Voice Lab.
+ *
+ * Read from DXGI and the registry every time rather than remembered: a
+ * driver update between two openings of the tab is exactly the case where a
+ * cached "no" would be wrong.
+ */
+export const voicelabRequirements = () => invoke<VoiceLabRequirements>("voicelab_requirements");
+
+/** What of the optional module is on disk, checked rather than remembered. */
+export const voicelabModule = () => invoke<ModuleStatus>("voicelab_module");
+
+/**
+ * Download and build the module — Python, the environment, the models.
+ *
+ * Returns as soon as the work is under way; progress arrives on
+ * `voicelab://module`. Every stage skips what is already there, so pressing
+ * it again after a failure continues rather than starting over.
+ */
+export const voicelabInstallModule = () => invoke<ModuleStatus>("voicelab_install_module");
+
+/** Delete the module. Recordings and packs are kept unless `keepWork` is false. */
+export const voicelabRemoveModule = (keepWork: boolean) =>
+  invoke<ModuleStatus>("voicelab_remove_module", { keepWork });
+
+/** Where the service is and the token for talking to it. */
+export const voicelabService = () => invoke<ServiceInfo>("voicelab_service");
+
+/** Start it. Resolves when it answers `/health`, not when the process spawns. */
+export const voicelabStartService = () => invoke<ServiceInfo>("voicelab_start_service");
+
+export const voicelabStopService = () => invoke<ServiceInfo>("voicelab_stop_service");
+
+/** Progress while the module is being built. */
+export function onVoicelabModule(handler: (status: ModuleStatus) => void): Promise<UnlistenFn> {
+  return listen<ModuleStatus>("voicelab://module", (e) => handler(e.payload));
+}
+
+/** The service starting, becoming ready, stopping, or pausing for a race. */
+export function onVoicelabService(handler: (info: ServiceInfo) => void): Promise<UnlistenFn> {
+  return listen<ServiceInfo>("voicelab://service", (e) => handler(e.payload));
+}
 
 
 

@@ -4,6 +4,7 @@ import type { LengthUnit } from "./LengthUnit";
 import type { LibraryView } from "./LibraryView";
 import type { TeamBranding } from "./TeamBranding";
 import type { UpdatePolicy } from "./UpdatePolicy";
+import type { VoiceLabSettings } from "./VoiceLabSettings";
 
 export type Preferences = { schemaVersion: number, 
 /**
@@ -58,4 +59,10 @@ inputAliases: { [key in string]?: string },
  * user's name always wins over the catalog and over Windows: it is their
  * rig, and they are the one who has to recognise the row.
  */
-deviceAliases: { [key in string]?: string }, };
+deviceAliases: { [key in string]?: string }, 
+/**
+ * The Voice Lab. A whole section rather than loose fields, and every
+ * one of them defaulted, so a preferences file written by an older
+ * build loads unchanged and needs no migration.
+ */
+voiceLab: VoiceLabSettings, };

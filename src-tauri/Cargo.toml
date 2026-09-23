@@ -43,6 +43,13 @@ png = { version = "0.17", default-features = false }
 tauri-plugin-updater = { version = "2.11.0", default-features = false, features = [
     "native-tls",
 ] }
+# The Voice Lab fetches uv from its GitHub release and checks its SHA-256
+# before running it, and talks to the local service over HTTP. Both crates are
+# already in the tree as updater dependencies, so naming them costs nothing to
+# compile; naming them is what makes it legal to `use` them. `native-tls` for
+# the same reason as above.
+reqwest = { version = "0.13", default-features = false, features = ["json", "native-tls"] }
+sha2 = "0.10"
 
 # Win32. Only compiled on Windows; every call site is behind a provider trait
 # so the rest of the app is testable without it.
@@ -54,11 +61,17 @@ features = [
     "Win32_Devices_DeviceAndDriverInstallation",
     "Win32_Devices_HumanInterfaceDevice",
     "Win32_Graphics_Gdi",
+    # Enumerating display adapters for the Voice Lab's GPU check: name, vendor
+    # and video memory, without a third-party tool or a WMI query.
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Dxgi_Common",
     "Win32_System_Com",
     "Win32_System_Threading",
     "Win32_System_JobObjects",
     "Win32_System_LibraryLoader",
     "Win32_Security",
+    # BCryptGenRandom, for the Voice Lab service's per-session token.
+    "Win32_Security_Cryptography",
     "Win32_Storage_FileSystem",
     "Win32_System_Registry",
     "Win32_System_IO",
