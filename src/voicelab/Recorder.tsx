@@ -315,14 +315,27 @@ export function Recorder({
                     </div>
 
                     {verdict && (
-                      <p className={verdict.analysis.ok ? "note" : "note note--fail"}>
-                        <span aria-hidden="true">{verdict.analysis.ok ? "●" : "■"}</span>{" "}
-                        {verdict.analysis.ok
-                          ? `Kept — ${verdict.analysis.speech_s.toFixed(1)}s of speech${
-                              verdict.analysis.snr_db ? `, ${Math.round(verdict.analysis.snr_db)} dB above the room` : ""
-                            }.`
-                          : `Not kept: ${verdict.message}.`}
-                      </p>
+                      <>
+                        <p className={verdict.analysis.ok ? "note" : "note note--fail"}>
+                          <span aria-hidden="true">{verdict.analysis.ok ? "●" : "■"}</span>{" "}
+                          {verdict.analysis.ok
+                            ? `Kept — ${verdict.analysis.speech_s.toFixed(1)}s of speech${
+                                verdict.analysis.snr_db
+                                  ? `, ${Math.round(verdict.analysis.snr_db)} dB above the room`
+                                  : ""
+                              }.`
+                            : `Not kept: ${verdict.message}.`}
+                        </p>
+                        {/* A take can be kept and still be worth improving —
+                            a noisy room makes every generated clip worse, so
+                            say so rather than burying it in a number. */}
+                        {verdict.analysis.ok && verdict.analysis.problems.length > 0 && (
+                          <p className="note">
+                            <span aria-hidden="true">▲</span> {verdict.message}. Recording it again
+                            in a quieter moment would improve the whole pack.
+                          </p>
+                        )}
+                      </>
                     )}
                   </li>
                 );

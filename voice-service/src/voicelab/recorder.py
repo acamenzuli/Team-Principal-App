@@ -258,15 +258,27 @@ def speech_segments(audio: np.ndarray, sr: int, min_silence_ms: int = SPLIT_PAUS
     return [(s["start"] / 16000, s["end"] / 16000) for s in stamps]
 
 
-def analyse_take(audio: np.ndarray, sr: int) -> tuple[np.ndarray, TakeAnalysis]:
-    """Clean a raw take and say what is wrong with it. Returns (cleaned, analysis)."""
+def analyse_take(
+    audio: np.ndarray,
+    sr: int,
+    segments: list[tuple[float, float]] | None = None,
+) -> tuple[np.ndarray, TakeAnalysis]:
+    """Clean a raw take and say what is wrong with it. Returns (cleaned, analysis).
+
+    ``segments`` is where the speech is, in seconds. It defaults to asking
+    the voice activity detector, and is passed in by the tests: the detector
+    is a trained model with its own opinion about what speech sounds like,
+    and the judgements made *about* a take — too short, too noisy, clipped —
+    are this module's own and deserve to be tested without one.
+    """
     x = np.asarray(audio, dtype=np.float32)
     duration = len(x) / sr if sr else 0.0
     problems: list[str] = []
     clipped_ratio = float(np.mean(np.abs(x) >= 0.99)) if len(x) else 0.0
     peak = A.peak_dbfs(x) if len(x) else -120.0
 
-    segments = speech_segments(x, sr) if len(x) else []
+    if segments is None:
+        segments = speech_segments(x, sr) if len(x) else []
     speech_s = sum(e - s for s, e in segments)
     if not segments:
         problems.append("no_speech")
