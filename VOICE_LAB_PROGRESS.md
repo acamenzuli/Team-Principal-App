@@ -5,7 +5,16 @@ on the owner's desktop (not in the repo); the design is
 `docs/design/0009-voice-lab.md`. A fresh session resumes from those two plus
 this file.
 
-Branch: `feature/voice-lab`. Nothing merged, tagged or published.
+Merged into `claude/sim-racing-launcher-display-i60v81` and released as
+**v0.2.0** on 2026-09-26, at the owner's instruction — his earlier written
+spec said to stop at a ready branch, and he overrode it after being shown
+what had and had not been tested. The GitHub release is created as a draft
+by the release workflow and has to be published by hand; until somebody
+presses that button, no installed copy can see it.
+
+**Released without: a real recorded voice, CrewChief having played a pack,
+or the module download having been run from clean.** Those three are still
+the first things to test, and the version still starts with a zero.
 
 ## Status
 
