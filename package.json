@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "clean:service": "node scripts/clean-service.mjs",
+    "prebundle": "npm run clean:service && npm run build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "tauri": "tauri"
